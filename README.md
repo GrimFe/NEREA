@@ -17,7 +17,7 @@ To install the package, clone the repository and use pip to install the dependen
 git clone https://github.com/GrimFe/PSICHE.git
 cd PSICHE
 pip install -r requirements.txt
-
+```
 ## Examples
 
 PSICHE comes with examples in the docstrings and test that can serve a similar purpose.
