@@ -1,0 +1,10 @@
+.idea
+.pytest_cache
+.coverage
+__pycache__/
+.spyproject/
+tmp.txt
+debug.py
+.vscode/
+tests/__pycache__/
+tests/Test*

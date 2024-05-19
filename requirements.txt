@@ -1,0 +1,4 @@
+numpy==1.26.4
+pandas==2.2.2
+pytest==8.2.0
+serpentTools==0.10.1
