@@ -50,5 +50,6 @@ class EffectiveMass:
         >>> eff_mass = EffectiveMass.from_xls('filename.xlsx')
         """
         _, deposit_id, detector_id = file.split('\\')[-1].replace('.xlsx','').replace('.xls','').split('_')
-        integral = pd.read_excel(file)
-        return cls(deposit_id, detector_id, integral, bins=4096)
+        integral = pd.read_excel(file, sheet_name='Meff')
+        bins = pd.read_excel(file, sheet_name='R', header=None).iloc[1]
+        return cls(deposit_id, detector_id, integral, bins=bins)
