@@ -10,7 +10,7 @@ def test_integral_v_u():
     s = np.array([1, 2, 3, 4])
     v, u = integral_v_u(s)
     assert v == pytest.approx(10, 1e-9)
-    assert u == pytest.approx(0.31622776601683794, rel=1e-9)
+    assert u == pytest.approx(0.31622776601683794 * v, rel=1e-9)
 
 def test_ratio_v_u():
     v1, u1, v2, u2 = 10, 1, 5, 0.5
@@ -29,6 +29,7 @@ def test_ratio_uncertainty():
 def test_make_df():
     df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY)
     expected_df = pd.DataFrame({'value': [EXPECTED_RATIO],
-                                'uncertainty': [EXPECTED_UNCERTAINTY]},
+                                'uncertainty': [EXPECTED_UNCERTAINTY],
+                                'uncertainty [%]': [EXPECTED_UNCERTAINTY / EXPECTED_RATIO * 100]},
                                 index=['value'])
     pd.testing.assert_frame_equal(df, expected_df)

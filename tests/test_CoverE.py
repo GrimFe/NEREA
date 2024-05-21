@@ -50,11 +50,11 @@ def fission_fragment_spectrum_2(sample_spectrum_data):
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    return EffectiveMass(deposit_id="D1", detector_id="C1", integral=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
-    return EffectiveMass(deposit_id="D2", detector_id="C2", integral=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -74,7 +74,7 @@ def sample_spectral_index(rr_1, rr_2):
 
 @pytest.fixture
 def sample_c_data():
-    return pd.DataFrame({'value': 1.01, 'uncertainty': .5}, index=['value'])
+    return pd.DataFrame({'value': 1.01, 'uncertainty': .05}, index=['value'])
 
 @pytest.fixture
 def sample_c(sample_c_data):
@@ -85,9 +85,16 @@ def sample_ce(sample_c, sample_spectral_index):
     return CoverE(sample_c, sample_spectral_index)
 
 def test_compute(sample_ce):
-    expected_df = pd.DataFrame({'value': 1.01, 'uncertainty': 0.50669436}, index=['value'])
+    expected_df = pd.DataFrame({'value': 1.01,
+                                'uncertainty': 0.6673356971968133,
+                                'uncertainty [%]': 66.07284130661519},
+                                index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_ce.compute(), check_exact=False, atol=0.00001)
 
 def test_minus_one_per_cent(sample_ce):
-    expected_df = pd.DataFrame({'value': 1., 'uncertainty': 50.66943608}, index=['value'])
+    expected_df = pd.DataFrame({'value': 1.,
+                                'uncertainty': 66.73356971968133,
+                                'uncertainty [%]': 6673.356971968127},
+                                index=['value'])
+    # such large uncertainties come from huge (65 %) uncertainties on E.
     pd.testing.assert_frame_equal(expected_df, sample_ce.minus_one_percent(), check_exact=False, atol=0.00001)

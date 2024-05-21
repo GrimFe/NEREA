@@ -49,11 +49,11 @@ def sample_spectrum_2(sample_spectrum_data):
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    return EffectiveMass(deposit_id="D1", detector_id="C1", integral=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
-    return EffectiveMass(deposit_id="D2", detector_id="C2", integral=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -75,5 +75,7 @@ def test_deposit_ids(si):
     assert si.deposit_ids == ['D1', 'D2']
 
 def test_compute(si):
-    expected_df = pd.DataFrame({'value': 1., 'uncertainty': 0.08127968}, index= ['value'])
+    expected_df = pd.DataFrame({'value': 1.,
+                                'uncertainty': 0.6588712284729072,
+                                'uncertainty [%]': 65.88712284729073}, index= ['value'])
     pd.testing.assert_frame_equal(si.compute(), expected_df, check_exact=False, atol=0.00001)

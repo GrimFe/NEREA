@@ -41,7 +41,7 @@ def fission_fragment_spectrum(sample_spectrum_data):
 
 @pytest.fixture
 def effective_mass(sample_integral_data):
-    return EffectiveMass(deposit_id="D", detector_id="C", integral=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="D", detector_id="C", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -67,9 +67,17 @@ def test_reaction_rate_deposit_id(rr):
     assert rr.deposit_id == "D"
 
 def test_per_unit_mass(rr):
-    expected_series = pd.Series([14., 14., 1.01045977,  0.05807369], index=['channel fission fragment spectrum', 'channel effective mass', 'value', 'uncertainty'], name=4)
-    pd.testing.assert_series_equal(expected_series, rr.per_unit_mass(ch_tolerance=.5))
+    expected_series = pd.Series([14., 14., 1.0104597701149425, 0.3457126044446661],
+                                index=['channel fission fragment spectrum',
+                                       'channel effective mass',
+                                       'value',
+                                       'uncertainty'], name=4)
+    pd.testing.assert_series_equal(expected_series,
+                                   rr.per_unit_mass(ch_tolerance=.5),
+                                   check_exact=False, atol=0.00001)
 
 def test_compute(rr):
-    expected_df = pd.DataFrame({'value': 0.010104597701149425,'uncertainty': 0.0005807457360837471}, index=['value'])
+    expected_df = pd.DataFrame({'value': 0.010104597701149425,
+                                'uncertainty': 0.004707654400802892,
+                                'uncertainty [%]': 46.58923135819038}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr.compute(), check_exact=False, atol=0.00001)

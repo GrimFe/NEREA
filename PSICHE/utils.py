@@ -24,7 +24,7 @@ def integral_v_u(s):
     >>> s = np.array([1, 2, 3, 4])
     >>> v, u = integral_v_u(s)
     >>> print(f"Sum: {v}, Uncertainty: {u}")
-    Sum: 10, Uncertainty: 0.31622776601683794
+    Sum: 10, Uncertainty: 3.1622776601683794
     """
     v = s.sum()
     u = np.sqrt(v)
@@ -39,16 +39,16 @@ def ratio_uncertainty(n, un, d, ud):
     n : float
         The value of the numerator.
     un : float
-        The uncertainty of the numerator.
+        The absolute uncertainty of the numerator.
     d : float
         The value of the denominator.
     ud : float
-        The uncertainty of the denominator.
+        The absolute uncertainty of the denominator.
 
     Returns
     -------
     float
-        The uncertainty of the ratio.
+        The absolute uncertainty of the ratio.
 
     Examples
     --------
