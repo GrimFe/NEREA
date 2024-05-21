@@ -7,7 +7,7 @@ __all__ = ["EffectiveMass"]
 class EffectiveMass:
     deposit_id: str
     detector_id: str
-    integral: pd.DataFrame
+    data: pd.DataFrame
     bins: int
 
     @property
@@ -27,6 +27,21 @@ class EffectiveMass:
         >>> channel = eff_mass.R_channel
         """
         return int(self.integral.channel[0] / 0.15)
+
+    @property
+    def integral(self):
+        """
+        Computes the EffectiveMass values. Alias for self.data.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the EffectiveMass values.
+
+        Examples
+        --------
+        """
+        return self.data
 
     @classmethod
     def from_xls(cls, file: str):
