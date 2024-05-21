@@ -197,12 +197,12 @@ class PowerMonitors:
         """
         ref = self.monitors[0].data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
                                             ).agg('sum').reset_index()
-        ref['uncertainty'] = np.sqrt(ref['value'])
+        ref['uncertainty'] = np.sqrt(ref['value'])  # absolute
         ref['value'] = ref['value'] / timebase
         for monitor in self.monitors[1:]:
             compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
                                             ).agg('sum').reset_index()
-            compute['uncertainty'] = np.sqrt(compute['value'])
+            compute['uncertainty'] = np.sqrt(compute['value'])  # absolute
             compute['value'] = compute['value'] / timebase
             # filtering noise below 100 counts in time
             start = max(ref.query('value >= 100').Time.min(), compute.query('value >= 100').Time.min())
@@ -210,7 +210,7 @@ class PowerMonitors:
             qs = "Time >= @start and Time <= @end"
             v, u = ratio_v_u(compute.query(qs), ref.query(qs))
             # tolerance is scalar, therefore it is computed as average uncertainty on the ratio
-            tol = np.mean(sigma * u)
+            tol = np.mean(sigma * u)  # absolute
             if not (np.isclose(v, np.roll(v, shift=1), atol=tol)).all():
                 raise Exception(f"Power monitor {monitor.monitor_id} inconsistent with {self.monitors[0].monitor_id}")
 

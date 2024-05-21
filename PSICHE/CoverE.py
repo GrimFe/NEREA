@@ -42,7 +42,7 @@ class C:
         ## works with relative uncertainties for the moment.
         ## Shall be homogenized with the rest of the API
         v, u = sts.read(file).detectors[detector_name].bins[0][-2:]
-        kwargs['data'] = _make_df(v, u)
+        kwargs['data'] = _make_df(v, u * v)  # Serpent detector uncertainty is relative
         return cls(**kwargs)
 
     @classmethod
@@ -69,12 +69,13 @@ class C:
         """
         v1, u1 = sts.read(file).detectors[detector_names[0]].bins[0][-2:]
         v2, u2 = sts.read(file).detectors[detector_names[1]].bins[0][-2:]
-        kwargs['data'] = _make_df(ratio_v_u(_make_df(v1, u1), _make_df(v2, u2)))
+        kwargs['data'] = _make_df(ratio_v_u(_make_df(v1, u1 * v1),  # Serpent detector uncertainty is relative
+                                            _make_df(v2, u2 * v2)))  # Serpent detector uncertainty is relative
         return cls(**kwargs)
 
     def compute(self):
         """
-        Computes the cover-e value.
+        Computes the cover-e value. Alias for self.data.
 
         Returns
         -------

@@ -15,7 +15,7 @@ def integral_v_u(s):
     v : float
         The sum of the series.
     u : float
-        The uncertainty of the sum, calculated as the inverse of the square root of the sum.
+        The absolute uncertainty of the sum, calculated as the inverse of the square root of the sum.
 
     Examples
     --------
@@ -27,7 +27,7 @@ def integral_v_u(s):
     Sum: 10, Uncertainty: 0.31622776601683794
     """
     v = s.sum()
-    u = 1 / np.sqrt(v)
+    u = np.sqrt(v)
     return v, u
 
 def ratio_uncertainty(n, un, d, ud):
@@ -122,4 +122,4 @@ def _make_df(v, u):
             value  uncertainty
     value    10.0          0.5
     """
-    return pd.DataFrame({'value': v, 'uncertainty': u}, index=['value'])
+    return pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': u / v * 100}, index=['value'])
