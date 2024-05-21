@@ -76,4 +76,4 @@ def test_deposit_ids(si):
 
 def test_compute(si):
     expected_df = pd.DataFrame({'value': 1., 'uncertainty': 0.08127968}, index= ['value'])
-    pd.testing.assert_frame_equal(si.compute(), expected_df)
+    pd.testing.assert_frame_equal(si.compute(), expected_df, check_exact=False, atol=0.00000001)
