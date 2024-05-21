@@ -7,4 +7,4 @@ tmp.txt
 debug.py
 .vscode/
 tests/__pycache__/
-tests/Test*
+tests/old/
