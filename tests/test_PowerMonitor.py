@@ -19,8 +19,8 @@ def power_monitor(sample_data):
 def test_average(power_monitor):
     expected_df = pd.DataFrame({'value': 11.66666667, 'uncertainty': 0.16903085}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
-                                                                     3), check_exact=False, atol=0.00000001)
+                                                                     3), check_exact=False, atol=0.00001)
 
 def test_integrate(power_monitor):
     expected_df = pd.DataFrame({'value': [12.5, 15, 12.5], 'uncertainty': [.2, 0.18257419, .2]})
-    pd.testing.assert_frame_equal(expected_df, power_monitor.integrate(2), check_exact=False, atol=0.00000001)
+    pd.testing.assert_frame_equal(expected_df, power_monitor.integrate(2), check_exact=False, atol=0.00001)

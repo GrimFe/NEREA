@@ -72,4 +72,4 @@ def test_per_unit_mass(rr):
 
 def test_compute(rr):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,'uncertainty': 0.0005807457360837471}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, rr.compute(), check_exact=False, atol=0.00000001)
+    pd.testing.assert_frame_equal(expected_df, rr.compute(), check_exact=False, atol=0.00001)

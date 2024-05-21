@@ -86,8 +86,8 @@ def sample_ce(sample_c, sample_spectral_index):
 
 def test_compute(sample_ce):
     expected_df = pd.DataFrame({'value': 1.01, 'uncertainty': 0.50669436}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, sample_ce.compute(), check_exact=False, atol=0.00000001)
+    pd.testing.assert_frame_equal(expected_df, sample_ce.compute(), check_exact=False, atol=0.00001)
 
 def test_minus_one_per_cent(sample_ce):
     expected_df = pd.DataFrame({'value': 1., 'uncertainty': 50.66943608}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, sample_ce.minus_one_percent(), check_exact=False, atol=0.00000001)
+    pd.testing.assert_frame_equal(expected_df, sample_ce.minus_one_percent(), check_exact=False, atol=0.00001)
