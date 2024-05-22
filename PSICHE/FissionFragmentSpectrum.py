@@ -109,7 +109,7 @@ class FissionFragmentSpectrum:
         if bins > max_bins:
             warnings.warn(f"The maximum amount of allowed bins is {max_bins}. Bins set to {max_bins}.")
         df = self.smooth.copy()
-        bins_ = min(bins, max_bins)
+        bins_ = int(min(bins, max_bins))
         df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
         return df.groupby('bins', as_index=False
                             ).agg({'counts': 'sum'}).drop('bins', axis=1
