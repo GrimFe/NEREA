@@ -19,7 +19,6 @@ class SpectralIndex:
         """
         Checks the consistency of:
             - campaign_id
-            - experiment_id
             - location_id
         among `self.numerator` and `self.denominator`.
 
@@ -28,7 +27,7 @@ class SpectralIndex:
         UserWarning
             If there are inconsistencies among the specified attributes.
         """
-        should = ['campaign_id', 'experiment_id', 'location_id']
+        should = ['campaign_id', 'location_id']
         for attr in should:
             if not getattr(self.numerator, attr
                            ) == getattr(self.denominator, attr):
