@@ -172,6 +172,7 @@ class FissionFragmentSpectrum:
             start, life, real = f.readlines()
         data = data.iloc[2:].reset_index(drop=True).reset_index()        
         data.columns = ['channel', 'counts']
+        data.channel += 1
         # GENIE overwrites the first two counts with time indications
         # Here two zeros are added at the beginning of the data
         data = pd.concat([pd.DataFrame({'channel': [-2, -1], 'counts': [0, 0]}),
