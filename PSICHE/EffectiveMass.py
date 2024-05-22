@@ -9,6 +9,23 @@ class EffectiveMass:
     detector_id: str
     data: pd.DataFrame
     bins: int
+    composition: pd.DataFrame = None
+
+    @property
+    def composition_(self) -> pd.DataFrame:
+        """
+        The material composition of the fission chamber.
+
+        Returns
+        -------
+        pd.DataFrame
+            the material composition nuclide by nuclide with
+            absolute uncertainty.
+        """
+        data = pd.DataFrame({'nuclide': [self.deposit_id],
+                             'share': [1],
+                             'uncertainty': [0]})
+        return data if self.composition is None else self.composition
 
     @property
     def R_channel(self) -> int:
@@ -67,4 +84,8 @@ class EffectiveMass:
         _, deposit_id, detector_id = file.split('\\')[-1].replace('.xlsx','').replace('.xls','').split('_')
         integral = pd.read_excel(file, sheet_name='Meff')
         bins = pd.read_excel(file, sheet_name='R', header=None).iloc[1]
-        return cls(deposit_id, detector_id, integral, bins=bins)
+        try:
+            composition = pd.read_excel(file, sheet_name='Composition')
+        except ValueError:
+            composition = None
+        return cls(deposit_id, detector_id, integral, bins=bins, composition=composition)
