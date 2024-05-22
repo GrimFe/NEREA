@@ -58,6 +58,7 @@ class ReactionRate:
         """
         Checks consistency of the R channels of `self.fission_fragment_spectrum` and
         `self.effective_mass` within a specified tolerance.
+        The check happens only if the binning of the two objects is the same.
         
         Parameters
         ----------
@@ -70,7 +71,11 @@ class ReactionRate:
         bool
             Indicating whether the relative difference between the R channels is within tolerance.
         """
-        return abs(self.fission_fragment_spectrum.R.channel - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
+        if self.fission_fragment_spectrum.data.channel.max() == self.effective_mass.bins:
+            check = abs(self.fission_fragment_spectrum.R.channel - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
+        else:
+            check = True
+        return check 
 
     @property
     def measurement_id(self) -> str:
