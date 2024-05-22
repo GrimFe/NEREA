@@ -83,7 +83,7 @@ class EffectiveMass:
         """
         _, deposit_id, detector_id = file.split('\\')[-1].replace('.xlsx','').replace('.xls','').split('_')
         integral = pd.read_excel(file, sheet_name='Meff')
-        bins = pd.read_excel(file, sheet_name='R', header=None).iloc[1]
+        bins = pd.read_excel(file, sheet_name='R', header=None).iloc[1][0]
         try:
             composition = pd.read_excel(file, sheet_name='Composition')
         except ValueError:
