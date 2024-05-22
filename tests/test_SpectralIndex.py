@@ -6,6 +6,7 @@ from PSICHE.PowerMonitor import PowerMonitor
 from PSICHE.SpectralIndex import SpectralIndex
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 @pytest.fixture
 def sample_spectrum_data():
@@ -49,11 +50,15 @@ def sample_spectrum_2(sample_spectrum_data):
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42)
+    data = pd.DataFrame({'a1': [0.1, 0.01], 'a2': [0.2, 0.02], 'D1': [0.7, 0.07]}).T.reset_index()
+    data.columns = ['nuclide', 'share', 'uncertainty']
+    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
-    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42)
+    data = pd.DataFrame({'b1': [0.15, 0.015], '12': [0.25, 0.025], 'D1': [0.6, 0.06]}).T.reset_index()
+    data.columns = ['nuclide', 'share', 'uncertainty']
+    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -71,6 +76,13 @@ def rr_2(sample_spectrum_2, effective_mass_2, power_monitor):
 def si(rr_1, rr_2):
     return SpectralIndex(rr_1, rr_2)
 
+@pytest.fixture
+def synthetic_one_g_xs_data():
+    data = pd.DataFrame({'a1': [0.07, 0.001], 'a2': [0.08, 0.002],
+                         'D1': [0.9, 0.003], 'D2': [0.6, 0.004]}).T.reset_index()
+    data.columns = ['nuclide', 'value', 'uncertainty']
+    return data.set_index('nuclide')
+
 def test_deposit_ids(si):
     assert si.deposit_ids == ['D1', 'D2']
 
@@ -79,3 +91,36 @@ def test_compute(si):
                                 'uncertainty': 0.6588712284729072,
                                 'uncertainty [%]': 65.88712284729073}, index= ['value'])
     pd.testing.assert_frame_equal(si.compute(), expected_df, check_exact=False, atol=0.00001)
+
+def test_compute_correction(si, synthetic_one_g_xs_data):
+    w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
+    x1, ux1, x2, ux2, xd, uxd = .07, .001, .08, .002, .6, .004
+    v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
+
+    W1, X1 = w1 / wd, x1 / xd
+    vW1, vX1 = (uw1 / wd) **2 + (w1 / wd **2 * uwd) **2, (ux1 / xd) **2 + (x1 / xd **2 * uxd) **2 
+    W2, X2 = w2 / wd, x2 / xd
+    vW2, vX2 = (uw2 / wd) **2 + (w2 / wd **2 * uwd) **2, (ux2 / xd) **2 + (x2 / xd **2 * uxd) **2
+    u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
+
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    pd.testing.assert_frame_equal(data, si._compute_correction(synthetic_one_g_xs_data))
+
+def test_compute_with_correction(si, synthetic_one_g_xs_data):
+    w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
+    x1, ux1, x2, ux2, xd, uxd = .07, .001, .08, .002, .6, .004
+    v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
+
+    W1, X1 = w1 / wd, x1 / xd
+    vW1, vX1 = (uw1 / wd) **2 + (w1 / wd **2 * uwd) **2, (ux1 / xd) **2 + (x1 / xd **2 * uxd) **2 
+    W2, X2 = w2 / wd, x2 / xd
+    vW2, vX2 = (uw2 / wd) **2 + (w2 / wd **2 * uwd) **2, (ux2 / xd) **2 + (x2 / xd **2 * uxd) **2
+    u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
+
+    v_ = 1 - v
+    u_ = np.sqrt(0.6588712284729072 **2 - u **2)
+
+    data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
+
+    pd.testing.assert_frame_equal(data, si.compute(synthetic_one_g_xs_data))
