@@ -165,10 +165,46 @@ class FissionFragmentSpectrum:
         return pd.concat(out, ignore_index=True)
 
     @classmethod
-    def from_TKA(cls, file: str):
+    def from_TKA(cls, file: str, **kwargs):
         """
-        Reads data from a TKA file and extracts metadata from the file name
-        to create a `FissionFragmentSpectrum` instance.
+        Reads data from a TKA file to create a `FissionFragmentSpectrum`
+        instance.
+
+        Parameters
+        ----------
+        file : str
+            TKA file path.
+        *args : Any
+            Positional arguments to be passed to the `FissionFragmentSpectrum()` initialization.
+        **kwargs : Any
+            Keyword arguments to be passed to the `FissionFragmentSpectrum()` initialization.
+
+        Returns
+        -------
+        FissionFragmentSpectrum
+            Fission fragment spectrum instance.
+
+        Examples
+        --------
+        >>> ffs = FissionFragmentSpectrum.from_TKA('filename.TKA', ...)
+        """
+        data = pd.read_csv(file, header=None)
+        data = data.iloc[2:].reset_index(drop=True).reset_index()        
+        data.columns = ['channel', 'counts']
+        data.channel += 1
+        # GENIE overwrites the first two counts with time indications
+        # Here two zeros are added at the beginning of the data
+        data = pd.concat([pd.DataFrame({'channel': [-2, -1], 'counts': [0, 0]}),
+                          data], ignore_index=True)
+        data['channel'] += 2
+        kwargs['data'] = data
+        return cls(**kwargs)
+
+    @classmethod
+    def from_formatted_TKA(cls, file: str):
+        """
+        Reads data from a formatted TKA file and extracts metadata from the
+        file name to create a `FissionFragmentSpectrum` instance.
         The filename is expected to be formatted as:
         {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA
 
@@ -184,19 +220,11 @@ class FissionFragmentSpectrum:
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum.from_TKA('filename.TKA')
+        >>> ffs = FissionFragmentSpectrum.from_TKA(f
+                    '{Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA')
         """
-        data = pd.read_csv(file, header=None)
         with open(file.replace('.TKA', '.txt'), 'r') as f:
             start, life, real = f.readlines()
-        data = data.iloc[2:].reset_index(drop=True).reset_index()        
-        data.columns = ['channel', 'counts']
-        data.channel += 1
-        # GENIE overwrites the first two counts with time indications
-        # Here two zeros are added at the beginning of the data
-        data = pd.concat([pd.DataFrame({'channel': [-2, -1], 'counts': [0, 0]}),
-                          data], ignore_index=True)
-        data['channel'] += 2
         campaign_id, experiment_id, detector_id, deposit_id, location_id, measurement_id = file.split('\\')[-1].split('_')
         dct = {
             'start_time': datetime.strptime(start, "%Y-%m-%d %H:%M:%S\n"),
@@ -208,9 +236,8 @@ class FissionFragmentSpectrum:
             'deposit_id': deposit_id,
             'location_id': location_id,
             'measurement_id': measurement_id.replace(".TKA", ""),
-            'data': data
         }
-        return cls(**dct)
+        return cls.from_TKA(file, **dct)
 
 
 @dataclass(slots=True)
