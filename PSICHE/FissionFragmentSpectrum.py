@@ -46,10 +46,16 @@ class FissionFragmentSpectrum:
         df['counts'] = df.rolling(10).mean()['counts'].fillna(0)
         return df
 
-    @property
-    def max(self) -> pd.DataFrame:
+    def get_max(self, bins: int=None) -> pd.DataFrame:
         """
         Finds the channel with the maximum count value in a DataFrame.
+
+        Parameters
+        ----------
+        bins : int, optional
+            Number of bins for rebinned spectrum.
+            Recommended values are 4096, 2048, 1024, 512.
+            Defaults to `None` for no rebinning.
 
         Returns
         -------
@@ -59,19 +65,26 @@ class FissionFragmentSpectrum:
         Examples
         --------
         >>> ffs = FissionFragmentSpectrum(...)
-        >>> max_data = ffs.max
+        >>> max_data = ffs.get_max(...)
         """
-        lst_ch = self.smooth[self.smooth.counts > 0].channel.max()
+        reb = self.rebin(bins)
+        lst_ch = reb[reb.counts > 0].channel.max()
         fst_ch = np.floor(lst_ch / 10)
-        data = self.smooth.set_index("channel").loc[fst_ch:lst_ch]
-        return pd.DataFrame({"channel": [data.counts.idxmax()], "counts": [data.counts.max()]})
+        df = reb.set_index("channel").loc[fst_ch:lst_ch]
+        return pd.DataFrame({"channel": [df.counts.idxmax()], "counts": [df.counts.max()]})
 
-    @property
-    def R(self) -> pd.DataFrame:
+    def get_R(self, bins: int=None) -> pd.DataFrame:
         """
         Filters data in channels above the channel of the spectrum maximum
         and returns the first row with counts <= than the maximum.
 
+        Parameters
+        ----------
+        bins : int, optional
+            Number of bins for rebinned spectrum.
+            Recommended values are 4096, 2048, 1024, 512.
+            Defaults to `None` for no rebinning.
+
         Returns
         -------
         pd.DataFrame
@@ -80,12 +93,13 @@ class FissionFragmentSpectrum:
         Examples
         --------
         >>> ffs = FissionFragmentSpectrum(...)
-        >>> r_data = ffs.R
+        >>> r_data = ffs.get_R(...)
         """
-        data = self.smooth.query("channel > @self.max.channel[0]")
-        return data[data.counts <= self.max.counts[0] / 2].iloc[0]
+        reb = self.rebin(bins)
+        data = reb.query("channel > @self.get_max(@bins).channel[0]")
+        return data[data.counts <= self.get_max(bins).counts[0] / 2].iloc[0]
     
-    def rebin(self, bins: int):
+    def rebin(self, bins: int=None):
         """
         Rebins the spectrum.
 
@@ -94,6 +108,7 @@ class FissionFragmentSpectrum:
         bins : int, optional
             Number of bins for rebinned spectrum.
             Recommended values are 4096, 2048, 1024, 512.
+            Defaults to `None` for no rebinning.
 
         Returns
         -------
@@ -105,17 +120,21 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> rebinned_data = ffs.rebin()
         """
-        max_bins = self.data.channel.max()
-        if bins > max_bins:
-            warnings.warn(f"The maximum amount of allowed bins is {max_bins}. Bins set to {max_bins}.")
-        df = self.smooth.copy()
-        bins_ = int(min(bins, max_bins))
-        df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
-        return df.groupby('bins', as_index=False
+        if bins is not None:
+            max_bins = self.data.channel.max()
+            if bins > max_bins:
+                warnings.warn(f"The maximum amount of allowed bins is {max_bins}. Bins set to {max_bins}.")
+            df = self.smooth.copy()
+            bins_ = int(min(bins, max_bins))
+            df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
+            df = df.groupby('bins', as_index=False
                             ).agg({'counts': 'sum'}).drop('bins', axis=1
                                                             ).assign(channel=range(1, bins_+1))
+        else:
+            df = self.data[['counts', 'channel']]
+        return df
 
-    def integrate(self, bins: int = None) -> pd.DataFrame:
+    def integrate(self, bins: int=None) -> pd.DataFrame:
         """
         Calculates the integral of data based on specified channels (as a function of R)
         and returns a DataFrame with channel, value, and uncertainty columns.
@@ -140,7 +159,7 @@ class FissionFragmentSpectrum:
         bins_ = self.data.channel.max() if bins is None else bins
         reb = self.rebin(bins_)
         for ch in np.array(range(15, 65, 5)) / 100:
-            ch_ = np.floor(ch * self.R.channel)
+            ch_ = np.floor(ch * self.get_R(bins_).channel)
             v, u = integral_v_u(reb.query("channel >= @ch_").counts)
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)

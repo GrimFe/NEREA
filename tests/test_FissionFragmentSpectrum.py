@@ -34,14 +34,14 @@ def test_smoothing(sample_spectrum):
     assert smoothed_data.query("channel == 10").counts.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
     assert smoothed_data.query("channel == 11").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
 
-def test_max(sample_spectrum):
-    max_data = sample_spectrum.max
+def test_get_max(sample_spectrum):
+    max_data = sample_spectrum.get_max()
     assert max_data["channel"][0] == 11
-    assert max_data["counts"][0] == 375.0
+    assert max_data["counts"][0] == 600
 
-def test_R(sample_spectrum):
-    expected_df = pd.Series([18.0, 174.4], index=['channel', 'counts'], name=17)
-    pd.testing.assert_series_equal(expected_df, sample_spectrum.R)
+def test_get_R(sample_spectrum):
+    expected_df = pd.Series([50, 12], index=['counts', 'channel'], name=11)
+    pd.testing.assert_series_equal(expected_df, sample_spectrum.get_R())
 
 def test_rebin(sample_spectrum):
     expected_df = pd.DataFrame({ "counts": [325.0, 2551.9], "channel": [1, 2]},
@@ -49,14 +49,17 @@ def test_rebin(sample_spectrum):
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2))
 
 def test_integrate(sample_spectrum):
-    expected_df = pd.DataFrame({'value': [2876.9, 2876.9, 2876.9000000000005, 2876.9000000000005,
-                                          2551.9, 1811.8999999999999, 1140.8999999999999, 587.6,
-                                          587.6, 193.8],
-                                'uncertainty': [53.63674114, 53.63674114, 53.63674114, 53.63674114,
-                                                50.51633399, 42.56641869, 33.77721125, 24.24046204,
-                                                24.24046204, 13.92120684],
-                                'uncertainty [%]': [1.86439366, 1.86439366, 1.86439366, 1.86439366,
-                                                    1.97955774, 2.34926975, 2.96057597, 4.12533391,
-                                                    4.12533391, 7.18328527],
-                                'channel':  [2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.,  9., 10.]})
+    expected_df = pd.DataFrame({'value': [2876.9, 2876.9, 2876.9, 2876.9, 2876.9,
+                                            2876.9, 2876.9, 2876.9, 2876.9, 2551.9],
+                                'uncertainty': [53.63674114, 53.63674114,
+                                                53.63674114, 53.63674114,
+                                                53.63674114, 53.63674114,
+                                                53.63674114, 53.63674114,
+                                                53.63674114, 50.51633399],
+                                'uncertainty [%]': [1.86439366, 1.86439366,
+                                                    1.86439366, 1.86439366,
+                                                    1.86439366, 1.86439366,
+                                                    1.86439366, 1.86439366,
+                                                    1.86439366, 1.97955774],
+                                'channel':  [1., 2., 2., 3., 3., 4., 4., 5., 5., 6.]})
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10), check_exact=False, atol=0.00001)

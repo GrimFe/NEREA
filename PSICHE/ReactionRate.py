@@ -49,9 +49,10 @@ class ReactionRate:
             raise Exception('Inconsitent experiments among FissionFragmentSpectrum and PowerMonitor')
         if not self._check_ch_equality():
             warnings.warn(f"""The channel values differ more than 1%; at spectrum half maximum they worth:
-                          measurement: {self.fission_fragment_spectrum.R.channel}
+                          measurement: {self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel}
                           calibration: {self.effective_mass.R_channel}
-                          relative difference (C-M)/C: {(self.fission_fragment_spectrum.R.channel - self.effective_mass.R_channel)
+                          relative difference (C-M)/C: {(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel
+                                                        - self.effective_mass.R_channel)
                                                         / self.effective_mass.R_channel * 100} %""")
 
     def _check_ch_equality(self, tolerance:float =0.01) -> bool:
@@ -63,8 +64,9 @@ class ReactionRate:
         Parameters
         ----------
         tolerance : float, optional
-            The acceptable relative difference between the `self.fission_fragment_spectrum.R.channel`
-            and `self.effective_mass.R.channel`, by default 0.01.
+            The acceptable relative difference between the R channel of
+            `self.fission_fragment_spectrum` and `self.effective_mass`.
+            Defaults to 0.01.
 
         Returns
         -------
@@ -72,7 +74,8 @@ class ReactionRate:
             Indicating whether the relative difference between the R channels is within tolerance.
         """
         if self.fission_fragment_spectrum.data.channel.max() == self.effective_mass.bins:
-            check = abs(self.fission_fragment_spectrum.R.channel - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
+            check = abs(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel
+            - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
         else:
             check = True
         return check 
