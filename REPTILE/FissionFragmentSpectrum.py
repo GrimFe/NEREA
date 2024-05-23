@@ -207,6 +207,7 @@ class FissionFragmentSpectrum:
         file name to create a `FissionFragmentSpectrum` instance.
         The filename is expected to be formatted as:
         {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA
+        Requires a text file with the same name with time information.
 
         Parameters
         ----------
@@ -309,11 +310,12 @@ class FissionFragmentSpectra(FissionFragmentSpectrum):
         return out
 
     @classmethod
-    def from_TKA(cls, files: Iterable[str]):
+    def from_formatted_TKA(cls, files: Iterable[str]):
         """
         Reads a list of files to create a FissionFragmentSpectra object.
         Each filename is expected to be formatted as:
         {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA
+        Each file requires a text file with the same name with time information.
 
         Parameters
         ----------
@@ -332,7 +334,7 @@ class FissionFragmentSpectra(FissionFragmentSpectrum):
         out = []
         data = []
         for file in files:
-            out.append(FissionFragmentSpectrum.from_TKA(file))
+            out.append(cls.from_formatted_TKA(file))
             data.append(out[-1].data.set_index('channel'))
         dct = {
             'start_time': min([ffs.start_time for ffs in out]),
