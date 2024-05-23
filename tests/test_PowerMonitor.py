@@ -18,14 +18,14 @@ def power_monitor(sample_data):
 
 def test_average(power_monitor):
     expected_df = pd.DataFrame({'value': 11.66666667,
-                                'uncertainty': 5.916079783099616,
-                                'uncertainty [%]': 50.709255283710995},
+                                'uncertainty': 1.9720265943665387,
+                                'uncertainty [%]': 16.903085094570333},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
                                                                      3), check_exact=False, atol=0.00001)
 
 def test_integrate(power_monitor):
     expected_df = pd.DataFrame({'value': [12.5, 15, 12.5],
-                                'uncertainty': [5., 5.47722558, 5.],
-                                'uncertainty [%]': [40., 36.51483717, 40.]})
+                                'uncertainty': [5. / 2, 5.47722558 / 2, 5. / 2],
+                                'uncertainty [%]': [40. / 2, 36.51483717 / 2, 40. / 2]})
     pd.testing.assert_frame_equal(expected_df, power_monitor.integrate(2), check_exact=False, atol=0.00001)

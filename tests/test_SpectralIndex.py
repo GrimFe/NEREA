@@ -88,8 +88,8 @@ def test_deposit_ids(si):
 
 def test_compute(si):
     expected_df = pd.DataFrame({'value': 1.,
-                                'uncertainty': 0.6588712284729072,
-                                'uncertainty [%]': 65.88712284729073}, index= ['value'])
+                                'uncertainty': 0.48591284785380806,
+                                'uncertainty [%]': 48.59128478538081}, index= ['value'])
     pd.testing.assert_frame_equal(si.compute(), expected_df, check_exact=False, atol=0.00001)
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
@@ -119,7 +119,7 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
 
     v_ = 1 - v
-    u_ = np.sqrt(0.6588712284729072 **2 - u **2)
+    u_ = np.sqrt(0.48591284785380806 **2 - u **2)
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
 
