@@ -84,6 +84,9 @@ def sample_c(sample_c_data):
 def sample_ce(sample_c, sample_spectral_index):
     return CoverE(sample_c, sample_spectral_index)
 
+def test_deposit_ids(sample_ce):
+    assert sample_ce.deposit_ids == ['D1', 'D2']
+
 def test_compute(sample_ce):
     expected_df = pd.DataFrame({'value': 1.01,
                                 'uncertainty': 0.6673356971968133,

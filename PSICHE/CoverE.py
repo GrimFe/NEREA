@@ -104,6 +104,19 @@ class CoverE:
         if not self.c.deposit_ids == self.e.deposit_ids:
             raise Exception("Inconsistent deposits between C and E.")
 
+    @property
+    def deposit_ids(self) -> list[str]:
+        """
+        The deposit IDs associated with the numerator and denominator.
+        Consistency check performed in `self._check_consistency()`.
+
+        Returns
+        -------
+        list[str]
+            A list containing the deposit IDs of the numerator and denominator.
+        """
+        return self.c.deposit_ids
+
     def compute(self, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the cover-e value.
