@@ -89,15 +89,14 @@ def test_deposit_ids(sample_ce):
 
 def test_compute(sample_ce):
     expected_df = pd.DataFrame({'value': 1.01,
-                                'uncertainty': 0.4933124088781438,
-                                'uncertainty [%]': 48.842812760212254},
+                                'uncertainty': 0.08323682675073317,
+                                'uncertainty [%]': 8.241269975320115},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_ce.compute(), check_exact=False, atol=0.00001)
 
 def test_minus_one_per_cent(sample_ce):
     expected_df = pd.DataFrame({'value': 1.,
-                                'uncertainty': 49.33124088781438,
-                                'uncertainty [%]': 4933.124088781434},
+                                'uncertainty': 8.323682675073316,
+                                'uncertainty [%]': 832.3682675073309},
                                 index=['value'])
-    # such large uncertainties come from huge (65 %) uncertainties on E.
     pd.testing.assert_frame_equal(expected_df, sample_ce.minus_one_percent(), check_exact=False, atol=0.00001)

@@ -67,7 +67,7 @@ def test_reaction_rate_deposit_id(rr):
     assert rr.deposit_id == "D"
 
 def test_per_unit_mass(rr):
-    expected_series = pd.Series([14., 14., 1.0104597701149425, 0.3457126044446661],
+    expected_series = pd.Series([14., 14., 1.0104597701149425, 0.03457126044446661],
                                 index=['channel fission fragment spectrum',
                                        'channel effective mass',
                                        'value',
@@ -78,6 +78,6 @@ def test_per_unit_mass(rr):
 
 def test_compute(rr):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,
-                                'uncertainty': 0.0034718616593829733,
-                                'uncertainty [%]': 34.359226978309486}, index=['value'])
+                                'uncertainty': 0.0004707654400802892,
+                                'uncertainty [%]': 4.658923135819038}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr.compute(), check_exact=False, atol=0.00001)

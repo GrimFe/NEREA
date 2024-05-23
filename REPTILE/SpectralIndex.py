@@ -138,7 +138,7 @@ class SpectralIndex:
                           " to be accounted for.")
         if one_g_xs_file is not None:
             read = pd.DataFrame({nuc: sts.read(det[1]).detectors[det[0]].bins[0][-2:]
-                                 } for nuc, det in one_g_xs_file).T
+                                 for nuc, det in one_g_xs_file.items()}).T
             read.columns = ['value', 'uncertainty']
             read.index.name = 'nuclide'
             # uncertainy is absolute

@@ -180,12 +180,11 @@ class ReactionRate:
         """
         ffs, em = self.fission_fragment_spectrum, self.effective_mass
         bins = em.bins
+        v, u = ratio_v_u(ffs.integrate(bins), em.integral)
         data = pd.DataFrame({'channel fission fragment spectrum': ffs.integrate(bins).channel,
                              'channel effective mass': em.integral.channel,
-                             'value': ffs.integrate(bins).value *\
-                                      ffs.real_time /\
-                                      ffs.life_time**2 /\
-                                      em.integral.value})
+                             'value': v * ffs.real_time / ffs.life_time**2,
+                             'uncertainty': u * ffs.real_time / ffs.life_time**2})
         # check where the values in the mass-normalized count rate converge withing tolerance
         close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
         if close_values.shape[0] == 0:
@@ -199,12 +198,7 @@ class ReactionRate:
                 / plateau['channel effective mass'] < ch_tolerance]
         if plateau.shape[0] == 0:
             raise Exception("No convergence found with the given tolerance on the channel.")
-        ch_ffs, ch_meff = plateau['channel fission fragment spectrum'].iloc[0], plateau['channel effective mass'].iloc[0]
-        u = ratio_uncertainty(ffs.integrate(bins).query("channel==@ch_ffs").value,
-                              ffs.integrate(bins).query("channel==@ch_ffs").uncertainty,
-                              em.integral.query("channel==@ch_meff").value,
-                              em.integral.query("channel==@ch_meff").uncertainty)
-        return plateau.assign(uncertainty=u).iloc[0]
+        return plateau.iloc[0]
 
     def compute(self, *args, **kwargs) -> pd.DataFrame:
         """
