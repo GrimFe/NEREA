@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 from datetime import datetime, timedelta
-from PSICHE.PowerMonitor import PowerMonitor
+from REPTILE.PowerMonitor import PowerMonitor
 
 @pytest.fixture
 def sample_data():

@@ -5,8 +5,8 @@ import serpentTools as sts
 import numpy as np
 import pandas as pd
 
-from PSICHE import SpectralIndex
-from PSICHE.utils import ratio_v_u, _make_df
+from REPTILE import SpectralIndex
+from REPTILE.utils import ratio_v_u, _make_df
 
 
 __all__ = ['C', 'CoverE']

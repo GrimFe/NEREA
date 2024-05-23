@@ -1,7 +1,7 @@
 
 import pytest
 import pandas as pd
-from PSICHE.EffectiveMass import EffectiveMass
+from REPTILE.EffectiveMass import EffectiveMass
 
 @pytest.fixture
 def sample_effective_mass():

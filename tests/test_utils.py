@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from PSICHE.utils import ratio_v_u, ratio_uncertainty, _make_df, integral_v_u
+from REPTILE.utils import ratio_v_u, ratio_uncertainty, _make_df, integral_v_u
 
 EXPECTED_RATIO = 2.0
 EXPECTED_UNCERTAINTY = 0.282842712474619

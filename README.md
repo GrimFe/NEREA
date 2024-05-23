@@ -1,6 +1,6 @@
-# PSICHE
+# REPTILE 
 
-PSICHE (Processor of Spectral Index: Calculation Homogenized Eexperiments) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
+REPTILE (Reactor Eexperiment Processing Tool for Integrated Light Evaluation) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
 
 ## Features
 
@@ -14,10 +14,10 @@ PSICHE (Processor of Spectral Index: Calculation Homogenized Eexperiments) is a 
 
 To install the package, clone the repository and use pip to install the dependencies:
 ```sh
-git clone https://github.com/GrimFe/PSICHE.git
-cd PSICHE
+git clone https://github.com/GrimFe/REPTILE.git
+cd REPTILE
 pip install -r requirements.txt
 ```
 ## Examples
 
-PSICHE comes with examples in the docstrings and test that can serve a similar purpose.
+REPTILE comes with examples in the docstrings and test that can serve a similar purpose.

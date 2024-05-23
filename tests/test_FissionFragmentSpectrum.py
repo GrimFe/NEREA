@@ -1,7 +1,7 @@
 import pytest
 import datetime
 import pandas as pd
-from PSICHE.FissionFragmentSpectrum import FissionFragmentSpectrum
+from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 
 @pytest.fixture
 def sample_spectrum_data():

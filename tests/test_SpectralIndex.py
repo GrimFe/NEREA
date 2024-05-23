@@ -1,9 +1,9 @@
 import pytest
-from PSICHE.ReactionRate import ReactionRate, AverageReactionRate
-from PSICHE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
-from PSICHE.EffectiveMass import EffectiveMass
-from PSICHE.PowerMonitor import PowerMonitor
-from PSICHE.SpectralIndex import SpectralIndex
+from REPTILE.ReactionRate import ReactionRate, AverageReactionRate
+from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+from REPTILE.EffectiveMass import EffectiveMass
+from REPTILE.PowerMonitor import PowerMonitor
+from REPTILE.SpectralIndex import SpectralIndex
 from datetime import datetime
 import pandas as pd
 import numpy as np

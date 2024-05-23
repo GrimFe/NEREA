@@ -6,7 +6,7 @@ import warnings
 
 from datetime import datetime, timedelta
 
-from PSICHE.utils import integral_v_u, _make_df
+from REPTILE.utils import integral_v_u, _make_df
 
 __all__ = [
     "FissionFragmentSpectrum",

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from PSICHE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
-from PSICHE.EffectiveMass import EffectiveMass
-from PSICHE.PowerMonitor import PowerMonitor
-from PSICHE.utils import ratio_v_u, ratio_uncertainty, _make_df
+from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+from REPTILE.EffectiveMass import EffectiveMass
+from REPTILE.PowerMonitor import PowerMonitor
+from REPTILE.utils import ratio_v_u, ratio_uncertainty, _make_df
 
 import pandas as pd
 import numpy as np

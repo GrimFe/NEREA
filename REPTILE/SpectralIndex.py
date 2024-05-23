@@ -4,8 +4,8 @@ import serpentTools as sts  ## impurity correction
 import warnings
 from dataclasses import dataclass
 
-from PSICHE.ReactionRate import ReactionRate, AverageReactionRate
-from PSICHE.utils import ratio_v_u, _make_df
+from REPTILE.ReactionRate import ReactionRate, AverageReactionRate
+from REPTILE.utils import ratio_v_u, _make_df
 
 @dataclass
 class SpectralIndex:
@@ -45,7 +45,7 @@ class SpectralIndex:
 
         Examples
         --------
-        >>> from PSICHE.ReactionRate import ReactionRate
+        >>> from REPTILE.ReactionRate import ReactionRate
         >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
         >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
@@ -122,7 +122,7 @@ class SpectralIndex:
 
         Examples
         --------
-        >>> from PSICHE.ReactionRate import ReactionRate
+        >>> from REPTILE.ReactionRate import ReactionRate
         >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
         >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)

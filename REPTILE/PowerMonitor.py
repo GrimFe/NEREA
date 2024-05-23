@@ -6,7 +6,7 @@ import linecache
 from datetime import datetime, timedelta
 import warnings
 
-from PSICHE.utils import ratio_v_u, _make_df, integral_v_u
+from REPTILE.utils import ratio_v_u, _make_df, integral_v_u
 
 __all__ = [
     "PowerMonitor",
@@ -272,7 +272,7 @@ class PowerMonitors:
         You can create a PowerMonitor instance from this file as follows:
 
         ```python
-        from PSICHE.PowerMonitor import PowerMonitor
+        from REPTILE.PowerMonitor import PowerMonitor
 
         power_monitor = PowerMonitor.from_ascii('path/to/power_data.txt', experiment_id='EXP123')
         print(power_monitor.data)
