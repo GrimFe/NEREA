@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
 
-def integral_v_u(s):
+def integral_v_u(s: pd.Series):
     """
     Compute the integral (sum) of a series and its associated uncertainty.
 
     Parameters
     ----------
-    s : array_like
+    s : pd.Series
         The series of values to sum.
 
     Returns

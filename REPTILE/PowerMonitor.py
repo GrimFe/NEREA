@@ -50,7 +50,7 @@ class PowerMonitor:
         """
         end_time = start_time + timedelta(seconds=duration)
         series = self.data.query("Time > @start_time and Time <= @end_time")
-        v, u = integral_v_u(series)
+        v, u = integral_v_u(series.value)
         return _make_df(v / duration, u / duration)
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
