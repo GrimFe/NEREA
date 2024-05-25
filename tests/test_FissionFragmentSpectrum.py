@@ -49,7 +49,8 @@ def test_rebin(sample_spectrum):
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2))
 
 def test_integrate(sample_spectrum):
-    expected_df = pd.DataFrame({'value': [2876.9, 2876.9, 2876.9, 2876.9, 2876.9,
+    expected_df = pd.DataFrame({'channel':  [1., 2., 2., 3., 3., 4., 4., 5., 5., 6.],
+                                'value': [2876.9, 2876.9, 2876.9, 2876.9, 2876.9,
                                             2876.9, 2876.9, 2876.9, 2876.9, 2551.9],
                                 'uncertainty': [53.63674114, 53.63674114,
                                                 53.63674114, 53.63674114,
@@ -60,6 +61,5 @@ def test_integrate(sample_spectrum):
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.86439366,
-                                                    1.86439366, 1.97955774],
-                                'channel':  [1., 2., 2., 3., 3., 4., 4., 5., 5., 6.]})
+                                                    1.86439366, 1.97955774]})
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10), check_exact=False, atol=0.00001)

@@ -33,3 +33,11 @@ def test_make_df():
                                 'uncertainty [%]': [EXPECTED_UNCERTAINTY / EXPECTED_RATIO * 100]},
                                 index=['value'])
     pd.testing.assert_frame_equal(df, expected_df)
+
+def test_make_df_not_relative():
+    df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY, relative=False)
+    expected_df = pd.DataFrame({'value': [EXPECTED_RATIO],
+                                'uncertainty': [EXPECTED_UNCERTAINTY],
+                                'uncertainty [%]': np.nan},
+                                index=['value'])
+    pd.testing.assert_frame_equal(df, expected_df)
