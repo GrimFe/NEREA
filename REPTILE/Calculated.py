@@ -15,7 +15,7 @@ class Calculated:
         return None
 
 @dataclass
-class C:
+class C(Calculated):
     data: pd.DataFrame
     model_id: str
     deposit_ids: list[str]
