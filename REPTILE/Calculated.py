@@ -14,7 +14,7 @@ class Calculated:
         """
         return None
 
-@dataclass
+@dataclass(slots=True)
 class C(Calculated):
     data: pd.DataFrame
     model_id: str

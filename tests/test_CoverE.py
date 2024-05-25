@@ -1,9 +1,8 @@
 import pytest
-from REPTILE.Computables import NormalizedFissionFragmentSpectrum
+from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
-from REPTILE.SpectralIndex import SpectralIndex
 from REPTILE.CoverE import CoverE
 from REPTILE.Calculated import C
 from datetime import datetime

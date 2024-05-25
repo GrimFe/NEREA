@@ -11,7 +11,7 @@ from REPTILE.utils import ratio_v_u, _make_df
 
 __all__ = ['CoverE']
 
-@dataclass
+@dataclass(slots=True)
 class CoverE:
     c: Calculated
     e: Computable
