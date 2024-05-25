@@ -92,8 +92,9 @@ class SpectralIndex:
             warnings.warn("Not all impurities were provided with a cross section.")
         correction = sum((imp_v * xs_v).dropna())
         correction_variance = sum(((xs_v * imp_u) **2 +
-                                   (imp_v * xs_u) **2).dropna())
-        return _make_df(correction, np.sqrt(correction_variance))
+                                    (imp_v * xs_u) **2).dropna())
+        relative = True if imp_v.shape[0] != 0 else False
+        return _make_df(correction, np.sqrt(correction_variance), relative=relative)
 
     def compute(self, one_g_xs: pd.DataFrame = None,
                 one_g_xs_file: dict[str, tuple[str, str]] = None, *args, **kwargs) -> pd.DataFrame:

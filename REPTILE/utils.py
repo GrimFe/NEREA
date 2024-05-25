@@ -97,7 +97,7 @@ def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame):
     u = ratio_uncertainty(n.value, n.uncertainty, d.value, d.uncertainty)
     return v, u
 
-def _make_df(v, u):
+def _make_df(v, u, relative=True):
     """
     Create a pandas DataFrame with the given value and uncertainty.
 
@@ -107,6 +107,8 @@ def _make_df(v, u):
         The value to store in the DataFrame.
     u : float
         The uncertainty to store in the DataFrame.
+    relative : bool, optional
+        flag to enable calulation of the relative uncertainty too.
 
     Returns
     -------
@@ -122,4 +124,7 @@ def _make_df(v, u):
             value  uncertainty
     value    10.0          0.5
     """
-    return pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': u / v * 100}, index=['value'])
+    out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': u / v * 100},
+                       index=['value']) if relative else pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': np.nan},
+                                                                      index=['value'])
+    return out

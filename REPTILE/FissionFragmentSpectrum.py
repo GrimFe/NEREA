@@ -162,7 +162,7 @@ class FissionFragmentSpectrum:
             ch_ = np.floor(ch * self.get_R(bins_).channel)
             v, u = integral_v_u(reb.query("channel >= @ch_").counts)
             out.append(_make_df(v, u).assign(channel=ch_))
-        return pd.concat(out, ignore_index=True)
+        return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
