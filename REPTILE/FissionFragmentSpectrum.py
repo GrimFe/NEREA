@@ -99,7 +99,7 @@ class FissionFragmentSpectrum:
         reb = self.rebin(bins)
         data = reb.query("channel > @self.get_max(@bins).channel[0]")
         return data[data.counts <= self.get_max(bins).counts[0] / 2].iloc[0]
-    
+
     def rebin(self, bins: int=None):
         """
         Rebins the spectrum.
@@ -178,10 +178,10 @@ class FissionFragmentSpectrum:
             Number of bins for integration.
             Defaults to `None`, which uses all the bins.
     
-        Example
-        -------
-        spectrum = pass
-        em = FFS.from_TKA(file).calibrate(spectrum)
+        Examples
+        --------
+        >>> spectrum = pass
+        >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
         pass
 
@@ -342,7 +342,7 @@ class FissionFragmentSpectra():
 
         Example
         -------
-        ffs = FissionFragmentSpectra([ffs1, ffs2]).merge()
+        >>> ffs = FissionFragmentSpectra([ffs1, ffs2]).merge()
         """
         pass
 
