@@ -1,7 +1,10 @@
+from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 
-def integral_v_u(s: pd.Series):
+__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df']
+
+def integral_v_u(s: pd.Series) -> tuple[float]:
     """
     Compute the integral (sum) of a series and its associated uncertainty.
 
@@ -30,7 +33,7 @@ def integral_v_u(s: pd.Series):
     u = np.sqrt(v)
     return v, u
 
-def ratio_uncertainty(n, un, d, ud):
+def ratio_uncertainty(n, un, d, ud) -> tuple[float]:
     """
     Compute the uncertainty of a ratio given the values and uncertainties of the numerator and denominator.
 
@@ -61,7 +64,7 @@ def ratio_uncertainty(n, un, d, ud):
     """
     return np.sqrt((1 / d * un)**2 + (n / d**2 * ud)**2)
 
-def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame):
+def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float]:
     """
     Compute the value and uncertainty of a ratio given objects with value and uncertainty attributes.
 
@@ -97,7 +100,23 @@ def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame):
     u = ratio_uncertainty(n.value, n.uncertainty, d.value, d.uncertainty)
     return v, u
 
-def _make_df(v, u, relative=True):
+def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
+    """
+    Computes the product of a number of values and propagates their uncertainty
+    to the result.
+
+    Takes
+    -----
+    factors : Iterable[pd.DataFrame]
+        the factors to multiply. Each dataframe should come with `value` and
+        `uncertainty [%]` columns.
+    """
+    v = np.prod(np.array([x.value for x in factors]))
+    # it is easier to work in relative terms for products and turn to absolute later on
+    u = np.sqrt(np.sum(np.array([x['uncertainty [%]'] **2 for x in factors]))) / 100 * v
+    return v, u
+
+def _make_df(v, u, relative=True) -> pd.DataFrame:
     """
     Create a pandas DataFrame with the given value and uncertainty.
 

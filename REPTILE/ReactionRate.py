@@ -1,328 +1,314 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
-from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
-from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.PowerMonitor import PowerMonitor
-from REPTILE.utils import ratio_v_u, ratio_uncertainty, _make_df
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+import linecache
+from datetime import datetime, timedelta
 import warnings
 
+from REPTILE.utils import ratio_v_u, _make_df, integral_v_u
 
-def average_v_u(df):
-    v = df.value.mean()
-    u = sum(df.uncertainty **2) / len(df.uncertainty)
-    return v, u
+__all__ = [
+    "ReactionRate",
+    "ReactionRates"]
 
-
-@dataclass
+@dataclass(slots=True)
 class ReactionRate:
-    fission_fragment_spectrum: FissionFragmentSpectrum
-    effective_mass: EffectiveMass
-    power_monitor: PowerMonitor
+    data: pd.DataFrame
+    start_time: datetime
+    campaign_id: str
+    experiment_id: str
+    detector_id: str
+
+    def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
+        """
+        Calculate the average value and uncertainty of a time series data within a specified duration.
+
+        Parameters
+        ----------
+        start_time : datetime
+            The starting time for the data to be analyzed.
+        duration : int
+            The length of time in seconds for which the average is calculated.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing:
+            - 'value': The average value of the data within the specified time range.
+            - 'uncertainty': The uncertainty value, calculated as 1/sqrt(N).
+
+        Examples
+        --------
+        >>> from datetime import datetime
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                              campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
+        >>> print(avg_df)
+        """
+        end_time = start_time + timedelta(seconds=duration)
+        series = self.data.query("Time > @start_time and Time <= @end_time")
+        v, u = integral_v_u(series.value)
+        return _make_df(v / duration, u / duration)
+
+    def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
+        """
+        Integrate data over a specified timebase starting from a given start time.
+
+        Parameters
+        ----------
+        timebase : int
+            The interval of time in seconds over which to calculate the average. This interval is used to group the data for averaging.
+        start_time : datetime, optional
+            The starting time for the integration process. Defaults to `self.start_time`.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing:
+            - 'value': The average value of the data within the specified time range.
+            - 'uncertainty': The uncertainty value, calculated as 1/sqrt(N).
+
+        Examples
+        --------
+        >>> from datetime import datetime
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                              campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> integrated_df = pm.integrate(10)
+        >>> print(integrated_df)
+        """
+        start_time_ = self.start_time if start_time is None else start_time
+        out = []
+        while start_time_ < self.data.Time.max():
+            out.append(self.average(start_time_, timebase))
+            start_time_ = start_time_ + timedelta(seconds=timebase)
+        return pd.concat(out, ignore_index=True)
+
+    def per_unit_power(self, monitor) -> pd.DataFrame:
+        """
+        Normalizes the raction rate to a power monitor.
+
+        Parameters
+        ----------
+        monitor : ReactionRate
+        """
+        pass
+
+    @classmethod
+    def from_ascii(cls, file: str, detector: int):
+        """
+        Placeholder method to create a `ReactionRate` instance from an ASCII file.
+
+        Parameters
+        ----------
+        file : str
+            Path to the ASCII file.
+        detector : int
+            Detector number in the ASCII file.
+
+        Returns
+        -------
+        ReactionRate
+            A new `ReactionRate` instance.
+        """
+        start_time = datetime.strptime(linecache.getline(file, 1), "%d-%m-%Y %H:%M:%S\n")
+        read = pd.read_csv(file, sep='\t', skiprows=[0,1], decimal=',')
+        read["Time"] = read["Time"].apply(lambda x: start_time + timedelta(seconds=x))
+        campaign_id, experiment_id = file.split('\\')[-1].split('_')
+        out = cls(read[["Time", f"Det {detector}"]].rename(columns={f"Det {detector}": "value"}),
+                  start_time=start_time,
+                  campaign_id=campaign_id,
+                  experiment_id=experiment_id,
+                  detector_id=f"Det {detector}")
+        return out
+
+@dataclass(slots=True)
+class ReactionRates:
+    monitors: list[ReactionRate]
 
     def __post_init__(self) -> None:
         self._check_consistency()
 
-    def _check_consistency(self) -> None:
+    def _check_consistency(self, time_tolerance: timedelta=timedelta(seconds=60),
+                           timebase: int=100, sigma=1) -> None:
         """
-        Checks the consistency of:
-            - experiment_id
-            - detector_id
-            - deposit_id
-        among self.fission_fragment_spectrum
-        and also checks:
-            - R channel
-        among self.fission_fragment_spectrum and effective_mass
-        via _check_ch_equality(tolerance=0.01).
-
-        Raises
-        ------
-        Exception
-            If there are inconsistencies among the IDs or R channel values.
-        """
-        if not self.fission_fragment_spectrum.detector_id == self.effective_mass.detector_id:
-            raise Exception('Inconsistent detectors among FissionFragmentSpectrum ans EffectiveMass')
-        if not self.fission_fragment_spectrum.deposit_id == self.effective_mass.deposit_id:
-            raise Exception('Inconsistent deposits among FissionFragmentSpectrum and EffectiveMass')
-        if not self.fission_fragment_spectrum.experiment_id == self.power_monitor.experiment_id:
-            raise Exception('Inconsitent experiments among FissionFragmentSpectrum and PowerMonitor')
-        if not self._check_ch_equality():
-            warnings.warn(f"""The channel values differ more than 1%; at spectrum half maximum they worth:
-                          measurement: {self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel}
-                          calibration: {self.effective_mass.R_channel}
-                          relative difference (C-M)/C: {(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel
-                                                        - self.effective_mass.R_channel)
-                                                        / self.effective_mass.R_channel * 100} %""")
-
-    def _check_ch_equality(self, tolerance:float =0.01) -> bool:
-        """
-        Checks consistency of the R channels of `self.fission_fragment_spectrum` and
-        `self.effective_mass` within a specified tolerance.
-        The check happens only if the binning of the two objects is the same.
-        
-        Parameters
-        ----------
-        tolerance : float, optional
-            The acceptable relative difference between the R channel of
-            `self.fission_fragment_spectrum` and `self.effective_mass`.
-            Defaults to 0.01.
-
-        Returns
-        -------
-        bool
-            Indicating whether the relative difference between the R channels is within tolerance.
-        """
-        if self.fission_fragment_spectrum.data.channel.max() == self.effective_mass.bins:
-            check = abs(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel
-            - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
-        else:
-            check = True
-        return check 
-
-    @property
-    def measurement_id(self) -> str:
-        """
-        The measurement ID associated with the fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The measurement ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectrum.measurement_id
-    
-    @property
-    def campaign_id(self) -> str:
-        """
-        The campaign ID associated with the fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The campaign ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectrum.campaign_id
-    
-    @property
-    def experiment_id(self) -> str:
-        """
-        The experiment ID associated with the fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The experiment ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectrum.experiment_id
-    
-    @property
-    def location_id(self) -> str:
-        """
-        The location ID associated with the fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The location ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectrum.location_id
-
-    @property
-    def deposit_id(self):
-        """
-        The deposit ID associated with the fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The deposit ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectrum.deposit_id
-
-    def per_unit_mass(self, int_tolerance: float =.01, ch_tolerance: float =.01) -> pd.DataFrame:
-        """
-        Computes the reaction rate per unit mass.
+        Check the consistency of time and curve data with specified parameters.
 
         Parameters
         ----------
-        int_tolerance : float, optional
-            Tolerance for the integration check, by default 0.01.
-        ch_tolerance : float, optional
-            Tolerance for the channel check, by default 0.01.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing the reaction rate per unit mass.
-
-        Raises
-        ------
-        ValueError
-            If the channel values differ beyond the specified tolerance.
+        time_tolerance : timedelta, optional
+            Parameter for `self._check_time_consistency`. Defaults to 60 seconds.
+        timebase : int, optional
+            Parameter for `self._check_curve_consistency`. Defaults to 100.
+        sigma : int, optional
+            Parameter for `self._check_curve_consistency`. Defaults to 1.
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
-        ...                               detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-        >>> em = EffectiveMass(data=pd.DataFrame({'value': [0.5, 0.6, 0.7], 'uncertainty': [0.05, 0.06, 0.07]}),
-        ...                    detector_id='D1', deposit_id='Dep1')
-        >>> pm = PowerMonitor(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
-        >>> rr = ReactionRate(fission_fragment_spectrum=ffs, effective_mass=em, power_monitor=pm)
-        >>> rr.per_unit_mass()
-            value  uncertainty
-        0   4.2    0.684995
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M2')
+        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms._check_consistency()
         """
-        ffs, em = self.fission_fragment_spectrum, self.effective_mass
-        bins = em.bins
-        v, u = ratio_v_u(ffs.integrate(bins), em.integral)
-        data = pd.DataFrame({'channel fission fragment spectrum': ffs.integrate(bins).channel,
-                             'channel effective mass': em.integral.channel,
-                             'value': v * ffs.real_time / ffs.life_time**2,
-                             'uncertainty': u * ffs.real_time / ffs.life_time**2})
-        # check where the values in the mass-normalized count rate converge withing tolerance
-        close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
-        if close_values.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the integral.")
-        # consider only values where the convergence is observed in two neighboring channels, i.e. atol=1
-        plateau = close_values[np.isclose(close_values.index, np.roll(close_values.index, shift=1), atol=1)]
-        if plateau.shape[0] == 0:
-            raise Exception("No convergence found in neighbouring channels.")
-        # check the channels in which value does not differ more than ch_tolerance from the calibration ones
-        plateau = plateau[abs(plateau['channel fission fragment spectrum'] - plateau['channel effective mass'])
-                / plateau['channel effective mass'] < ch_tolerance]
-        if plateau.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the channel.")
-        return plateau.iloc[0]
+        must = ['campaign_id', 'experiment_id']
+        for attr in must:
+            if not all([getattr(m, attr) == getattr(self.monitors[0], attr) for m in self.monitors]):
+                raise Exception(f"Inconsistent {attr} among different ReactionRate instances.")
+        self._check_time_consistency(time_tolerance)
+        self._check_curve_consistency(timebase, sigma)
 
-    def compute(self, *args, **kwargs) -> pd.DataFrame:
+    def _check_time_consistency(self, time_tolerance: timedelta) -> None:
         """
-        Computes the reaction rate.
+        Check if the start times of power monitors are consistent within a given time tolerance.
 
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing the reaction rate.
+        Parameters
+        ----------
+        time_tolerance : timedelta
+            The maximum allowable difference in time between the start times of the power monitors in `self.monitors`.
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
-        ...                               detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-        >>> em = EffectiveMass(data=pd.DataFrame({'value': [0.5, 0.6, 0.7], 'uncertainty': [0.05, 0.06, 0.07]}),
-        ...                    detector_id='D1', deposit_id='Dep1')
-        >>> pm = PowerMonitor(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
-        >>> rr = ReactionRate(fission_fragment_spectrum=ffs, effective_mass=em, power_monitor=pm)
-        >>> rr.compute()
-            value  uncertainty
-        0  35.6    2.449490
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M2')
+        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms._check_time_consistency(timedelta(seconds=60))
         """
-        start_time = self.fission_fragment_spectrum.start_time
-        duration = int(self.fission_fragment_spectrum.real_time)
-        v, u = ratio_v_u(self.per_unit_mass(*args, **kwargs),
-                         self.power_monitor.average(start_time, duration))
-        return _make_df(v, u)
+        ref = self.monitors[0].start_time
+        for monitor in self.monitors:
+            if not abs(monitor.start_time - ref) < time_tolerance:
+                warnings.warn(f"Power monitor start time difference > {time_tolerance}")
 
-
-@dataclass
-class AverageReactionRate:
-    fission_fragment_spectra: FissionFragmentSpectra
-    effective_mass: EffectiveMass
-    power_monitor: PowerMonitor
-
-    @property
-    def campaign_id(self):
+    def _check_curve_consistency(self, timebase: int, sigma: int=1) -> None:
         """
-        The campaign ID associated with the last fission fragment spectrum.
+        Compare data from multiple monitors to check for consistency within a sigma-uncertainty tolerance, based on a specified timebase.
 
-        Returns
-        -------
-        str
-            The campaign ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectra[-1].campaign_id
-    
-    @property
-    def experiment_id(self) -> str:
-        """
-        The experiment ID associated with the last fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The experiment ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectra[-1].experiment_id
-    
-    @property
-    def location_id(self) -> str:
-        """
-        The location ID associated with the last fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The location ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectra[-1].location_id
-
-    @property
-    def deposit_id(self):
-        """
-        The deposit ID associated with the last fission fragment spectrum.
-
-        Returns
-        -------
-        str
-            The deposit ID attribute of the associated `FissionFragmentSpectrum`.
-
-        """
-        return self.fission_fragment_spectra[-1].deposit_id
-
-    def compute(self, *args, **kwargs):
-        """
-        Computes the average of multiple reaction rates.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing the average reaction rate.
+        Parameters
+        ----------
+        timebase : int
+            The time interval in seconds for grouping the data. This parameter determines how the data are aggregated and compared between different monitors.
+        sigma : int, optional
+            The uncertainty associated with the measurements. It is used to calculate the tolerance for checking the consistency between different power monitors. The tolerance is computed as the average uncertainty on the ratio of values between two monitors. Defaults to 1.
 
         Examples
         --------
-        >>> ffs1 = FissionFragmentSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
-        ...                                detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-        >>> em1 = EffectiveMass(data=pd.DataFrame({'value': [0.5, 0.6, 0.7], 'uncertainty': [0.05, 0.06, 0.07]}),
-        ...                     detector_id='D1', deposit_id='Dep1')
-        >>> pm1 = PowerMonitor(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
-        >>> rr1 = ReactionRate(fission_fragment_spectrum=ffs1, effective_mass=em1, power_monitor=pm1)
-
-        >>> ffs2 = FissionFragmentSpectrum(data=pd.DataFrame({'value': [2.0, 4.0, 6.0], 'uncertainty': [0.2, 0.4, 0.6]}),
-        ...                                detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-        >>> em2 = EffectiveMass(data=pd.DataFrame({'value': [0.4, 0.5, 0.6], 'uncertainty': [0.04, 0.05, 0.06]}),
-        ...                     detector_id='D1', deposit_id='Dep1')
-        >>> pm2 = PowerMonitor(data=pd.DataFrame({'value': [15, 25, 35], 'uncertainty': [1.5, 2.5, 3.5]}), experiment_id='Exp1')
-        >>> rr2 = ReactionRate(fission_fragment_spectrum=ffs2, effective_mass=em2, power_monitor=pm2)
-
-        >>> arr = AverageReactionRate(reaction_rates=[rr1, rr2])
-        >>> arr.compute()
-            value  uncertainty
-        0  43.366667  3.162278
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+                               campaign_id='C1', experiment_id='E1', detector_id='M2')
+        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms._check_curve_consistency(10, 1)
         """
-        data = []
-        for ffs in self.fission_fragment_spectra.spectra:
-            data.append(ReactionRate(ffs,
-                                     self.effective_mass,
-                                     self.power_monitor
-                                     ).compute(*args, **kwargs
-                                               ).assign(measurement=ffs.measurement_id))
-        data = pd.concat(data)
-        v, u = average_v_u(data)
-        return _make_df(v, u)
+        ref = self.monitors[0].data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
+                                            ).agg('sum').reset_index()
+        ref['uncertainty'] = np.sqrt(ref['value'])  # absolute
+        ref['value'] = ref['value'] / timebase
+        for monitor in self.monitors[1:]:
+            compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
+                                            ).agg('sum').reset_index()
+            compute['uncertainty'] = np.sqrt(compute['value'])  # absolute
+            compute['value'] = compute['value'] / timebase
+            # filtering noise below 100 counts in time
+            start = max(ref.query('value >= 100').Time.min(), compute.query('value >= 100').Time.min())
+            end = min(ref.query('value >= 100').Time.max(), compute.query('value >= 100').Time.max())
+            qs = "Time >= @start and Time <= @end"
+            v, u = ratio_v_u(compute.query(qs), ref.query(qs))
+            # tolerance is scalar, therefore it is computed as average uncertainty on the ratio
+            tol = np.mean(sigma * u)  # absolute
+            if not (np.isclose(v, np.roll(v, shift=1), atol=tol)).all():
+                raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {self.monitors[0].detector_id}")
+
+    @property
+    def best(self) -> ReactionRate:
+        """
+        Returns the power monitor with the highest sum value.
+
+        Returns
+        -------
+        ReactionRate
+            Power monitor with the highest integral count.
+
+        Examples
+        --------
+        >>> pm = ReactionRate(...)
+        >>> best_pm = pm.best
+        """
+        max = self.monitors[0].data.value.sum()
+        out = self.monitors[0]
+        for monitor in self.monitors[1:]:
+            if monitor.data.value.sum() > max:
+                out = monitor
+        return out
+
+    @classmethod
+    def from_ascii(cls, file: str, detectors: Iterable[int]):
+        """
+        Creates an instance of ReactionRate using data extracted from an ASCII file.
+
+        The ASCII file should contain columns of data including timestamps and power readings.
+
+        The filename is supposed to be formatted as:
+        {Campaign}_{experiment}.txt
+
+        Parameters
+        ----------
+        file : str
+            Path to the ASCII file containing the power monitor data.
+        detectors : Iterable[int]
+            Detector numbers to read from the ASCII file.
+
+        Returns
+        -------
+        ReactionRate
+            An instance of the ReactionRate class initialized with the data from the ASCII file.
+
+        Example
+        -------
+        Consider an ASCII file `power_data.txt` with the following content:
+
+        ```
+        timestamp,power
+        2023-01-01 00:00:00,100
+        2023-01-01 01:00:00,150
+        2023-01-01 02:00:00,200
+        ```
+
+        You can create a ReactionRate instance from this file as follows:
+
+        ```python
+        from REPTILE.ReactionRate import ReactionRate
+
+        power_monitor = ReactionRate.from_ascii('path/to/power_data.txt', experiment_id='EXP123')
+        print(power_monitor.data)
+        ```
+
+        This will output:
+
+        ```
+                    timestamp  power
+        0 2023-01-01 00:00:00    100
+        1 2023-01-01 01:00:00    150
+        2 2023-01-01 02:00:00    200
+        ```
+
+        Note
+        ----
+        Ensure that the file path provided is correct and that the file format matches the expected structure.
+        """
+        out = []
+        for d in detectors:
+            out.append(ReactionRate.from_ascii(file, d))
+        return cls(out)

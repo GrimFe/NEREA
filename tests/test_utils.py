@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from REPTILE.utils import ratio_v_u, ratio_uncertainty, _make_df, integral_v_u
+from REPTILE.utils import *
 
 EXPECTED_RATIO = 2.0
 EXPECTED_UNCERTAINTY = 0.282842712474619
@@ -25,6 +25,15 @@ def test_ratio_uncertainty():
     expected_uncertainty = 0.282842712474619
     uncertainty = ratio_uncertainty(v1, u1, v2, u2)
     assert uncertainty == pytest.approx(expected_uncertainty, rel=1e-9)
+
+def test_product_v_u():
+    product = product_v_u([pd.DataFrame({'value': x[0],
+                                         'uncertainty [%]': x[1]}, index=[0]) for x in
+                                                            [(10, 10), (5, 2), (10, 20)]])
+    EXPECTED_VALUE = 500
+    EXPECTED_UNCERTAINTY = np.sqrt(2 **2 + 10 **2 + 20 **2) / 100 * EXPECTED_VALUE
+    assert product[0] == EXPECTED_VALUE
+    assert product[1] == EXPECTED_UNCERTAINTY
 
 def test_make_df():
     df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY)

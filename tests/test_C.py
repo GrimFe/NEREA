@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from REPTILE.CoverE import C
+from REPTILE.Calculated import C
 
 @pytest.fixture
 def sample_data():

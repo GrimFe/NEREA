@@ -50,23 +50,8 @@ def sample_spectrum_2(sample_spectrum_data2):
 
 @pytest.fixture
 def sample_ffsa(sample_spectrum_1, sample_spectrum_2):
-    data = []
-    for f in [sample_spectrum_1, sample_spectrum_2]:
-        data.append(f.data.set_index('channel'))
-    dct = {
-            'start_time': sample_spectrum_1.start_time,
-            'life_time': sample_spectrum_1.life_time,
-            'real_time': sample_spectrum_1.real_time,
-            'campaign_id': sample_spectrum_1.campaign_id,
-            'experiment_id': sample_spectrum_1.experiment_id,
-            'detector_id': sample_spectrum_1.detector_id,
-            'deposit_id': sample_spectrum_1.deposit_id,
-            'location_id': sample_spectrum_1.location_id,
-            'measurement_id': sample_spectrum_1.measurement_id,
-            'data': sum(data).reset_index(),
-            'spectra': [sample_spectrum_1, sample_spectrum_2]
-        }
-    return FissionFragmentSpectra(**dct)
+    data = [sample_spectrum_1, sample_spectrum_2]
+    return FissionFragmentSpectra(data)
 
 def test_best(sample_ffsa, sample_spectrum_1):
     assert sample_ffsa.best is sample_spectrum_1

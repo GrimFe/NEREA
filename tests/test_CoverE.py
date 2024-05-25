@@ -1,10 +1,10 @@
 import pytest
-from REPTILE.ReactionRate import ReactionRate, AverageReactionRate
+from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
 from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.PowerMonitor import PowerMonitor
-from REPTILE.SpectralIndex import SpectralIndex
-from REPTILE.CoverE import C, CoverE
+from REPTILE.ReactionRate import ReactionRate
+from REPTILE.CoverE import CoverE
+from REPTILE.Calculated import C
 from datetime import datetime
 import pandas as pd
 
@@ -58,15 +58,15 @@ def effective_mass_2(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-        return PowerMonitor(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', monitor_id='M')
+        return ReactionRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M')
 
 @pytest.fixture
 def rr_1(fission_fragment_spectrum_1, effective_mass_1, power_monitor):
-    return ReactionRate(fission_fragment_spectrum_1, effective_mass_1, power_monitor)
+    return NormalizedFissionFragmentSpectrum(fission_fragment_spectrum_1, effective_mass_1, power_monitor)
 
 @pytest.fixture
 def rr_2(fission_fragment_spectrum_2, effective_mass_2, power_monitor):
-    return ReactionRate(fission_fragment_spectrum_2, effective_mass_2, power_monitor)
+    return NormalizedFissionFragmentSpectrum(fission_fragment_spectrum_2, effective_mass_2, power_monitor)
 
 @pytest.fixture
 def sample_spectral_index(rr_1, rr_2):

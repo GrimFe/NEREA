@@ -7,6 +7,7 @@ import warnings
 from datetime import datetime, timedelta
 
 from REPTILE.utils import integral_v_u, _make_df
+from REPTILE.EffectiveMass import EffectiveMass
 
 __all__ = [
     "FissionFragmentSpectrum",
@@ -98,7 +99,7 @@ class FissionFragmentSpectrum:
         reb = self.rebin(bins)
         data = reb.query("channel > @self.get_max(@bins).channel[0]")
         return data[data.counts <= self.get_max(bins).counts[0] / 2].iloc[0]
-    
+
     def rebin(self, bins: int=None):
         """
         Rebins the spectrum.
@@ -163,6 +164,26 @@ class FissionFragmentSpectrum:
             v, u = integral_v_u(reb.query("channel >= @ch_").counts)
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
+
+    def calibrate(spectrum, bins: int=None) -> EffectiveMass:
+        """
+        Computes the fission chamber effective mass from the fission
+        fragment spectrum.
+
+        Takes
+        -----
+        spectrum : pass
+            pass
+        bins : int, optional
+            Number of bins for integration.
+            Defaults to `None`, which uses all the bins.
+    
+        Examples
+        --------
+        >>> spectrum = pass
+        >>> em = FFS.from_TKA(file).calibrate(spectrum)
+        """
+        pass
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
@@ -242,7 +263,7 @@ class FissionFragmentSpectrum:
 
 
 @dataclass(slots=True)
-class FissionFragmentSpectra(FissionFragmentSpectrum):
+class FissionFragmentSpectra():
     """
     This class works under the assumption that no measurement time was
     lost in the process of measuring the fission fragment spectra.
@@ -309,6 +330,22 @@ class FissionFragmentSpectra(FissionFragmentSpectrum):
                 out = s
         return out
 
+    def merge(self) -> FissionFragmentSpectrum:
+        """
+        Returns a Fission Fragment Spectrum instance containing merged
+        informatio of the fission fragment spectra in `self.spectra`.
+
+        Returns
+        -------
+        FissionFragmentSpectrum
+            merged fission fragment specrtum instance
+
+        Example
+        -------
+        >>> ffs = FissionFragmentSpectra([ffs1, ffs2]).merge()
+        """
+        pass
+
     @classmethod
     def from_formatted_TKA(cls, files: Iterable[str]):
         """
@@ -331,22 +368,7 @@ class FissionFragmentSpectra(FissionFragmentSpectrum):
         --------
         >>> ffss = FissionFragmentSpectra.from_TKA(['file1.TKA', 'file2.TKA'])
         """
-        out = []
         data = []
         for file in files:
-            out.append(cls.from_formatted_TKA(file))
-            data.append(out[-1].data.set_index('channel'))
-        dct = {
-            'start_time': min([ffs.start_time for ffs in out]),
-            'life_time': sum([ffs.life_time for ffs in out]),
-            'real_time': sum([ffs.real_time for ffs in out]),
-            'campaign_id': out[-1].campaign_id,
-            'experiment_id': out[-1].experiment_id,
-            'detector_id': out[-1].detector_id,
-            'deposit_id': out[-1].deposit_id,
-            'location_id': out[-1].location_id,
-            'measurement_id': out[-1].measurement_id,
-            'data': sum(data).reset_index(),
-            'spectra': out
-        }
-        return cls(**dct)
+            data.append(cls.from_formatted_TKA(file))
+        return cls(data)
