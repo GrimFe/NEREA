@@ -4,13 +4,13 @@ import serpentTools as sts  ## impurity correction
 import warnings
 from dataclasses import dataclass
 
-from REPTILE.ReactionRate import ReactionRate, AverageReactionRate
+from REPTILE.Computables import NormalizedFissionFragmentSpectrum
 from REPTILE.utils import ratio_v_u, _make_df
 
 @dataclass
 class SpectralIndex:
-    numerator: ReactionRate | AverageReactionRate
-    denominator: ReactionRate | AverageReactionRate
+    numerator: NormalizedFissionFragmentSpectrum
+    denominator: NormalizedFissionFragmentSpectrum
 
     def __post_init__(self):
         self._check_consistency()
