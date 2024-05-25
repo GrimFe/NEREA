@@ -4,7 +4,8 @@ from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFrag
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
 from REPTILE.SpectralIndex import SpectralIndex
-from REPTILE.CoverE import C, CoverE
+from REPTILE.CoverE import CoverE
+from REPTILE.Calculated import C
 from datetime import datetime
 import pandas as pd
 
