@@ -4,7 +4,7 @@ import pandas as pd
 
 __all__ = ["EffectiveMass"]
 
-@dataclass
+@dataclass(slots=True)
 class EffectiveMass:
     deposit_id: str
     detector_id: str
@@ -65,8 +65,8 @@ class EffectiveMass:
         """
         Writes the effective mass to a formatted excel filee.
 
-        Takes
-        -----
+        Parameters
+        ----------
         file : str
             the file name to write the instance to.
 
