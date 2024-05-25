@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 import pandas as pd
 
 __all__ = ["EffectiveMass"]
@@ -46,7 +47,7 @@ class EffectiveMass:
         return int(self.integral.channel[0] / 0.15)
 
     @property
-    def integral(self):
+    def integral(self) -> pd.DataFrame:
         """
         Computes the EffectiveMass values. Alias for self.data.
 
@@ -59,6 +60,34 @@ class EffectiveMass:
         --------
         """
         return self.data
+
+    def to_xls(self, file_path: str) -> None:
+        """
+        Writes the effective mass to a formatted excel filee.
+
+        Takes
+        -----
+        file : str
+            the file name to write the instance to.
+
+        Returns
+        -------
+            None
+
+        Example
+        -------
+        >>> em = EffectiveMass.from_xls(file_path)
+        >>> em.to_xls(file_path1)
+        """
+        slash = '' if file_path == '' else '\\'
+        file = file_path + slash + f'Meff_{self.deposit_id}_{self.detector_id}.xls'
+        with pd.ExcelWriter(file) as writer:
+            self.data.to_excel(writer, index=False, sheet_name='Meff')
+            self.composition_.to_excel(writer, index=False, sheet_name='Composition')
+            pd.DataFrame({'R': [self.R_channel], 'bins': [self.bins]}
+                         ).T.to_excel(writer, header=False, index=False, sheet_name='R')
+            pd.DataFrame({'c': [f'Calibrated on {date.today()} using REPTILE.py']}
+                         ).T.to_excel(writer, header=False, index=False, sheet_name='_CalData')
 
     @classmethod
     def from_xls(cls, file: str):
