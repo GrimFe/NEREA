@@ -88,15 +88,71 @@ class ReactionRate:
             start_time_ = start_time_ + timedelta(seconds=timebase)
         return pd.concat(out, ignore_index=True)
 
-    def per_unit_power(self, monitor) -> pd.DataFrame:
+    def plateau(self, sigma: int=2, timebase: int=10) -> pd.DataFrame:
+        """
+        The plateau with the largest integral counts in the detector.
+
+        Parameters
+        ----------
+        sigma : int, optional
+            the amount of standard deviations to consider for the
+            uncertainty on the plateau.
+            Defaults to 2.
+        timebase : int, optional
+            the time base for integration in plateau search in seconds.
+            Defaults to 10 s.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with a `Time` and a `value` column.
+        """
+        time = self.data.Time.min()
+        start_time = self.data.Time.min()
+        sum = 1
+        max = 0
+        while time < self.data.Time.max():
+            # compute the integral over 1 min
+            time_ = time + timedelta(seconds=timebase)
+            local_sum = self.data.query("Time > @time and Time < @time_").value.sum()
+            # check if the integral matches with the previous one within uncertainty
+            if not np.isclose(local_sum, sum, rtol=(1 / np.sqrt(local_sum) + 1 / np.sqrt(sum)) * sigma):
+                # Update plateau if integral from start to end times > max
+                if self.data.query("Time > @start_time and Time < @time_").value.sum() > max:
+                    plateau = self.data.query("Time > @start_time and Time < @time_")
+                    max = self.data.query("Time > @start_time and Time < @time_").value.sum()
+                # restart time counter (new plateau)
+                start_time = time
+            # update iteration variables (next minute next sum)
+            time += timedelta(seconds=timebase)
+            sum = local_sum
+        return plateau
+
+    def per_unit_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
         """
         Normalizes the raction rate to a power monitor.
 
         Parameters
         ----------
         monitor : ReactionRate
+            The power monitor for the reaction rate normalization.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with value and uncertainty of the normalized reaction rate
+            integrated over time.
         """
-        pass
+        plateau = self.plateau(*args, **kwargs)
+        duration = (plateau.Time.max() - plateau.Time.min()).seconds
+        normalization = monitor.average(plateau.Time.min(), duration)
+        v, u = integral_v_u(plateau.value)
+        v, u = ratio_v_u(_make_df(v, u), normalization)
+        return _make_df(v, u)
 
     @classmethod
     def from_ascii(cls, file: str, detector: int):
@@ -128,7 +184,7 @@ class ReactionRate:
 
 @dataclass(slots=True)
 class ReactionRates:
-    monitors: list[ReactionRate]
+    detectors: dict[int, ReactionRate]
 
     def __post_init__(self) -> None:
         self._check_consistency()
@@ -155,24 +211,26 @@ class ReactionRates:
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_consistency()
         """
         must = ['campaign_id', 'experiment_id']
         for attr in must:
-            if not all([getattr(m, attr) == getattr(self.monitors[0], attr) for m in self.monitors]):
+            if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
+                        for m in self.detectors.values()]):
                 raise Exception(f"Inconsistent {attr} among different ReactionRate instances.")
         self._check_time_consistency(time_tolerance)
         self._check_curve_consistency(timebase, sigma)
 
     def _check_time_consistency(self, time_tolerance: timedelta) -> None:
         """
-        Check if the start times of power monitors are consistent within a given time tolerance.
+        Check if the start times of power detectors are consistent within a given time tolerance.
 
         Parameters
         ----------
         time_tolerance : timedelta
-            The maximum allowable difference in time between the start times of the power monitors in `self.monitors`.
+            The maximum allowable difference in time between the start times of the power detectors
+            in `self.detectors`.
 
         Examples
         --------
@@ -182,24 +240,28 @@ class ReactionRates:
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_time_consistency(timedelta(seconds=60))
         """
-        ref = self.monitors[0].start_time
-        for monitor in self.monitors:
+        ref = list(self.detectors.values())[0].start_time
+        for monitor in self.detectors.values():
             if not abs(monitor.start_time - ref) < time_tolerance:
                 warnings.warn(f"Power monitor start time difference > {time_tolerance}")
 
     def _check_curve_consistency(self, timebase: int, sigma: int=1) -> None:
         """
-        Compare data from multiple monitors to check for consistency within a sigma-uncertainty tolerance, based on a specified timebase.
+        Compare data from multiple detectors to check for consistency within a sigma-uncertainty tolerance,
+        based on a specified timebase.
 
         Parameters
         ----------
         timebase : int
-            The time interval in seconds for grouping the data. This parameter determines how the data are aggregated and compared between different monitors.
+            The time interval in seconds for grouping the data. This parameter determines how the data are
+            aggregated and compared between different detectors.
         sigma : int, optional
-            The uncertainty associated with the measurements. It is used to calculate the tolerance for checking the consistency between different power monitors. The tolerance is computed as the average uncertainty on the ratio of values between two monitors. Defaults to 1.
+            The uncertainty associated with the measurements. It is used to calculate the tolerance for
+            checking the consistency between different power detectors. The tolerance is computed as the
+            average uncertainty on the ratio of values between two detectors. Defaults to 1.
 
         Examples
         --------
@@ -209,14 +271,15 @@ class ReactionRates:
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(monitors=[pm1, pm2])
+        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_curve_consistency(10, 1)
         """
-        ref = self.monitors[0].data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
-                                            ).agg('sum').reset_index()
+        ref = list(self.detectors.values())[0].data.groupby(
+                                                    pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
+                                                    ).agg('sum').reset_index()
         ref['uncertainty'] = np.sqrt(ref['value'])  # absolute
         ref['value'] = ref['value'] / timebase
-        for monitor in self.monitors[1:]:
+        for monitor in list(self.detectors.values())[1:]:
             compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
                                             ).agg('sum').reset_index()
             compute['uncertainty'] = np.sqrt(compute['value'])  # absolute
@@ -229,7 +292,7 @@ class ReactionRates:
             # tolerance is scalar, therefore it is computed as average uncertainty on the ratio
             tol = np.mean(sigma * u)  # absolute
             if not (np.isclose(v, np.roll(v, shift=1), atol=tol)).all():
-                raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {self.monitors[0].detector_id}")
+                raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
     def best(self) -> ReactionRate:
@@ -246,11 +309,39 @@ class ReactionRates:
         >>> pm = ReactionRate(...)
         >>> best_pm = pm.best
         """
-        max = self.monitors[0].data.value.sum()
-        out = self.monitors[0]
-        for monitor in self.monitors[1:]:
+        max = list(self.detectors.values())[0].data.value.sum()
+        out = list(self.detectors.values())[0]
+        for monitor in list(self.detectors.values())[1:]:
             if monitor.data.value.sum() > max:
                 out = monitor
+        return out
+
+    def per_unit_power(self, monitor: int, *args, **kwargs) -> dict[int, pd.DataFrame]:
+        """
+        Normalizes the raction rate to a power monitor.
+
+        Parameters
+        ----------
+        monitor : int
+            The ID of the reaction rate to be used as power
+            monitor for the reaction rate normalization.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+
+        Returns
+        -------
+        dict[int, pd.DataFrame]
+            with value and uncertainty of the normalized reaction rate
+            integrated over time. Keys are the detector IDs as in
+            self.detectors.
+        """
+        out = {}
+        for key, detector in self.detectors.items():
+            if key != monitor:
+                out[key] = detector.per_unit_power(self.detectors[monitor],
+                                                   *args, **kwargs)
         return out
 
     @classmethod
@@ -308,7 +399,7 @@ class ReactionRates:
         ----
         Ensure that the file path provided is correct and that the file format matches the expected structure.
         """
-        out = []
+        out = {}
         for d in detectors:
-            out.append(ReactionRate.from_ascii(file, d))
+            out[d] = ReactionRate.from_ascii(file, d)
         return cls(out)
