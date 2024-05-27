@@ -295,6 +295,14 @@ class ReactionRates:
                 raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
+    def campaign_id(self):
+        return list(self.detectors.values())[0].campaign_id
+
+    @property
+    def experiment_id(self):
+        return list(self.detectors.values())[0].experiment_id
+
+    @property
     def best(self) -> ReactionRate:
         """
         Returns the power monitor with the highest sum value.

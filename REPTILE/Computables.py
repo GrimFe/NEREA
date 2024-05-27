@@ -1,8 +1,9 @@
 import serpentTools as sts  ## impurity correction
+from collections.abc import Iterable
 from dataclasses import dataclass
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.ReactionRate import ReactionRate
+from REPTILE.ReactionRate import ReactionRate, ReactionRates
 from REPTILE.utils import ratio_v_u, product_v_u, _make_df
 
 import pandas as pd
@@ -452,8 +453,54 @@ class SpectralIndex(Computable):
 
 @dataclass(slots=True)
 class Traverse(Computable):
-    def compute(self) -> None:
-        return super().compute()
+    reaction_rates: dict[int|str, ReactionRate | ReactionRates]
+    def __post_init__(self):
+        ref = list(self.reaction_rates.values())[0].campaign_id
+        for item in self.reaction_rates.values():
+            if not ref == item.campaign_id:
+                    warnings.warn("Not matching campaign ids.")
+
+    def compute(self, monitors: Iterable[ReactionRate| int], *args, **kwargs) -> pd.DataFrame:
+        """
+        Normalizes all the reaction rates to the power in `monitors`
+        and to the maximum value.
+
+        Parameters
+        ----------
+        monitors : Iterable[ReactionRate | int]
+            ordered information on the power normalization.
+            Should be `ReactionRate` when mapped to a `ReactionRate` and
+            int when mapped to `ReactionRates`. The normalization is passed to
+            `ReactionRate.per_unit_power()` or `ReactionRates.per_unit_power()`.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with `value`, `uncertainty`, `uncertainty [%]`, `traverse` columns.
+
+        Notes
+        -----
+        Working with `ReactionRates` instances, the first reaction rate is used.
+        """
+        max_k, max = None, 0
+        normalized = {}
+        # Normalize to power
+        for i, (k, rr) in enumerate(self.reaction_rates.items()):
+            n = rr.per_unit_power(monitors[i], *args, **kwargs)
+            normalized[k]  = n if isinstance(rr, ReactionRate) else list(n.values())[0]
+            if normalized[k].value[0] > max:
+                max_k, max = k, normalized[k].value[0]
+        # Normalize to maximum
+        out = []
+        for k, v in normalized.items():
+            v, u = ratio_v_u(v, normalized[max_k])
+            out.append(_make_df(v, u).assign(traverse=k))
+        return pd.concat(out, ignore_index=True)
+
 
 # @dataclass
 # class AverageNormalizedFissionFragmentSpectrum:

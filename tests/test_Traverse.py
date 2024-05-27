@@ -3,40 +3,9 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from REPTILE.ReactionRate import ReactionRate, ReactionRates
+from REPTILE.Computables import Traverse
 
-@pytest.fixture
-def sample_data1():
-    data = pd.DataFrame({
-        'Time': [datetime(2024, 5, 19, 11, 19, 20) + timedelta(seconds=i) for i in range(7)],
-        'value': [0, 10, 15, 10, 20, 15, 10]
-    })
-    return data
-
-@pytest.fixture
-def sample_data2():
-    data = pd.DataFrame({
-        'Time': [datetime(2024, 5, 19, 11, 19, 20) + timedelta(seconds=i) for i in range(7)],
-        'value': [0, 1, 2, 1, 2, 2, 1]
-    })
-    return data
-
-@pytest.fixture
-def power_monitor_1(sample_data1):
-    return ReactionRate(data=sample_data1, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M')
-
-@pytest.fixture
-def power_monitor_2(sample_data2):
-    return ReactionRate(data=sample_data2, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M')
-
-@pytest.fixture
-def pms(power_monitor_1, power_monitor_2):
-    return ReactionRates({1: power_monitor_1, 2: power_monitor_2})
-
-@pytest.fixture
-def plateau_data():
-    counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
+counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
           0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
           0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
           3700,4000,4100,4200,3800,3700,3800,3900,4200,
@@ -71,32 +40,53 @@ def plateau_data():
           .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,
           3.7,3.8,3.9,4,4,4.2,4.1,3.5,3.2,3,2.5,2.2,2,2,1.5,1.5,1.6,1,1,1,
           .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,]
-    time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
-    return pd.DataFrame({'Time': time, 'value': counts})
 
 @pytest.fixture
-def rr_plateau(plateau_data):
-    return ReactionRate(plateau_data, plateau_data.Time.min(),
+def rr1():
+    time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
+    data =  pd.DataFrame({'Time': time, 'value': counts})
+    return ReactionRate(data, data.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=1)
 
 @pytest.fixture
-def plateau_monitor(plateau_data):
-    data_ = plateau_data.copy()
-    data_.value = data_.value.apply(lambda x: 600 if x > 3000 else 1)
+def rr2():
+    time = [datetime(2024,5,27,15,12,42) + timedelta(seconds=i) for i in range(len(counts))]
+    data = pd.DataFrame({'Time': time, 'value': np.array(counts) / 2})
+    return ReactionRate(data, data.Time.min(),
+                        campaign_id='A', experiment_id='B',
+                        detector_id=1)
+
+@pytest.fixture
+def monitor1(rr1):
+    data_ = rr1.data.copy()
+    data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
     return ReactionRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2)
 
-def test_best(pms, power_monitor_1):
-    assert pms.best == power_monitor_1
+@pytest.fixture
+def monitor2(rr2):
+    data_ = rr2.data.copy()
+    data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
+    return ReactionRate(data_, data_.Time.min(),
+                        campaign_id='A', experiment_id='B',
+                        detector_id=2)
 
-def test_per_unit_power(rr_plateau, plateau_monitor):
-    expected_df = pd.DataFrame({'value': 2307.211579,
-                                'uncertainty': 5.471836,
-                                'uncertainty [%]': 0.237162},
-                                index=['value'])
-    pd.testing.assert_frame_equal(expected_df,
-                                  ReactionRates({1: rr_plateau,
-                                                 2: plateau_monitor}
-                                                 ).per_unit_power(2)[1])
+@pytest.fixture
+def sample_traverse_rr(rr1, rr2):
+    return Traverse({'loc A': rr1, 'loc B': rr2})
+
+@pytest.fixture
+def sample_traverse_rrs(rr1, monitor1, rr2, monitor2):
+    return Traverse({'loc A': ReactionRates({1: rr1, 2: monitor1}),
+                     'loc B': ReactionRates({1: rr2, 2: monitor2})})
+
+def test_compute(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
+    expected_df = pd.DataFrame({'value': [1. ,.5],
+                                'uncertainty': [0.00335398, 0.00173107],
+                                'uncertainty [%]': [0.33539811, 0.34621331],
+                                'traverse': ['loc A', 'loc B']})
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.compute([monitor1,
+                                                                           monitor2]))
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.compute([2, 2]))
