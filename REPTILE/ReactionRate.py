@@ -19,6 +19,7 @@ class ReactionRate:
     campaign_id: str
     experiment_id: str
     detector_id: str
+    deposit_id: str
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
         """
@@ -155,7 +156,7 @@ class ReactionRate:
         return _make_df(v, u)
 
     @classmethod
-    def from_ascii(cls, file: str, detector: int):
+    def from_ascii(cls, file: str, detector: int, deposit_id: str):
         """
         Placeholder method to create a `ReactionRate` instance from an ASCII file.
 
@@ -165,6 +166,8 @@ class ReactionRate:
             Path to the ASCII file.
         detector : int
             Detector number in the ASCII file.
+        deposit_id : str
+            Deposit of the detector.
 
         Returns
         -------
@@ -179,7 +182,8 @@ class ReactionRate:
                   start_time=start_time,
                   campaign_id=campaign_id,
                   experiment_id=experiment_id,
-                  detector_id=f"Det {detector}")
+                  detector_id=f"Det {detector}",
+                  deposit_id=deposit_id)
         return out
 
 @dataclass(slots=True)
@@ -219,6 +223,11 @@ class ReactionRates:
             if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
                         for m in self.detectors.values()]):
                 raise Exception(f"Inconsistent {attr} among different ReactionRate instances.")
+        should = ['deposit_id']
+        for attr in should:
+            if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
+                        for m in self.detectors.values()]):
+                warnings.warn(f"Inconsistent {attr} among different ReactionRate instances.")
         self._check_time_consistency(time_tolerance)
         self._check_curve_consistency(timebase, sigma)
 
@@ -295,12 +304,23 @@ class ReactionRates:
                 raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
+    def _first(self):
+        return list(self.detectors.values())[0]
+
+    @property
     def campaign_id(self):
-        return list(self.detectors.values())[0].campaign_id
+        return self._first.campaign_id
 
     @property
     def experiment_id(self):
-        return list(self.detectors.values())[0].experiment_id
+        return self._first.experiment_id
+
+    @property
+    def deposit_id(self):
+        """
+        The deposit id of the first element of `self.detectors`.
+        """
+        return self._first.deposit_id
 
     @property
     def best(self) -> ReactionRate:
@@ -353,7 +373,7 @@ class ReactionRates:
         return out
 
     @classmethod
-    def from_ascii(cls, file: str, detectors: Iterable[int]):
+    def from_ascii(cls, file: str, detectors: Iterable[int], deposit_ids: Iterable[str]):
         """
         Creates an instance of ReactionRate using data extracted from an ASCII file.
 
@@ -368,6 +388,8 @@ class ReactionRates:
             Path to the ASCII file containing the power monitor data.
         detectors : Iterable[int]
             Detector numbers to read from the ASCII file.
+        deposit_ids : Iterable[str]
+            Ordered deposits of the detectors. 
 
         Returns
         -------

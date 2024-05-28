@@ -14,7 +14,7 @@ def sample_data():
 @pytest.fixture
 def power_monitor(sample_data):
     return ReactionRate(data=sample_data, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M')
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def plateau_data():
@@ -60,7 +60,7 @@ def plateau_data():
 def rr_plateau(plateau_data):
     return ReactionRate(plateau_data, plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1)
+                        detector_id=1, deposit_id='dep')
 
 @pytest.fixture
 def plateau_monitor(plateau_data):
@@ -68,7 +68,7 @@ def plateau_monitor(plateau_data):
     data_.value = [15000] * len(data_.value)
     return ReactionRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2)
+                        detector_id=2, deposit_id='dep')
 
 def test_average(power_monitor):
     expected_df = pd.DataFrame({'value': 11.66666667,

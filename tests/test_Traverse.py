@@ -47,7 +47,7 @@ def rr1():
     data =  pd.DataFrame({'Time': time, 'value': counts})
     return ReactionRate(data, data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1)
+                        detector_id=1, deposit_id='dep')
 
 @pytest.fixture
 def rr2():
@@ -55,7 +55,7 @@ def rr2():
     data = pd.DataFrame({'Time': time, 'value': np.array(counts) / 2})
     return ReactionRate(data, data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1)
+                        detector_id=1, deposit_id='dep')
 
 @pytest.fixture
 def monitor1(rr1):
@@ -63,7 +63,7 @@ def monitor1(rr1):
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
     return ReactionRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2)
+                        detector_id=2, deposit_id='dep')
 
 @pytest.fixture
 def monitor2(rr2):
@@ -71,7 +71,7 @@ def monitor2(rr2):
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
     return ReactionRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2)
+                        detector_id=2, deposit_id='dep')
 
 @pytest.fixture
 def sample_traverse_rr(rr1, rr2):

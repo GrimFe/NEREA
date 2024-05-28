@@ -454,11 +454,21 @@ class SpectralIndex(Computable):
 @dataclass(slots=True)
 class Traverse(Computable):
     reaction_rates: dict[int|str, ReactionRate | ReactionRates]
+    
     def __post_init__(self):
-        ref = list(self.reaction_rates.values())[0].campaign_id
         for item in self.reaction_rates.values():
-            if not ref == item.campaign_id:
+            if not self._first.campaign_id == item.campaign_id:
                     warnings.warn("Not matching campaign ids.")
+            if not self._first.deposit_id == item.deposit_id:
+                    warnings.warn("Not matching deposit ids.")
+
+    @property
+    def _first(self):
+        return list(self.reaction_rates.values())[0]
+
+    @property
+    def deposit_id(self):
+        return self._first.deposit_id
 
     def compute(self, monitors: Iterable[ReactionRate| int], *args, **kwargs) -> pd.DataFrame:
         """
