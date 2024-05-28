@@ -8,7 +8,7 @@ from REPTILE.utils import _make_df, ratio_v_u
 
 @dataclass(slots=True)
 class Calculated:
-    def compute(self) -> None:
+    def calculate(self) -> None:
         """
         Placeholder for inheriting classes.
         """
@@ -76,7 +76,7 @@ class C(Calculated):
                                             _make_df(v2, u2 * v2)))  # Serpent detector uncertainty is relative
         return cls(**kwargs)
 
-    def compute(self):
+    def calculate(self):
         """
         Computes the cover-e value. Alias for self.data.
 

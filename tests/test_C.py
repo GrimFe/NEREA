@@ -15,5 +15,5 @@ def test_C_initialization(sample_data, sample_c):
     assert sample_c.model_id == 'M'
     assert sample_c.deposit_ids == ['D1', 'D2']
 
-def test_compute(sample_data, sample_c):
-    pd.testing.assert_frame_equal(sample_data, sample_c.compute())
+def test_calculate(sample_data, sample_c):
+    pd.testing.assert_frame_equal(sample_data, sample_c.calculate())

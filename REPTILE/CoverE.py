@@ -63,7 +63,7 @@ class CoverE:
            value  uncertainty
         0    ...          ...
         """
-        v, u = ratio_v_u(self.c.compute(), self.e.compute(*args, **kwargs))
+        v, u = ratio_v_u(self.c.calculate(), self.e.compute(*args, **kwargs))
         return _make_df(v, u)
 
     def minus_one_percent(self, *args, **kwargs):
