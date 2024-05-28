@@ -125,8 +125,17 @@ class CalculatedTraverse:
             the specified file.
         """
         out = []
+        max, max_d = 0, None
         for d in detector_names:
             v, u = sts.read(file).detectors[detector_names].bins[0][-2:]
+            out.append(_make_df(v, u).assign(traverse=d))
+            if v > max:
+                max, max_d = v, d
+        df = pd.concat(out, ignore_index=True)
+        out = []
+        for d in detector_names:
+            v, u = ratio_v_u(df.query('traverse == @d'),
+                             df.query('traverse == @max_d'))
             out.append(_make_df(v, u).assign(traverse=d))
         return cls(data=pd.concat(out, ignore_index=True), **kwargs)
 
