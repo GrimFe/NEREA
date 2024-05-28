@@ -10,7 +10,7 @@ REPTILE (Reactor Eexperiment Processing Tool for Integrated Light Evaluation) is
 - **Spectral Index Calculation**: Tools to compute spectral indices by comparing reaction rates.
 - **C/E Calculation**: Compute C/E values from simulated and experimental data.
 
-## Installation
+## 🔧 Installation
 
 To install the package, clone the repository and use pip to install the dependencies:
 ```sh
@@ -18,6 +18,33 @@ git clone https://github.com/GrimFe/REPTILE.git
 cd REPTILE
 pip install -r requirements.txt
 ```
-## Examples
+
+To import REPTILE
+```
+import sys
+sys.path.append(r"path/to/REPTILE")
+import REPTILE
+```
+## 🗺️ Structure
+
+A schematic of REPTILE can be found ![here](https://github.com/GrimFe/REPTILE/tree/main/img/Structure.jpg). Reptile composes of four main parts:
+* DATA - dedicated to the interface with detector raw data and preprocessing:
+   - `EffectiveMass` or [`EM`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/EffectiveMass.py)
+   - `FissionFragmentSpectrum` or [`FFS`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/FisionFragmentSpectrum.py)
+   - `FissionFragmentSpectra` or [`FFSa`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/FisionFragmentSpectrum.py)
+   - `ReactionRate` or [`RR`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/ReactionRate.py)
+   - `ReactionRates` or [`RRs`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/ReactionRates.py)
+* COMPUTABLES - objects created out of the DATA and related processing:
+  - `NormalizedFissionFragmentSpectrum` or [`NFFS`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
+  - `SpectralIndex` or [`SI`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
+  - `Traverse` or [`Traverse`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
+* CALCULATED - objects crated from model outputs:
+  - `CalculatedSpectralIndex` or [`CSI`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Calculated.py)
+  - `CalculatedTraverse` or [`CT`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Calculated.py)
+* C/E - comparison of calculations to experiments:
+  - `CoverE` or [`CE`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/CoverE.py)
+ Useful functions are stored in [`utils.py`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/utils.py).
+
+## 🎮 Examples
 
 REPTILE comes with examples in the docstrings and test that can serve a similar purpose.
