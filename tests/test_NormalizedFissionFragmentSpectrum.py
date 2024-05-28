@@ -47,7 +47,7 @@ def effective_mass(sample_integral_data):
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
         return ReactionRate(experiment_id="B", data=sample_power_monitor_data,
-                            start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M')
+                            start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def nffs(fission_fragment_spectrum, effective_mass, power_monitor):
