@@ -88,6 +88,10 @@ def plateau_monitor(plateau_data):
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
+def test_deposit_id(pms, power_monitor_1):
+    assert pms.deposit_id == power_monitor_1.deposit_id
+    assert pms.deposit_id == 'dep'
+
 def test_best(pms, power_monitor_1):
     assert pms.best == power_monitor_1
 

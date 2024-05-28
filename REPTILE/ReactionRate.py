@@ -304,12 +304,23 @@ class ReactionRates:
                 raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
+    def _first(self):
+        return list(self.detectors.values())[0]
+
+    @property
     def campaign_id(self):
-        return list(self.detectors.values())[0].campaign_id
+        return self._first.campaign_id
 
     @property
     def experiment_id(self):
-        return list(self.detectors.values())[0].experiment_id
+        return self._first.experiment_id
+
+    @property
+    def deposit_id(self):
+        """
+        The deposit id of the first element of `self.detectors`.
+        """
+        return self._first.deposit_id
 
     @property
     def best(self) -> ReactionRate:
