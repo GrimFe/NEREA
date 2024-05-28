@@ -8,3 +8,5 @@ debug.py
 .vscode/
 tests/__pycache__/
 tests/old/
+img/*.pptx
+img/*.ppt
