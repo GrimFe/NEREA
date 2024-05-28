@@ -15,7 +15,7 @@ class Calculated:
         return None
 
 @dataclass(slots=True)
-class C(Calculated):
+class CalculatedSpectralIndex(Calculated):
     data: pd.DataFrame
     model_id: str
     deposit_ids: list[str]

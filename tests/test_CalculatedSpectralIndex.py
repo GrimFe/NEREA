@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from REPTILE.Calculated import C
+from REPTILE.Calculated import CalculatedSpectralIndex
 
 @pytest.fixture
 def sample_data():
@@ -8,9 +8,9 @@ def sample_data():
 
 @pytest.fixture
 def sample_c(sample_data):
-    return C(sample_data, 'M', ['D1', 'D2'])
+    return CalculatedSpectralIndex(sample_data, 'M', ['D1', 'D2'])
 
-def test_C_initialization(sample_data, sample_c):
+def test_initialization(sample_data, sample_c):
     pd.testing.assert_frame_equal(sample_data, sample_c.data)
     assert sample_c.model_id == 'M'
     assert sample_c.deposit_ids == ['D1', 'D2']

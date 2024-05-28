@@ -4,7 +4,7 @@ from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFrag
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
 from REPTILE.CoverE import CoverE
-from REPTILE.Calculated import C
+from REPTILE.Calculated import CalculatedSpectralIndex
 from datetime import datetime
 import pandas as pd
 
@@ -73,12 +73,12 @@ def sample_spectral_index(rr_1, rr_2):
     return SpectralIndex(rr_1, rr_2)
 
 @pytest.fixture
-def sample_c_data():
+def sample_c_si_data():
     return pd.DataFrame({'value': 1.01, 'uncertainty': .05}, index=['value'])
 
 @pytest.fixture
-def sample_c(sample_c_data):
-    return C(sample_c_data, 'M', ['D1', 'D2'])
+def sample_c(sample_c_si_data):
+    return CalculatedSpectralIndex(sample_c_si_data, 'M', ['D1', 'D2'])
 
 @pytest.fixture
 def sample_ce(sample_c, sample_spectral_index):
