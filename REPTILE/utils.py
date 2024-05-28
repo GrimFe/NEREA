@@ -111,9 +111,9 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
         the factors to multiply. Each dataframe should come with `value` and
         `uncertainty [%]` columns.
     """
-    v = np.prod(np.array([x.value for x in factors]))
+    v = np.prod([x.value for x in factors])
     # it is easier to work in relative terms for products and turn to absolute later on
-    u = np.sqrt(np.sum(np.array([x['uncertainty [%]'] **2 for x in factors]))) / 100 * v
+    u = np.sqrt(np.sum([x['uncertainty [%]'] **2 for x in factors])) / 100 * v
     return v, u
 
 def _make_df(v, u, relative=True) -> pd.DataFrame:

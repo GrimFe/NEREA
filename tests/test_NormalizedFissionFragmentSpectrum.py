@@ -118,12 +118,13 @@ def test_per_unit_mass_and_power(nffs):
                                    check_exact=False, atol=0.00001)
 
 def test_plateau(nffs):
-    expected_series = pd.Series({'channel fission fragment spectrum': 14.000000,
+    expected_df = pd.Series({'channel fission fragment spectrum': 14.000000,
                                  'channel effective mass': 14.000000,
                                  'value': 10.104598,
                                  'uncertainty': 0.345713,
-                                 'uncertainty [%]': 3.421340}, name=4)
-    pd.testing.assert_series_equal(expected_series, nffs.plateau())
+                                 'uncertainty [%]': 3.421340}, name=4).to_frame().T
+    expected_df.index = ['value']
+    pd.testing.assert_frame_equal(expected_df, nffs.plateau())
 
 def test_compute(nffs):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,

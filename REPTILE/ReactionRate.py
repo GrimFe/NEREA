@@ -430,6 +430,6 @@ class ReactionRates:
         Ensure that the file path provided is correct and that the file format matches the expected structure.
         """
         out = {}
-        for d in detectors:
-            out[d] = ReactionRate.from_ascii(file, d)
+        for i, d in enumerate(detectors):
+            out[d] = ReactionRate.from_ascii(file, d, deposit_id=deposit_ids[i])
         return cls(out)

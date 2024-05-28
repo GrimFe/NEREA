@@ -262,17 +262,19 @@ class NormalizedFissionFragmentSpectrum(Computable):
         # check where the values in the mass-normalized count rate converge withing tolerance
         close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
         if close_values.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the integral.")
+            raise Exception("No convergence found with the given tolerance on the integral.", ValueError)
         # consider only values where the convergence is observed in two neighboring channels, i.e. atol=1
         plateau = close_values[np.isclose(close_values.index, np.roll(close_values.index, shift=1), atol=1)]
         if plateau.shape[0] == 0:
-            raise Exception("No convergence found in neighbouring channels.")
+            raise Exception("No convergence found in neighbouring channels.", ValueError)
         # check the channels in which value does not differ more than ch_tolerance from the calibration ones
         plateau = plateau[abs(plateau['channel fission fragment spectrum'] - plateau['channel effective mass'])
                 / plateau['channel effective mass'] < ch_tolerance]
         if plateau.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the channel.")
-        return plateau.iloc[0]
+            raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
+        out = plateau.iloc[0].to_frame().T
+        out.index = ['value']
+        return out
 
     def compute(self, *args, **kwargs) -> pd.DataFrame:
         """

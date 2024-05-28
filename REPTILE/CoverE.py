@@ -49,26 +49,30 @@ class CoverE:
         """
         return self.c.deposit_ids
 
-    def _compute_si(self, *args, **kwargs):
+    def _compute_si(self, _minus_one_percent=False, *args, **kwargs):
         v, u = ratio_v_u(self.c.calculate(), self.e.compute(*args, **kwargs))
-        return _make_df(v, u)
+        return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100)
 
-    def _compute_traverse(self, *args, **kwargs):
+    def _compute_traverse(self, _minus_one_percent=False, *args, **kwargs):
         exp = self.e.compute(*args, **kwargs)
         cal = self.c.calculate()
         out = []
         for t in exp.traverse:
             v, u = ratio_v_u(cal.query("traverse == @t"),
                              exp.query("traverse == @t"))
-            out.append(_make_df(v.iloc[0], u.iloc[0]).assign(traverse=t))
+            v, u = v.iloc[0], u.iloc[0]
+            out.append(_make_df(v, u).assign(traverse=t) if not _minus_one_percent else
+                       _make_df((v - 1) * 100 , u * 100).assign(traverse=t))
         return pd.concat(out, ignore_index=True)
 
-    def compute(self, *args, **kwargs) -> pd.DataFrame:
+    def compute(self, _minus_one_percent=False, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the cover-e value.
 
         Parameters
         ----------
+        _minus_one_percent : bool, optional
+            computes the C/E-1 [%]. Defaults to False.
         *args : Any
             Positional arguments to be passed to the `SpectralIndex.compute()` method.
         **kwargs : Any
@@ -91,9 +95,9 @@ class CoverE:
         0    ...          ...
         """
         if isinstance(self.e, SpectralIndex):
-            out = self._compute_si(*args, **kwargs)
+            out = self._compute_si(_minus_one_percent, *args, **kwargs)
         if isinstance(self.e, Traverse):
-            out = self._compute_traverse(*args, **kwargs)
+            out = self._compute_traverse(_minus_one_percent, *args, **kwargs)
         return out
 
     def minus_one_percent(self, *args, **kwargs):
@@ -123,5 +127,4 @@ class CoverE:
            value  uncertainty
         0    5.0          ...
         """
-        out = self.compute(*args, **kwargs)
-        return _make_df((out['value'] - 1) * 100, out['uncertainty'] * 100)
+        return self.compute(*args, **kwargs, _minus_one_percent=True)

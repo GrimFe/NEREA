@@ -187,7 +187,7 @@ def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
                                 'uncertainty': [0.01055819, 0.02029745],
                                 'uncertainty [%]': [1.04536498, 2.02974473],
                                 'traverse': ['loc A', 'loc B']})
-    pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute([monitor1, monitor2]))
+    pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute(monitors=[monitor1, monitor2]))
 
 def test_minus_one_per_cent(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.,
