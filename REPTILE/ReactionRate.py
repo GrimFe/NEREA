@@ -20,6 +20,7 @@ class ReactionRate:
     experiment_id: str
     detector_id: str
     deposit_id: str
+    timebase: int = 1 ## in seconds
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
         """
@@ -52,7 +53,7 @@ class ReactionRate:
         end_time = start_time + timedelta(seconds=duration)
         series = self.data.query("Time > @start_time and Time <= @end_time")
         v, u = integral_v_u(series.value)
-        return _make_df(v / duration, u / duration)
+        return _make_df(v / duration * self.timebase, u / duration * self.timebase)
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
@@ -183,7 +184,8 @@ class ReactionRate:
                   campaign_id=campaign_id,
                   experiment_id=experiment_id,
                   detector_id=f"Det {detector}",
-                  deposit_id=deposit_id)
+                  deposit_id=deposit_id,
+                  timebase=(read['Time'][1] - read['Time'][0]).seconds)
         return out
 
 @dataclass(slots=True)
