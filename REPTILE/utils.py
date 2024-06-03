@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 import numpy as np
 import pandas as pd
+import warnings
 
 __all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df']
 

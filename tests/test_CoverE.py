@@ -183,9 +183,9 @@ def test_compute_si(sample_si_ce):
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
 
 def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
-    expected_df = pd.DataFrame({'value': [1.01, 1.  ],
-                                'uncertainty': [0.01055819, 0.02029745],
-                                'uncertainty [%]': [1.04536498, 2.02974473],
+    expected_df = pd.DataFrame({'value': [1., 0.99250555],
+                                'uncertainty': [0.01483835, 0.02256028],
+                                'uncertainty [%]': [1.48383507, 2.27306339],
                                 'traverse': ['loc A', 'loc B']})
     pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute(monitors=[monitor1, monitor2]))
 

@@ -53,7 +53,8 @@ class ReactionRate:
         end_time = start_time + timedelta(seconds=duration)
         series = self.data.query("Time > @start_time and Time <= @end_time")
         v, u = integral_v_u(series.value)
-        return _make_df(v / duration * self.timebase, u / duration * self.timebase)
+        relative = True if v != 0 else False
+        return _make_df(v / duration * self.timebase, u / duration * self.timebase, relative)
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
@@ -110,25 +111,31 @@ class ReactionRate:
             with a `Time` and a `value` column.
         """
         time = self.data.Time.min()
-        start_time = self.data.Time.min()
-        sum = 1
-        max = 0
+        plateau_start_time, plateau_end_time = self.data.Time.min(), self.data.Time.min()
+        sum, max = 1, 0
         while time < self.data.Time.max():
-            # compute the integral over 1 min
-            time_ = time + timedelta(seconds=timebase)
-            local_sum = self.data.query("Time > @time and Time < @time_").value.sum()
-            # check if the integral matches with the previous one within uncertainty
-            if not np.isclose(local_sum, sum, rtol=(1 / np.sqrt(local_sum) + 1 / np.sqrt(sum)) * sigma):
-                # Update plateau if integral from start to end times > max
-                if self.data.query("Time > @start_time and Time < @time_").value.sum() > max:
-                    plateau = self.data.query("Time > @start_time and Time < @time_")
-                    max = self.data.query("Time > @start_time and Time < @time_").value.sum()
-                # restart time counter (new plateau)
-                start_time = time
-            # update iteration variables (next minute next sum)
-            time += timedelta(seconds=timebase)
+            # compute the integral over timebase
+            time_plus_timedelta = time + timedelta(seconds=timebase)
+            series = self.data.query("Time > @time and Time <= @time_plus_timedelta").value
+            local_sum, _ = integral_v_u(series)
+            # check if new plateau starts
+            same_plateau = np.isclose(local_sum, sum,
+                                      atol=(np.sqrt(local_sum) + np.sqrt(sum)) * sigma)
+            # local_plateau = self.data.query("Time > @plateau_start_time and Time <= @time_plus_timedelta")
+            if same_plateau:
+                plateau_end_time = time_plus_timedelta
+            else:
+                if self.data.query("Time > @plateau_start_time and Time <= @plateau_end_time").value.sum() > max:
+                    max = self.data.query("Time > @plateau_start_time and Time <= @plateau_end_time").value.sum()
+                    max_plateau_start_time = plateau_start_time
+                    max_plateau_end_time = plateau_end_time
+                plateau_start_time = time_plus_timedelta
+            # update iteration variables (next timebin next sum)
+            time = time_plus_timedelta
             sum = local_sum
-        return plateau
+        if plateau_end_time == self.data.Time.min():
+            raise Exception(f"No plateau found in for detector {self.detector_id} in experiment {self.experiment_id}.")
+        return self.data.query("Time > @max_plateau_start_time and Time <= @max_plateau_end_time")
 
     def per_unit_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
         """
@@ -154,6 +161,32 @@ class ReactionRate:
         normalization = monitor.average(plateau.Time.min(), duration)
         v, u = integral_v_u(plateau.value)
         v, u = ratio_v_u(_make_df(v, u), normalization)
+        return _make_df(v, u)
+
+    def per_unit_time_power(self, monitor, *args, **kwargs):
+        """
+        Normalizes the raction rate to a power monitor and gives the conunt rate
+        per unit power.
+
+        Parameters
+        ----------
+        monitor : ReactionRate
+            The power monitor for the reaction rate normalization.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with value and uncertainty of the normalized reaction rate
+            averaged over time.
+        """
+        plateau = self.plateau(*args, **kwargs)
+        duration = (plateau.Time.max() - plateau.Time.min()).seconds
+        unit_p = self.per_unit_power(monitor, *args, **kwargs)
+        v, u = unit_p.value / duration, unit_p.uncertainty / duration
         return _make_df(v, u)
 
     @classmethod
@@ -372,6 +405,34 @@ class ReactionRates:
             if key != monitor:
                 out[key] = detector.per_unit_power(self.detectors[monitor],
                                                    *args, **kwargs)
+        return out
+
+    def per_unit_time_power(self, monitor: int, *args, **kwargs) -> dict[int, pd.DataFrame]:
+        """
+        Normalizes the raction rate to a power monitor and takes the average over time.
+
+        Parameters
+        ----------
+        monitor : int
+            The ID of the reaction rate to be used as power
+            monitor for the reaction rate normalization.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+
+        Returns
+        -------
+        dict[int, pd.DataFrame]
+            with value and uncertainty of the normalized reaction rate
+            averaged over time. Keys are the detector IDs as in
+            self.detectors.
+        """
+        out = {}
+        for key, detector in self.detectors.items():
+            if key != monitor:
+                out[key] = detector.per_unit_time_power(self.detectors[monitor],
+                                                        *args, **kwargs)
         return out
 
     @classmethod

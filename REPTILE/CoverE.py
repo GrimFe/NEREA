@@ -49,13 +49,13 @@ class CoverE:
         """
         return self.c.deposit_ids
 
-    def _compute_si(self, _minus_one_percent=False, *args, **kwargs):
-        v, u = ratio_v_u(self.c.calculate(), self.e.compute(*args, **kwargs))
+    def _compute_si(self, _minus_one_percent=False, **kwargs):
+        v, u = ratio_v_u(self.c.calculate(), self.e.compute(**kwargs))
         return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100)
 
-    def _compute_traverse(self, _minus_one_percent=False, *args, **kwargs):
-        exp = self.e.compute(*args, **kwargs)
-        cal = self.c.calculate()
+    def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
+        exp = self.e.compute(normalization=normalization, **kwargs)
+        cal = self.c.calculate(normalization=normalization)
         out = []
         for t in exp.traverse:
             v, u = ratio_v_u(cal.query("traverse == @t"),
@@ -65,7 +65,8 @@ class CoverE:
                        _make_df((v - 1) * 100 , u * 100).assign(traverse=t))
         return pd.concat(out, ignore_index=True)
 
-    def compute(self, _minus_one_percent=False, *args, **kwargs) -> pd.DataFrame:
+    def compute(self, _minus_one_percent=False, *args, normalization: str =None,
+                **kwargs) -> pd.DataFrame:
         """
         Computes the cover-e value.
 
@@ -75,6 +76,10 @@ class CoverE:
             computes the C/E-1 [%]. Defaults to False.
         *args : Any
             Positional arguments to be passed to the `SpectralIndex.compute()` method.
+        normalization : str, optional
+            The detector name to normalize the traveres to.
+            Defaults to None, normalizing to the one with the highest counts.
+            Will be used to compute traverse C/E for normalization of both C and E.
         **kwargs : Any
             Keyword arguments to be passed to the `SpectralIndex.compute()` method.
 
@@ -95,12 +100,12 @@ class CoverE:
         0    ...          ...
         """
         if isinstance(self.e, SpectralIndex):
-            out = self._compute_si(_minus_one_percent, *args, **kwargs)
+            out = self._compute_si(_minus_one_percent, **kwargs)
         if isinstance(self.e, Traverse):
-            out = self._compute_traverse(_minus_one_percent, *args, **kwargs)
+            out = self._compute_traverse(_minus_one_percent, normalization=normalization, **kwargs)
         return out
 
-    def minus_one_percent(self, *args, **kwargs):
+    def minus_one_percent(self, **kwargs):
         """
         Computes the cover-e value and subtracts 1%, adjusting the uncertainty accordingly.
 
@@ -127,4 +132,4 @@ class CoverE:
            value  uncertainty
         0    5.0          ...
         """
-        return self.compute(*args, **kwargs, _minus_one_percent=True)
+        return self.compute(**kwargs, _minus_one_percent=True)

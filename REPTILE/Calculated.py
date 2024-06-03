@@ -62,6 +62,7 @@ class CalculatedSpectralIndex(Calculated):
             The file path from which data will be read.
         detector_names : Iterable[str]
             The names of the detectors from which data will be extracted.
+            Numerator goes first, denominator second.
 
         Returns
         -------
@@ -76,8 +77,9 @@ class CalculatedSpectralIndex(Calculated):
         """
         v1, u1 = sts.read(file).detectors[detector_names[0]].bins[0][-2:]
         v2, u2 = sts.read(file).detectors[detector_names[1]].bins[0][-2:]
-        kwargs['data'] = _make_df(ratio_v_u(_make_df(v1, u1 * v1),  # Serpent detector uncertainty is relative
-                                            _make_df(v2, u2 * v2)))  # Serpent detector uncertainty is relative
+        # Serpent detector uncertainty is relative
+        v, u = ratio_v_u(_make_df(v=v1, u=u1 * v1), _make_df(v=v2, u=u2 * v2))
+        kwargs['data'] = _make_df(v, u)
         return cls(**kwargs)
 
     def calculate(self):
@@ -117,6 +119,9 @@ class CalculatedTraverse:
             The file path from which data will be read.
         detector_names : Iterable[str]
             The names of the detectors from which data will be extracted.
+        normalization : str, optional
+            The detector name to normalize the traveres to.
+            Defaults to None, normalizing to the one with the highest counts.
 
         Returns
         -------
@@ -125,23 +130,21 @@ class CalculatedTraverse:
             the specified file.
         """
         out = []
-        max, max_d = 0, None
         for d in detector_names:
-            v, u = sts.read(file).detectors[detector_names].bins[0][-2:]
-            out.append(_make_df(v, u).assign(traverse=d))
-            if v > max:
-                max, max_d = v, d
-        df = pd.concat(out, ignore_index=True)
-        out = []
-        for d in detector_names:
-            v, u = ratio_v_u(df.query('traverse == @d'),
-                             df.query('traverse == @max_d'))
-            out.append(_make_df(v, u).assign(traverse=d))
-        return cls(data=pd.concat(out, ignore_index=True), **kwargs)
+            v, u = sts.read(file).detectors[d].bins[0][-2:]
+            out.append(_make_df(v, u * v).assign(traverse=d))
+        out = pd.concat(out)
+        return cls(data=out, **kwargs)
 
-    def calculate(self):
+    def calculate(self, normalization: str=None):
         """
-        Computes the C value. Alias for self.data.
+        Computes the C value. Normalized self.data.
+
+        Parameters
+        ----------
+        normalization : str, optional
+            The detector name to normalize the traveres to.
+            Defaults to None, normalizing to the one with the highest counts.
 
         Returns
         -------
@@ -149,5 +152,14 @@ class CalculatedTraverse:
             DataFrame containing the C value.
 
         """
-        return self.data
-    
+        out = []
+        max_d = self.data.query("value == @self.data.value.max()").traverse.iloc[0]
+        norm_d = max_d if normalization is None else normalization
+        den = self.data.query('traverse == @norm_d')
+        den = _make_df(den.value.iloc[0], den.uncertainty.iloc[0])
+        for d in self.data.traverse:
+            num = self.data.query('traverse == @d')
+            num = _make_df(num.value.iloc[0], num.uncertainty.iloc[0])
+            v, u = ratio_v_u(num, den)
+            out.append(_make_df(v, u).assign(traverse=d))
+        return pd.concat(out, ignore_index=True)

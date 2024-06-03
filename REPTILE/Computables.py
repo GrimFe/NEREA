@@ -455,7 +455,7 @@ class SpectralIndex(Computable):
 
 @dataclass(slots=True)
 class Traverse(Computable):
-    reaction_rates: dict[int|str, ReactionRate | ReactionRates]
+    reaction_rates: dict[str, ReactionRate | ReactionRates]
     
     def __post_init__(self):
         for item in self.reaction_rates.values():
@@ -472,7 +472,8 @@ class Traverse(Computable):
     def deposit_id(self):
         return self._first.deposit_id
 
-    def compute(self, monitors: Iterable[ReactionRate| int], *args, **kwargs) -> pd.DataFrame:
+    def compute(self, monitors: Iterable[ReactionRate| int], *args, normalization: int|str=None,
+                **kwargs) -> pd.DataFrame:
         """
         Normalizes all the reaction rates to the power in `monitors`
         and to the maximum value.
@@ -483,9 +484,12 @@ class Traverse(Computable):
             ordered information on the power normalization.
             Should be `ReactionRate` when mapped to a `ReactionRate` and
             int when mapped to `ReactionRates`. The normalization is passed to
-            `ReactionRate.per_unit_power()` or `ReactionRates.per_unit_power()`.
+            `ReactionRate.per_unit_time_power()` or `ReactionRates.per_unit_time_power()`.
         *args : Any
             Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        normalization : str, optional
+            The `self.reaction_rates` ReactionRate identifier to normalize the traveres to.
+            Defaults to None, normalizing to the one with the highest counts.
         **kwargs : Any
             Keyword arguments to be passed to the `ReactionRate.plateau()` method.
         
@@ -502,14 +506,14 @@ class Traverse(Computable):
         normalized = {}
         # Normalize to power
         for i, (k, rr) in enumerate(self.reaction_rates.items()):
-            n = rr.per_unit_power(monitors[i], *args, **kwargs)
-            normalized[k]  = n if isinstance(rr, ReactionRate) else list(n.values())[0]
+            n = rr.per_unit_time_power(monitors[i], *args, **kwargs)
+            normalized[k] = n if isinstance(rr, ReactionRate) else list(n.values())[0]
             if normalized[k].value[0] > max:
                 max_k, max = k, normalized[k].value[0]
-        # Normalize to maximum
+        norm_k = max_k if normalization is None else normalization
         out = []
         for k, v in normalized.items():
-            v, u = ratio_v_u(v, normalized[max_k])
+            v, u = ratio_v_u(v, normalized[norm_k])
             out.append(_make_df(v, u).assign(traverse=k))
         return pd.concat(out, ignore_index=True)
 
