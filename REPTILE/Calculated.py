@@ -51,7 +51,7 @@ class CalculatedSpectralIndex(Calculated):
         return cls(**kwargs)
 
     @classmethod
-    def from_sts_detectors(cls, file: str, detector_names: Iterable[str], **kwargs):
+    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs):
         """
         Creates an instance using data extracted from a Serpent det.m
         file for multiple detectors.
@@ -60,9 +60,9 @@ class CalculatedSpectralIndex(Calculated):
         ----------
         file : str
             The file path from which data will be read.
-        detector_names : Iterable[str]
-            The names of the detectors from which data will be extracted.
-            Numerator goes first, denominator second.
+        detector_names : dict[str,str]
+            Keys can be `numerator` or `denominator`, while values are the names of
+            the detectors from which data will be extracted.
 
         Returns
         -------
@@ -75,8 +75,8 @@ class CalculatedSpectralIndex(Calculated):
         >>> c_instance = CalculatedSpectralIndex.from_sts_detectors('file.det', 
                                                     ['detector1', 'detector2'], model_id='Model1')
         """
-        v1, u1 = sts.read(file).detectors[detector_names[0]].bins[0][-2:]
-        v2, u2 = sts.read(file).detectors[detector_names[1]].bins[0][-2:]
+        v1, u1 = sts.read(file).detectors[detector_names['numerator']].bins[0][-2:]
+        v2, u2 = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
         # Serpent detector uncertainty is relative
         v, u = ratio_v_u(_make_df(v=v1, u=u1 * v1), _make_df(v=v2, u=u2 * v2))
         kwargs['data'] = _make_df(v, u)

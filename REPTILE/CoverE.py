@@ -51,7 +51,7 @@ class CoverE:
 
     def _compute_si(self, _minus_one_percent=False, **kwargs):
         v, u = ratio_v_u(self.c.calculate(), self.e.compute(**kwargs))
-        return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100)
+        return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100, relative=False)
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
         exp = self.e.compute(normalization=normalization, **kwargs)
@@ -62,7 +62,7 @@ class CoverE:
                              exp.query("traverse == @t"))
             v, u = v.iloc[0], u.iloc[0]
             out.append(_make_df(v, u).assign(traverse=t) if not _minus_one_percent else
-                       _make_df((v - 1) * 100 , u * 100).assign(traverse=t))
+                       _make_df((v - 1) * 100 , u * 100, relative=False).assign(traverse=t))
         return pd.concat(out, ignore_index=True)
 
     def compute(self, _minus_one_percent=False, *args, normalization: str =None,
