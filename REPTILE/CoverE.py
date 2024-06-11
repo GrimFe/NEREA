@@ -58,8 +58,8 @@ class CoverE:
         cal = self.c.calculate(normalization=normalization)
         out = []
         for t in exp.traverse:
-            v, u = ratio_v_u(cal.query("traverse == @t"),
-                             exp.query("traverse == @t"))
+            v, u = ratio_v_u(cal.query("traverse == @t").reset_index(),
+                             exp.query("traverse == @t").reset_index())
             v, u = v.iloc[0], u.iloc[0]
             out.append(_make_df(v, u).assign(traverse=t) if not _minus_one_percent else
                        _make_df((v - 1) * 100 , u * 100, relative=False).assign(traverse=t))
