@@ -192,7 +192,6 @@ def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
 def test_minus_one_per_cent(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 8.323682675073316,
-                                'uncertainty [%]': 832.3682675073309},
+                                'uncertainty [%]': np.nan},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)
-

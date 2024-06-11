@@ -513,6 +513,7 @@ class Traverse(Computable):
         norm_k = max_k if normalization is None else normalization
         out = []
         for k, v in normalized.items():
+            relative = False if k == norm_k else True
             v, u = ratio_v_u(v, normalized[norm_k])
             out.append(_make_df(v, u).assign(traverse=k))
         return pd.concat(out, ignore_index=True)
