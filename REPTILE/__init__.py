@@ -6,4 +6,4 @@ from REPTILE.Computables import *
 
 from REPTILE.Calculated import *
 
-from REPTILE.CoverE import *
+from REPTILE.Comparisons import *

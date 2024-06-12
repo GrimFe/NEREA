@@ -3,7 +3,7 @@ from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
-from REPTILE.CoverE import CoverE
+from REPTILE.Comparisons import CoverE
 from REPTILE.Calculated import CalculatedSpectralIndex, CalculatedTraverse
 from datetime import datetime, timedelta
 import pandas as pd
