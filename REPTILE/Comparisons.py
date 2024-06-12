@@ -12,28 +12,33 @@ from REPTILE.utils import ratio_v_u, _make_df
 __all__ = ['CoverE']
 
 @dataclass(slots=True)
+class Comparison:
+    pass    
+
+
+@dataclass(slots=True)
 class CoverE:
-    c: Calculated
-    e: Computable
+    num: Calculated  # calculation
+    den: Computable  # experiment
 
     def __post_init__(self):
         self._check_consistency()
 
     def _check_consistency(self) -> None:
         self._check_class_consistency()
-        if isinstance(self.e, Traverse):
-            if not self.c.deposit_id == self.e.deposit_id:
+        if isinstance(self.den, Traverse):
+            if not self.num.deposit_id == self.den.deposit_id:
                 raise Exception("Inconsistent deposits between C and E.")
-        if isinstance(self.e, SpectralIndex):
-            if not self.c.deposit_ids == self.e.deposit_ids:
+        if isinstance(self.den, SpectralIndex):
+            if not self.num.deposit_ids == self.den.deposit_ids:
                 raise Exception("Inconsistent deposits between C and E.")
         
     def _check_class_consistency(self):
-        if ((isinstance(self.c, CalculatedTraverse) and not isinstance(self.e, Traverse)) or
-            (isinstance(self.e, Traverse) and not isinstance(self.c, CalculatedTraverse))):
+        if ((isinstance(self.num, CalculatedTraverse) and not isinstance(self.den, Traverse)) or
+            (isinstance(self.den, Traverse) and not isinstance(self.num, CalculatedTraverse))):
             raise Exception("Cannot compare Traverse and non-Traverse object.")
-        if (isinstance(self.c, CalculatedSpectralIndex) and not isinstance(self.e, SpectralIndex) or
-            isinstance(self.e, SpectralIndex) and not isinstance(self.c, CalculatedSpectralIndex)):
+        if (isinstance(self.num, CalculatedSpectralIndex) and not isinstance(self.den, SpectralIndex) or
+            isinstance(self.den, SpectralIndex) and not isinstance(self.num, CalculatedSpectralIndex)):
             raise Exception("Cannot compare SpectralIndex and non-SpectralIndex object.")
 
     @property
@@ -47,15 +52,15 @@ class CoverE:
         list[str]
             A list containing the deposit IDs of the numerator and denominator.
         """
-        return self.c.deposit_ids
+        return self.num.deposit_ids
 
     def _compute_si(self, _minus_one_percent=False, **kwargs):
-        v, u = ratio_v_u(self.c.calculate(), self.e.compute(**kwargs))
+        v, u = ratio_v_u(self.num.calculate(), self.den.compute(**kwargs))
         return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100, relative=False)
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
-        exp = self.e.compute(normalization=normalization, **kwargs)
-        cal = self.c.calculate(normalization=normalization)
+        exp = self.den.compute(normalization=normalization, **kwargs)
+        cal = self.num.calculate(normalization=normalization)
         out = []
         for t in exp.traverse:
             v, u = ratio_v_u(cal.query("traverse == @t").reset_index(),
@@ -99,9 +104,9 @@ class CoverE:
            value  uncertainty
         0    ...          ...
         """
-        if isinstance(self.e, SpectralIndex):
+        if isinstance(self.den, SpectralIndex):
             out = self._compute_si(_minus_one_percent, **kwargs)
-        if isinstance(self.e, Traverse):
+        if isinstance(self.den, Traverse):
             out = self._compute_traverse(_minus_one_percent, normalization=normalization, **kwargs)
         return out
 
