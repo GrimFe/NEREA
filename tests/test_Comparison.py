@@ -3,7 +3,7 @@ from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
-from REPTILE.Comparisons import CoverE
+from REPTILE.Comparisons import _Comparison
 from REPTILE.Calculated import CalculatedSpectralIndex, CalculatedTraverse
 from datetime import datetime, timedelta
 import pandas as pd
@@ -84,7 +84,11 @@ def sample_c(sample_c_si_data):
 
 @pytest.fixture
 def sample_si_ce(sample_c, sample_spectral_index):
-    return CoverE(sample_c, sample_spectral_index)
+    return _Comparison(sample_c, sample_spectral_index)
+
+@pytest.fixture
+def sample_si_cc(sample_c):
+    return _Comparison(sample_c, sample_c)
 
 counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
           0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
@@ -170,7 +174,35 @@ def sample_c_traverse(sample_c_traverse_data):
 
 @pytest.fixture
 def sample_ce_traverse(sample_c_traverse, sample_traverse_rr):
-    return CoverE(sample_c_traverse, sample_traverse_rr)
+    return _Comparison(sample_c_traverse, sample_traverse_rr)
 
-def test_deposit_ids(sample_si_ce, sample_ce_traverse):
+def test_deposit_ids(sample_si_ce):
     assert sample_si_ce.deposit_ids == ['D1', 'D2']
+
+def test_compute_si(sample_si_ce):
+    expected_df = pd.DataFrame({'value': 1.01,
+                                'uncertainty': 0.08323682675073317,
+                                'uncertainty [%]': 8.241269975320115},
+                                index=['value'])
+    pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
+
+def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
+    expected_df = pd.DataFrame({'value': [1., 0.99250555],
+                                'uncertainty': [0.01483835, 0.02256028],
+                                'uncertainty [%]': [1.48383507, 2.27306339],
+                                'traverse': ['loc A', 'loc B']})
+    pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute(monitors=[monitor1, monitor2]))
+
+def test_minus_one_per_cent(sample_si_ce):
+    expected_df = pd.DataFrame({'value': 1.,
+                                'uncertainty': 8.323682675073316,
+                                'uncertainty [%]': np.nan},
+                                index=['value'])
+    pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)
+
+def test_si_cc(sample_si_cc):
+    print(sample_si_cc.compute())
+    print('###########################################')
+
+#      value  uncertainty  uncertainty [%]
+# value    1.0     0.070011         7.001057
