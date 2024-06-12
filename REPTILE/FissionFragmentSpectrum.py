@@ -68,11 +68,17 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> max_data = ffs.get_max(...)
         """
+        ## Implementing what is in MATLAB
+        # reb = self.rebin(bins)
+        # lst_ch = reb[reb.counts > 0].channel.max()
+        # fst_ch = np.floor(lst_ch / 10)
+        # df = reb.set_index("channel").loc[fst_ch:lst_ch]
+
+        ## New implementation (skipping the first channels to cut noise)
         reb = self.rebin(bins)
-        lst_ch = reb[reb.counts > 0].channel.max()
-        fst_ch = np.floor(lst_ch / 10)
-        df = reb.set_index("channel").loc[fst_ch:lst_ch]
-        return pd.DataFrame({"channel": [df.counts.idxmax()], "counts": [df.counts.max()]})
+        fst_ch = reb[reb.counts > 0].channel.min() + np.floor(reb.channel.max() / 50)
+        df = reb[reb.channel > fst_ch]
+        return pd.DataFrame({"channel": [df.counts.idxmax() + 1], "counts": [df.counts.max()]})
 
     def get_R(self, bins: int=None) -> pd.DataFrame:
         """

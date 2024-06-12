@@ -7,8 +7,8 @@ from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 def sample_spectrum_data():
     # Sample data for testing
     data = {
-        "channel": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
-        "counts": [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 50, 25, 10, 5, 3, 1, 0, 0, 0]
+        "channel": [1,  2,   3,   4,   5,   6,   7,   8,   9,   10,  11,  12, 13, 14, 15, 16, 17, 18, 19, 20],
+        "counts": [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 50, 25, 10,  5,  3,  1,  0,  0,  0]
     }
     return data
 
