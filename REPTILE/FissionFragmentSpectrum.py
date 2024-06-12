@@ -76,7 +76,8 @@ class FissionFragmentSpectrum:
 
         ## New implementation (skipping the first channels to cut noise)
         reb = self.rebin(bins)
-        fst_ch = reb[reb.counts > 0].channel.min() + np.floor(reb.channel.max() / 50)
+        lst_ch = reb[reb.counts > 0].channel.max()
+        fst_ch = reb[reb.counts > 0].channel.min() + np.floor(lst_ch / 10)
         df = reb[reb.channel > fst_ch]
         return pd.DataFrame({"channel": [df.counts.idxmax() + 1], "counts": [df.counts.max()]})
 
