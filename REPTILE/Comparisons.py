@@ -9,7 +9,7 @@ from REPTILE import Calculated, CalculatedSpectralIndex, CalculatedTraverse
 from REPTILE.utils import ratio_v_u, _make_df
 
 
-__all__ = ['CoverE']
+__all__ = ['CoverE', 'CoverC']
 
 @dataclass(slots=True)
 class _Comparison:
