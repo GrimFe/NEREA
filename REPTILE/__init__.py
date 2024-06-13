@@ -2,7 +2,7 @@ from REPTILE.FissionFragmentSpectrum import *
 from REPTILE.EffectiveMass import *
 from REPTILE.ReactionRate import *
 
-from REPTILE.Computables import *
+from REPTILE.Experimental import *
 
 from REPTILE.Calculated import *
 

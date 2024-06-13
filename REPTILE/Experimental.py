@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import warnings
 
-__all__ = ['Computable',
+__all__ = ['_Experimental',
            'NormalizedFissionFragmentSpectrum',
            'SpectralIndex',
            'Traverse']
@@ -22,8 +22,8 @@ def average_v_u(df):
     return v, u
 
 @dataclass(slots=True)
-class Computable:
-    def compute(self) -> None:
+class _Experimental:
+    def process(self) -> None:
         """
         Placeholder for inheriting classes.
         """
@@ -31,7 +31,7 @@ class Computable:
 
 
 @dataclass(slots=True)
-class NormalizedFissionFragmentSpectrum(Computable):
+class NormalizedFissionFragmentSpectrum(_Experimental):
     fission_fragment_spectrum: FissionFragmentSpectrum
     effective_mass: EffectiveMass
     power_monitor: ReactionRate
@@ -276,7 +276,7 @@ class NormalizedFissionFragmentSpectrum(Computable):
         out.index = ['value']
         return out
 
-    def compute(self, *args, **kwargs) -> pd.DataFrame:
+    def process(self, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate.
 
@@ -300,7 +300,7 @@ class NormalizedFissionFragmentSpectrum(Computable):
         ...                    detector_id='D1', deposit_id='Dep1')
         >>> pm = ReactionRate(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
         >>> rr = NormalizedFissionFragmentSpectrum(fission_fragment_spectrum=ffs, effective_mass=em, power_monitor=pm)
-        >>> rr.compute()
+        >>> rr.process()
             value  uncertainty
         0  35.6    2.449490
         """
@@ -308,7 +308,7 @@ class NormalizedFissionFragmentSpectrum(Computable):
         return _make_df(v, u)
 
 @dataclass
-class SpectralIndex(Computable):
+class SpectralIndex(_Experimental):
     numerator: NormalizedFissionFragmentSpectrum
     denominator: NormalizedFissionFragmentSpectrum
 
@@ -396,7 +396,7 @@ class SpectralIndex(Computable):
         relative = True if imp_v.shape[0] != 0 else False
         return _make_df(correction, np.sqrt(correction_variance), relative=relative)
 
-    def compute(self, one_g_xs: pd.DataFrame = None,
+    def process(self, one_g_xs: pd.DataFrame = None,
                 one_g_xs_file: dict[str, tuple[str, str]] = None, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the ratio of two reaction rates.
@@ -412,9 +412,9 @@ class SpectralIndex(Computable):
             `value[0]` from for each nuclide `key`. Alternative to `one_g_xs`.
             Defaults to None for no file.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.compute()` method.
+            Positional arguments to be passed to the `ReactionRate.process()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.compute()` method.
+            Keyword arguments to be passed to the `ReactionRate.process()` method.
 
         Returns
         -------
@@ -427,12 +427,12 @@ class SpectralIndex(Computable):
         >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
         >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
-        >>> spectral_index.compute()
+        >>> spectral_index.process()
             value  uncertainty
         0  0.95   0.034139
         """
-        v, u = ratio_v_u(self.numerator.compute(*args, **kwargs),
-                         self.denominator.compute(*args, **kwargs))
+        v, u = ratio_v_u(self.numerator.process(*args, **kwargs),
+                         self.denominator.process(*args, **kwargs))
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
@@ -454,7 +454,7 @@ class SpectralIndex(Computable):
         return _make_df(v, u)
 
 @dataclass(slots=True)
-class Traverse(Computable):
+class Traverse(_Experimental):
     reaction_rates: dict[str, ReactionRate | ReactionRates]
     
     def __post_init__(self):
@@ -472,7 +472,7 @@ class Traverse(Computable):
     def deposit_id(self):
         return self._first.deposit_id
 
-    def compute(self, monitors: Iterable[ReactionRate| int], *args, normalization: int|str=None,
+    def process(self, monitors: Iterable[ReactionRate| int], *args, normalization: int|str=None,
                 **kwargs) -> pd.DataFrame:
         """
         Normalizes all the reaction rates to the power in `monitors`
@@ -577,7 +577,7 @@ class Traverse(Computable):
 #         """
 #         return self.fission_fragment_spectra[-1].deposit_id
 
-#     def compute(self, *args, **kwargs):
+#     def process(self, *args, **kwargs):
 #         """
 #         Computes the average of multiple reaction rates.
 
@@ -603,7 +603,7 @@ class Traverse(Computable):
 #         >>> rr2 = NormalizedFissionFragmentSpectrum(fission_fragment_spectrum=ffs2, effective_mass=em2, power_monitor=pm2)
 
 #         >>> arr = AverageNormalizedFissionFragmentSpectrum(reaction_rates=[rr1, rr2])
-#         >>> arr.compute()
+#         >>> arr.process()
 #             value  uncertainty
 #         0  43.366667  3.162278
 #         """
@@ -612,7 +612,7 @@ class Traverse(Computable):
 #             data.append(NormalizedFissionFragmentSpectrum(ffs,
 #                                      self.effective_mass,
 #                                      self.power_monitor
-#                                      ).compute(*args, **kwargs
+#                                      ).process(*args, **kwargs
 #                                                ).assign(measurement=ffs.measurement_id))
 #         data = pd.concat(data)
 #         v, u = average_v_u(data)
