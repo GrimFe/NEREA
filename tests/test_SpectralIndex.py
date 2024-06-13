@@ -1,5 +1,5 @@
 import pytest
-from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex
+from REPTILE.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate
@@ -85,11 +85,11 @@ def synthetic_one_g_xs_data():
 def test_deposit_ids(si):
     assert si.deposit_ids == ['D1', 'D2']
 
-def test_compute(si):
+def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 0.06588712284729072,
                                 'uncertainty [%]': 6.5887122847290716}, index= ['value'])
-    pd.testing.assert_frame_equal(si.compute(), expected_df, check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(si.process(), expected_df, check_exact=False, atol=0.00001)
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
@@ -122,4 +122,4 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
 
-    pd.testing.assert_frame_equal(data, si.compute(synthetic_one_g_xs_data))
+    pd.testing.assert_frame_equal(data, si.process(synthetic_one_g_xs_data))
