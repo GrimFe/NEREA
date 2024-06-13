@@ -1,5 +1,5 @@
 import pytest
-from REPTILE.Computables import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
+from REPTILE.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
 from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
 from REPTILE.EffectiveMass import EffectiveMass
 from REPTILE.ReactionRate import ReactionRate

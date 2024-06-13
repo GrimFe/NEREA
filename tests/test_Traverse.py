@@ -82,11 +82,11 @@ def sample_traverse_rrs(rr1, monitor1, rr2, monitor2):
     return Traverse({'loc A': ReactionRates({1: rr1, 2: monitor1}),
                      'loc B': ReactionRates({1: rr2, 2: monitor2})})
 
-def test_compute(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
+def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
     expected_df = pd.DataFrame({'value': [1.        , 0.49878764],
                                 'uncertainty': [0.00491095, 0.00215417],
                                 'uncertainty [%]': [0.49109513, 0.4318809],
                                 'traverse': ['loc A', 'loc B']})
-    pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.compute([monitor1,
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.process([monitor1,
                                                                            monitor2]))
-    pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.compute([2, 2]))
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2]))

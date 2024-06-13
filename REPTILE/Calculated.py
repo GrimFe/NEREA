@@ -6,8 +6,12 @@ import pandas as pd
 
 from REPTILE.utils import _make_df, ratio_v_u
 
+__all__ = ['_Calculated',
+           'CalculatedSpectralIndex',
+           'CalculatedTraverse']
+
 @dataclass(slots=True)
-class Calculated:
+class _Calculated:
     def calculate(self) -> None:
         """
         Placeholder for inheriting classes.
@@ -15,7 +19,7 @@ class Calculated:
         return None
 
 @dataclass(slots=True)
-class CalculatedSpectralIndex(Calculated):
+class CalculatedSpectralIndex(_Calculated):
     data: pd.DataFrame
     model_id: str
     deposit_ids: list[str]
@@ -102,7 +106,7 @@ class CalculatedSpectralIndex(Calculated):
         return self.data
 
 @dataclass(slots=True)
-class CalculatedTraverse:
+class CalculatedTraverse(_Calculated):
     data: pd.DataFrame
     model_id: str
     deposit_id: str

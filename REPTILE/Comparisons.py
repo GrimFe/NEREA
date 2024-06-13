@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from REPTILE import Computable, SpectralIndex, Traverse
-from REPTILE import Calculated, CalculatedSpectralIndex, CalculatedTraverse
+from REPTILE import _Experimental, SpectralIndex, Traverse
+from REPTILE import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
 from REPTILE.utils import ratio_v_u, _make_df
 
 
@@ -13,8 +13,8 @@ __all__ = ['CoverE', 'CoverC']
 
 @dataclass(slots=True)
 class _Comparison:
-    num: Calculated
-    den: Computable | Calculated
+    num: _Calculated
+    den: _Experimental | _Calculated
 
     def _check_consistency_attrs(self) -> None:
         if isinstance(self.den, Traverse):
@@ -38,8 +38,8 @@ class _Comparison:
         return self.num.deposit_ids
 
     def _get_denominator(self, **kwargs):
-        return self.den.compute(**kwargs) if isinstance(self.den,
-                                                        Computable) else self.den.calculate()
+        return self.den.process(**kwargs) if isinstance(self.den,
+                                                        _Experimental) else self.den.calculate()
 
     def _compute_si(self, _minus_one_percent=False, **kwargs):
         v, u = ratio_v_u(self.num.calculate(), self._get_denominator(**kwargs))
@@ -47,7 +47,7 @@ class _Comparison:
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
         n = self.num.calculate(normalization=normalization)
-        d = self.den.compute(normalization=normalization, **kwargs)
+        d = self.den.process(normalization=normalization, **kwargs)
         out = []
         for t in d.traverse:
             v, u = ratio_v_u(n.query("traverse == @t").reset_index(),
@@ -67,13 +67,13 @@ class _Comparison:
         _minus_one_percent : bool, optional
             computes the C/E-1 [%]. Defaults to False.
         *args : Any
-            Positional arguments to be passed to the `SpectralIndex.compute()` method.
+            Positional arguments to be passed to the `SpectralIndex.process()` method.
         normalization : str, optional
             The detector name to normalize the traveres to.
             Defaults to None, normalizing to the one with the highest counts.
             Will be used to compute traverse C/E for normalization of both C and E.
         **kwargs : Any
-            Keyword arguments to be passed to the `SpectralIndex.compute()` method.
+            Keyword arguments to be passed to the `SpectralIndex.process()` method.
 
         Returns
         -------
@@ -105,9 +105,9 @@ class _Comparison:
         Parameters
         ----------
         *args : Any
-            Positional arguments to be passed to the `SpectralIndex.compute()` method.
+            Positional arguments to be passed to the `SpectralIndex.process()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `SpectralIndex.compute()` method.
+            Keyword arguments to be passed to the `SpectralIndex.process()` method.
 
         Returns
         -------
@@ -130,8 +130,8 @@ class _Comparison:
 
 @dataclass(slots=True)
 class CoverE(_Comparison):
-    num: Calculated  # calculation
-    den: Computable  # experiment
+    num: _Calculated  # calculation
+    den: _Experimental  # experiment
 
     def __post_init__(self):
         self._check_consistency()
@@ -148,8 +148,8 @@ class CoverE(_Comparison):
 
 @dataclass(slots=True)
 class CoverC(_Comparison):
-    num: Calculated  # calculation
-    den: Calculated  # calculation
+    num: _Calculated  # calculation
+    den: _Calculated  # calculation
 
     def __post_init__(self):
         self._check_consistency()
