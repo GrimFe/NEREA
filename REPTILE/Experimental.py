@@ -438,8 +438,8 @@ class SpectralIndex(_Experimental):
             value  uncertainty
         0  0.95   0.034139
         """
-        v, u = ratio_v_u(self.numerator.process(*args, **kwargs),
-                         self.denominator.process(*args, **kwargs))
+        num, den = self.numerator.process(*args, **kwargs), self.denominator.process(*args, **kwargs)
+        v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
@@ -458,7 +458,14 @@ class SpectralIndex(_Experimental):
             c = self._compute_correction(one_g_xs_)
             v = v - c.value
             u = np.sqrt(u **2 - c.uncertainty **2)
-        return _make_df(v, u)
+        return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] / den.value **2,
+                                     VAR_EM_n=num["VAR_EM"] / den.value **2,
+                                     VAR_PM_n=num["VAR_PM"] / den.value **2,
+                                     VAR_FFS_d=num["VAR_FFS"] * (num.value / den.value **2) **2,
+                                     VAR_EM_d=num["VAR_EM"] * (num.value / den.value **2) **2,
+                                     VAR_PM_d=num["VAR_PM"] * (num.value / den.value **2) **2,
+                                     VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
+                                     )
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
