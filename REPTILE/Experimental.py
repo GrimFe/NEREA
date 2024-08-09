@@ -192,15 +192,18 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         The tabulated ratio of FFS.integrate() / EM.integral, integrated from
         10 discrimination levels computed as a function of the R channel.
         """
-        ffs, em = self.fission_fragment_spectrum, self.effective_mass
-        bins = em.bins
-        v, u = ratio_v_u(ffs.integrate(bins), em.integral)
-        df = pd.concat([_make_df(i, j) for i, j in zip(v, u)], ignore_index=True)
-        data = pd.DataFrame({'channel fission fragment spectrum': ffs.integrate(bins).channel,
-                             'channel effective mass': em.integral.channel,
-                             'value': df.value,
-                             'uncertainty': df.uncertainty,
-                             'uncertainty [%]': df['uncertainty [%]']})
+        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins)
+        em = self.effective_mass.integral
+        data = []
+        for i in range(ffs.shape[0]):
+            ffs_, em_ = ffs.iloc[i], em.iloc[i]
+            v, u = ratio_v_u(ffs_, em_)
+            data.append(_make_df(v, u).assign(
+                                    VAR_FFS = (1/em_.value * ffs_.uncertainty) **2,
+                                    VAR_EM = (ffs_/em_**2 * em_.uncertainty) **2,
+                                    CH_FFS = ffs_.channel,
+                                    CH_EM = em_.channel))
+        data = pd.concat(data, ignore_index=True)
         return data
 
     @property
@@ -304,7 +307,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             value  uncertainty
         0  35.6    2.449490
         """
-        v, u = product_v_u([self.plateau(*args, **kwargs), self._power_normalization, self._time_normalization])
+        plateau = self.plateau(*args, **kwargs)
+        power = self._power_normalization
+        time = self._time_normalization
+        v, u = product_v_u([plateau, power, time])
         return _make_df(v, u)
 
 @dataclass
