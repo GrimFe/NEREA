@@ -307,10 +307,12 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         0  35.6    2.449490
         """
         plateau = self.plateau(*args, **kwargs)
-        power = self._power_normalization
-        time = self._time_normalization
+        power = self._power_normalization  # this is 1/PM
+        time = self._time_normalization  # this is 1/t
         v, u = product_v_u([plateau, power, time])
-        return _make_df(v, u)
+        return _make_df(v, u).assign(VAR_FFS=plateau["VAR_FFS"] * (power.value * time.value) **2,
+                                     VAR_EM=plateau["VAR_EM"] * (power.value * time.value) **2,
+                                     VAR_PM=(plateau.value * time.value * power.uncertainty) **2)
 
 @dataclass
 class SpectralIndex(_Experimental):

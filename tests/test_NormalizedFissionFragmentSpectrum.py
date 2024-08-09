@@ -135,5 +135,8 @@ def test_plateau(nffs):
 def test_process(nffs):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,
                                 'uncertainty': 0.0004707654400802892,
-                                'uncertainty [%]': 4.658923135819038}, index=['value'])
+                                'uncertainty [%]': 4.658923135819038,
+                                'VAR_FFS':  1.161448e-7,
+                                'VAR_EM': 0.0033724e-7,
+                                'VAR_PM': 1.0210289470207425e-07}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, nffs.process(), check_exact=False, atol=0.00001)
