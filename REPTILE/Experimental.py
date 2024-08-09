@@ -219,9 +219,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                         self.per_unit_mass.index]],
                          ignore_index=True).assign(A=ffs.integrate(bins).channel,
                                                    B=em.integral.channel)
-        data = data.rename({'A': 'channel fission fragment spectrum', 'B': 'channel effective mass'}, axis=1)
-        return data[['channel fission fragment spectrum', 'channel effective mass',
-                    'value', 'uncertainty', 'uncertainty [%]']]
+        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
+        return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     @property
     def per_unit_mass_and_power(self) -> pd.DataFrame:
