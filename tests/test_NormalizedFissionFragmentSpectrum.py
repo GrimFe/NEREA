@@ -109,8 +109,8 @@ def test_per_unit_mass_and_time(nffs):
 
 def test_per_unit_mass_and_power(nffs):
     expected_df = pd.DataFrame({
-        'channel fission fragment spectrum': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'channel effective mass': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         'value': [0.14773333, 0.1108    , 0.10072727, 0.10152874, 0.10104598,
                   0.09929545, 0.10097674, 0.10055294, 0.09971951, 0.09939744],
         'uncertainty': [0.00681968, 0.00511892, 0.00465942, 0.00471126, 0.00470765,
@@ -122,11 +122,13 @@ def test_per_unit_mass_and_power(nffs):
                                    check_exact=False, atol=0.00001)
 
 def test_plateau(nffs):
-    expected_df = pd.Series({'channel fission fragment spectrum': 14.000000,
-                                 'channel effective mass': 14.000000,
-                                 'value': 10.104598,
-                                 'uncertainty': 0.345713,
-                                 'uncertainty [%]': 3.421340}, name=4).to_frame().T
+    expected_df = pd.Series({'value': 10.104598,
+                             'uncertainty': 0.345713,
+                             'uncertainty [%]': 3.421340,
+                             'VAR_FFS': 0.1161448,
+                             'VAR_EM': 0.0033724,
+                             'CH_FFS': 14.000000,
+                             'CH_EM': 14.000000}, name=4).to_frame().T
     expected_df.index = ['value']
     pd.testing.assert_frame_equal(expected_df, nffs.plateau())
 

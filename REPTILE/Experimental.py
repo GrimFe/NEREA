@@ -235,8 +235,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                         self.per_unit_mass.index]],
                          ignore_index=True).assign(A=ffs.integrate(bins).channel,
                                                    B=em.integral.channel)
-        data = data.rename({'A': 'channel fission fragment spectrum', 'B': 'channel effective mass'}, axis=1)
-        return data[['channel fission fragment spectrum', 'channel effective mass',
+        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
+        return data[['CH_FFS', 'CH_EM',
                     'value', 'uncertainty', 'uncertainty [%]']]
 
     def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01) -> pd.DataFrame:
@@ -270,8 +270,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         if plateau.shape[0] == 0:
             raise Exception("No convergence found in neighbouring channels.", ValueError)
         # check the channels in which value does not differ more than ch_tolerance from the calibration ones
-        plateau = plateau[abs(plateau['channel fission fragment spectrum'] - plateau['channel effective mass'])
-                / plateau['channel effective mass'] < ch_tolerance]
+        plateau = plateau[abs(plateau['CH_FFS'] - plateau['CH_EM'])
+                / plateau['CH_EM'] < ch_tolerance]
         if plateau.shape[0] == 0:
             raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
         out = plateau.iloc[0].to_frame().T
