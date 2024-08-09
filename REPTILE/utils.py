@@ -114,7 +114,7 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
     """
     v = np.prod([x.value for x in factors])
     # it is easier to work in relative terms for products and turn to absolute later on
-    u = np.sqrt(np.sum([x['uncertainty [%]'] **2 for x in factors])) / 100 * v
+    u = np.sqrt(np.sum([(x['uncertainty [%]']/100)**2 for x in factors])) * v
     return v, u
 
 def _make_df(v, u, relative=True) -> pd.DataFrame:

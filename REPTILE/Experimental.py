@@ -192,15 +192,18 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         The tabulated ratio of FFS.integrate() / EM.integral, integrated from
         10 discrimination levels computed as a function of the R channel.
         """
-        ffs, em = self.fission_fragment_spectrum, self.effective_mass
-        bins = em.bins
-        v, u = ratio_v_u(ffs.integrate(bins), em.integral)
-        df = pd.concat([_make_df(i, j) for i, j in zip(v, u)], ignore_index=True)
-        data = pd.DataFrame({'channel fission fragment spectrum': ffs.integrate(bins).channel,
-                             'channel effective mass': em.integral.channel,
-                             'value': df.value,
-                             'uncertainty': df.uncertainty,
-                             'uncertainty [%]': df['uncertainty [%]']})
+        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins)
+        em = self.effective_mass.integral
+        data = []
+        for i in range(ffs.shape[0]):
+            ffs_, em_ = ffs.iloc[i], em.iloc[i]
+            v, u = ratio_v_u(ffs_, em_)
+            data.append(_make_df(v, u).assign(
+                                    VAR_FFS = (1/em_.value * ffs_.uncertainty) **2,
+                                    VAR_EM = (ffs_/em_**2 * em_.uncertainty) **2,
+                                    CH_FFS = ffs_.channel,
+                                    CH_EM = em_.channel))
+        data = pd.concat(data, ignore_index=True)
         return data
 
     @property
@@ -216,9 +219,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                         self.per_unit_mass.index]],
                          ignore_index=True).assign(A=ffs.integrate(bins).channel,
                                                    B=em.integral.channel)
-        data = data.rename({'A': 'channel fission fragment spectrum', 'B': 'channel effective mass'}, axis=1)
-        return data[['channel fission fragment spectrum', 'channel effective mass',
-                    'value', 'uncertainty', 'uncertainty [%]']]
+        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
+        return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     @property
     def per_unit_mass_and_power(self) -> pd.DataFrame:
@@ -233,8 +235,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                         self.per_unit_mass.index]],
                          ignore_index=True).assign(A=ffs.integrate(bins).channel,
                                                    B=em.integral.channel)
-        data = data.rename({'A': 'channel fission fragment spectrum', 'B': 'channel effective mass'}, axis=1)
-        return data[['channel fission fragment spectrum', 'channel effective mass',
+        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
+        return data[['CH_FFS', 'CH_EM',
                     'value', 'uncertainty', 'uncertainty [%]']]
 
     def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01) -> pd.DataFrame:
@@ -268,8 +270,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         if plateau.shape[0] == 0:
             raise Exception("No convergence found in neighbouring channels.", ValueError)
         # check the channels in which value does not differ more than ch_tolerance from the calibration ones
-        plateau = plateau[abs(plateau['channel fission fragment spectrum'] - plateau['channel effective mass'])
-                / plateau['channel effective mass'] < ch_tolerance]
+        plateau = plateau[abs(plateau['CH_FFS'] - plateau['CH_EM'])
+                / plateau['CH_EM'] < ch_tolerance]
         if plateau.shape[0] == 0:
             raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
         out = plateau.iloc[0].to_frame().T
@@ -304,8 +306,13 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             value  uncertainty
         0  35.6    2.449490
         """
-        v, u = product_v_u([self.plateau(*args, **kwargs), self._power_normalization, self._time_normalization])
-        return _make_df(v, u)
+        plateau = self.plateau(*args, **kwargs)
+        power = self._power_normalization  # this is 1/PM
+        time = self._time_normalization  # this is 1/t
+        v, u = product_v_u([plateau, power, time])
+        return _make_df(v, u).assign(VAR_FFS=plateau["VAR_FFS"] * (power.value * time.value) **2,
+                                     VAR_EM=plateau["VAR_EM"] * (power.value * time.value) **2,
+                                     VAR_PM=(plateau.value * time.value * power.uncertainty) **2)
 
 @dataclass
 class SpectralIndex(_Experimental):
@@ -431,8 +438,8 @@ class SpectralIndex(_Experimental):
             value  uncertainty
         0  0.95   0.034139
         """
-        v, u = ratio_v_u(self.numerator.process(*args, **kwargs),
-                         self.denominator.process(*args, **kwargs))
+        num, den = self.numerator.process(*args, **kwargs), self.denominator.process(*args, **kwargs)
+        v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
@@ -451,7 +458,14 @@ class SpectralIndex(_Experimental):
             c = self._compute_correction(one_g_xs_)
             v = v - c.value
             u = np.sqrt(u **2 - c.uncertainty **2)
-        return _make_df(v, u)
+        return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] / den.value **2,
+                                     VAR_EM_n=num["VAR_EM"] / den.value **2,
+                                     VAR_PM_n=num["VAR_PM"] / den.value **2,
+                                     VAR_FFS_d=num["VAR_FFS"] * (num.value / den.value **2) **2,
+                                     VAR_EM_d=num["VAR_EM"] * (num.value / den.value **2) **2,
+                                     VAR_PM_d=num["VAR_PM"] * (num.value / den.value **2) **2,
+                                     VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
+                                     )
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
