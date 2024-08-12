@@ -79,11 +79,13 @@ class CalculatedSpectralIndex(_Calculated):
         >>> c_instance = CalculatedSpectralIndex.from_sts_detectors('file.det', 
                                                     ['detector1', 'detector2'], model_id='Model1')
         """
-        v1, u1 = sts.read(file).detectors[detector_names['numerator']].bins[0][-2:]
-        v2, u2 = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
+        v1, u1_ = sts.read(file).detectors[detector_names['numerator']].bins[0][-2:]
+        v2, u2_ = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
         # Serpent detector uncertainty is relative
-        v, u = ratio_v_u(_make_df(v=v1, u=u1 * v1), _make_df(v=v2, u=u2 * v2))
-        kwargs['data'] = _make_df(v, u)
+        u1, u2 = u1_ * v1, u2_ * v2
+        v, u = ratio_v_u(_make_df(v=v1, u=u1), _make_df(v=v2, u=u2))
+        kwargs['data'] = _make_df(v, u).assign(VAR_n=(u1 / v2) **2,
+                                               VAR_d=(v1 * u2 / v2 **2) **2)
         return cls(**kwargs)
 
     def calculate(self):
