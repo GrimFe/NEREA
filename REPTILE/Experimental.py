@@ -463,9 +463,9 @@ class SpectralIndex(_Experimental):
         return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] / den.value **2,
                                      VAR_EM_n=num["VAR_EM"] / den.value **2,
                                      VAR_PM_n=num["VAR_PM"] / den.value **2,
-                                     VAR_FFS_d=num["VAR_FFS"] * (num.value / den.value **2) **2,
-                                     VAR_EM_d=num["VAR_EM"] * (num.value / den.value **2) **2,
-                                     VAR_PM_d=num["VAR_PM"] * (num.value / den.value **2) **2,
+                                     VAR_FFS_d=den["VAR_FFS"] * (num.value / den.value **2) **2,
+                                     VAR_EM_d=den["VAR_EM"] * (num.value / den.value **2) **2,
+                                     VAR_PM_d=den["VAR_PM"] * (num.value / den.value **2) **2,
                                      VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
                                      )
 
