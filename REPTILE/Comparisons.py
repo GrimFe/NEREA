@@ -44,13 +44,9 @@ class _Comparison:
     def _compute_si(self, _minus_one_percent=False, **kwargs):
         num, den = self.num.calculate(), self._get_denominator(**kwargs)
         v, u = ratio_v_u(num, den)
-        if num["VAR_C_n"].value is not None:
-            vcn, vcd = num["VAR_C_n"] * S_num **2, num["VAR_C_d"] * S_num **2
-        else:
-            vcn, vcd = None, None
         df = _make_df((v - 1) * 100, u * 100, relative=False) if _minus_one_percent else _make_df(v, u)
         # sensitivities
-        S_num, S_den= 1 / den.value, num.value / den.value **2
+        S_num, S_den = 1 / den.value, num.value / den.value **2
         factor = 100 if _minus_one_percent else 1
         # variances
         var_cols_num = [c for c in num.columns if c.startswith("VAR")]
