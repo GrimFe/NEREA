@@ -76,7 +76,7 @@ def sample_spectral_index(rr_1, rr_2):
 
 @pytest.fixture
 def sample_c_si_data():
-    return pd.DataFrame({'value': 1.01, 'uncertainty': .05}, index=['value'])
+    return pd.DataFrame({'value': 1.01, 'uncertainty': .05, 'VAR_C_n': None, 'VAR_C_d': None, 'VAR_C': 0.05 **2}, index=['value'])
 
 @pytest.fixture
 def sample_c(sample_c_si_data):
@@ -182,7 +182,17 @@ def test_deposit_ids(sample_si_ce):
 def test_compute_si(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.01,
                                 'uncertainty': 0.08323682675073317,
-                                'uncertainty [%]': 8.241269975320115},
+                                'uncertainty [%]': 8.241269975320115,
+                                'VAR_FFS_n': 0.0011603913092935957,
+                                'VAR_EM_n': 3.369335447218919e-05,
+                                'VAR_PM_n': 0.0010201000000000001,
+                                'VAR_FFS_d': 0.0011603913092935955,
+                                'VAR_EM_d': 3.369335447218918e-05,
+                                'VAR_PM_d': 0.0010201000000000001,
+                                'VAR_1GXS': 0.,
+                                'VAR_C_n': None, 
+                                'VAR_C_d': None,
+                                'VAR_C': 0.0025000000000000005},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
 
@@ -196,7 +206,17 @@ def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
 def test_minus_one_per_cent(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 8.323682675073316,
-                                'uncertainty [%]': np.nan},
+                                'uncertainty [%]': np.nan,
+                                'VAR_FFS_n': 11.603913092935958,
+                                'VAR_EM_n': 0.33693354472189185,
+                                'VAR_PM_n': 10.201,
+                                'VAR_FFS_d': 11.603913092935956,
+                                'VAR_EM_d': 0.3369335447218918,
+                                'VAR_PM_d': 10.201,
+                                'VAR_1GXS': 0.,
+                                'VAR_C_n': None, 
+                                'VAR_C_d': None,
+                                'VAR_C': 25.000000000000004},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)
 
@@ -204,4 +224,5 @@ def test_si_cc(sample_si_cc):
     target_df = pd.DataFrame({'value': 1.,
                               'uncertainty': 0.07001057239470768,
                               'uncertainty [%]': 7.001057239470768}, index=['value'])
-    pd.testing.assert_frame_equal(target_df, sample_si_cc.compute())
+    pd.testing.assert_frame_equal(target_df, sample_si_cc.compute()[
+                                            ['value', 'uncertainty', 'uncertainty [%]']])
