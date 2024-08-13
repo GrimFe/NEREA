@@ -223,6 +223,11 @@ def test_minus_one_per_cent(sample_si_ce):
 def test_si_cc(sample_si_cc):
     target_df = pd.DataFrame({'value': 1.,
                               'uncertainty': 0.07001057239470768,
-                              'uncertainty [%]': 7.001057239470768}, index=['value'])
-    pd.testing.assert_frame_equal(target_df, sample_si_cc.compute()[
-                                            ['value', 'uncertainty', 'uncertainty [%]']])
+                              'uncertainty [%]': 7.001057239470768,
+                              'VAR_C_n_n': None,
+                              'VAR_C_n_d': None,
+                              'VAR_C_n': 0.0024507401235173026,
+                              'VAR_C_d_n': None,
+                              'VAR_C_d_d': None,
+                              'VAR_C_d': 0.0024507401235173026}, index=['value'])
+    pd.testing.assert_frame_equal(target_df, sample_si_cc.compute())
