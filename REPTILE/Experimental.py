@@ -419,9 +419,11 @@ class SpectralIndex(_Experimental):
             `value[0]` from for each nuclide `key`. Alternative to `one_g_xs`.
             Defaults to None for no file.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.process()` method.
+            Positional arguments to be passed to the
+            `NormalizedFissionFragmentSpectrum.process()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.process()` method.
+            Keyword arguments to be passed to the
+            `NormalizedFissionFragmentSpectrum.process()` method.
 
         Returns
         -------
