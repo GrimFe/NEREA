@@ -461,14 +461,13 @@ class SpectralIndex(_Experimental):
             c = self._compute_correction(one_g_xs_)
             v = v - c.value
             u = np.sqrt(u **2 - c.uncertainty **2)
-        S_num = 1 / den.value
-        S_den = num.value / den.value **2
-        return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] * S_num **2,
-                                     VAR_EM_n=num["VAR_EM"] * S_num **2,
-                                     VAR_PM_n=num["VAR_PM"] * S_num **2,
-                                     VAR_FFS_d=den["VAR_FFS"] * S_den **2,
-                                     VAR_EM_d=den["VAR_EM"] * S_den **2,
-                                     VAR_PM_d=den["VAR_PM"] * S_den **2,
+        df = _make_df(v, u)
+        var_cols = [c for c in num.columns if c.startswith("VAR")]
+        var_num = num[var_cols] / den['value'].value **2
+        var_num.columns = [f"{c}_n" for c in var_cols]
+        var_den = num[var_cols] * (num['value'] / den['value'] **2).value **2
+        var_den.columns = [f"{c}_d" for c in var_cols]
+        return pd.concat([df, var_num, var_den], axis=1).assign(
                                      VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
                                      )
 
