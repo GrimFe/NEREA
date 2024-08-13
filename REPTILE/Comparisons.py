@@ -42,8 +42,55 @@ class _Comparison:
                                                         _Experimental) else self.den.calculate()
 
     def _compute_si(self, _minus_one_percent=False, **kwargs):
-        v, u = ratio_v_u(self.num.calculate(), self._get_denominator(**kwargs))
-        return _make_df(v, u) if not _minus_one_percent else _make_df((v - 1) * 100, u * 100, relative=False)
+        num, den = self.num.calculate(), self._get_denominator(**kwargs)
+        v, u = ratio_v_u(num, den)
+        S_num, S_den= 1 / den.value, num.value / den.value **2
+        if num["VAR_C_n"].value is not None:
+            vcn, vcd = num["VAR_C_n"] * S_num **2, num["VAR_C_d"] * S_num **2
+        else:
+            vcn, vcd = None, None
+        if isinstance(self.den, _Experimental):
+            if not _minus_one_percent:
+                df = _make_df(v, u).assign(
+                                        VAR_FFS_n=den["VAR_FFS_n"] * S_den **2,
+                                        VAR_EM_n=den["VAR_EM_n"] * S_den **2,
+                                        VAR_PM_n=den["VAR_PM_n"] * S_den **2,
+                                        VAR_FFS_d=den["VAR_FFS_d"] * S_den **2,
+                                        VAR_EM_d=den["VAR_EM_d"] * S_den **2,
+                                        VAR_PM_d=den["VAR_PM_d"] * S_den **2,
+                                        VAR_1GXS=den["VAR_1GXS"] * S_den **2,
+                                        VAR_C_n=vcn,
+                                        VAR_C_d=vcd,
+                                        VAR_C=num["VAR_C"] * S_num **2)
+            else:
+                df = _make_df((v - 1) * 100, u * 100, relative=False).assign(
+                                        VAR_FFS_n=den["VAR_FFS_n"] * (S_den * 100) **2,
+                                        VAR_EM_n=den["VAR_EM_n"] * (S_den * 100) **2,
+                                        VAR_PM_n=den["VAR_PM_n"] * (S_den * 100) **2,
+                                        VAR_FFS_d=den["VAR_FFS_d"] * (S_den * 100) **2,
+                                        VAR_EM_d=den["VAR_EM_d"] * (S_den * 100) **2,
+                                        VAR_PM_d=den["VAR_PM_d"] * (S_den * 100) **2,
+                                        VAR_1GXS=den["VAR_1GXS"] * (S_den * 100) **2,
+                                        VAR_C_n=vcn if vcn is None else vcn * 100 **2,
+                                        VAR_C_d=vcd if vcd is None else vcd * 100 **2,
+                                        VAR_C=num["VAR_C"] * (S_num * 100) **2)
+        else:
+            if not _minus_one_percent:
+                df = _make_df(v, u).assign(VAR_C_n_n=vcn,
+                                           VAR_C_n_d=vcd,
+                                           VAR_C_n=num["VAR_C"] * S_num **2,
+                                           VAR_C_d_n=den["VAR_C_n"] if den["VAR_C_n"].value is None else den["VAR_C_n"] * S_den **2,
+                                           VAR_C_d_d=den["VAR_C_d"] if den["VAR_C_d"].value is None else den["VAR_C_d"] * S_den **2,
+                                           VAR_C_d=den["VAR_C"] * S_den **2)
+            else:
+                df = _make_df((v - 1) * 100, u * 100, relative=False).assign(
+                                           VAR_C_n_n=vcn if vcn is None else vcn * 100 **2,
+                                           VAR_C_n_d=vcd if vcd is None else vcd * 100 **2,
+                                           VAR_C_n=num["VAR_C"] * (S_num * 100) **2,
+                                           VAR_C_d_n=den["VAR_C_n"] if den["VAR_C_n"].value is None else den["VAR_C_n"] * (S_den * 100) **2,
+                                           VAR_C_d_d=den["VAR_C_d"] if den["VAR_C_d"].value is None else den["VAR_C_d"] * (S_den * 100) **2,
+                                           VAR_C_d=den["VAR_C"] * (S_den * 100) **2)
+        return df
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
         n = self.num.calculate(normalization=normalization)
