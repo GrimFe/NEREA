@@ -54,7 +54,7 @@ class CalculatedSpectralIndex(_Calculated):
         # Serpent detector uncertainty is relative
         kwargs['data'] = _make_df(v, u * v).assign(VAR_C_n=None,
                                                    VAR_C_d=None,
-                                                   VAR_C=u **2)
+                                                   VAR_C=(u * v) **2)
         return cls(**kwargs)
 
     @classmethod
@@ -87,9 +87,10 @@ class CalculatedSpectralIndex(_Calculated):
         # Serpent detector uncertainty is relative
         u1, u2 = u1_ * v1, u2_ * v2
         v, u = ratio_v_u(_make_df(v=v1, u=u1), _make_df(v=v2, u=u2))
-        kwargs['data'] = _make_df(v, u).assign(VAR_C_n=(u1 / v2) **2,
-                                               VAR_C_d=(v1 * u2 / v2 **2) **2,
-                                               VAR_C=(u1 / v2) **2 + (v1 * u2 / v2 **2) **2)
+        S1, S2= 1 / v2, v1 / v2 **2
+        kwargs['data'] = _make_df(v, u).assign(VAR_C_n=(S1 * u1) **2,
+                                               VAR_C_d=(S2 * u2) **2,
+                                               VAR_C=(S1 * u1) **2 + (S2 * u2) **2)
         return cls(**kwargs)
 
     def calculate(self):

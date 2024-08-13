@@ -310,9 +310,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         power = self._power_normalization  # this is 1/PM
         time = self._time_normalization  # this is 1/t
         v, u = product_v_u([plateau, power, time])
-        return _make_df(v, u).assign(VAR_FFS=plateau["VAR_FFS"] * (power.value * time.value) **2,
-                                     VAR_EM=plateau["VAR_EM"] * (power.value * time.value) **2,
-                                     VAR_PM=(plateau.value * time.value * power.uncertainty) **2)
+        S_FFS, S_EM, S_PM = power.value * time.value, power.value * time.value, plateau.value * time.value
+        return _make_df(v, u).assign(VAR_FFS=plateau["VAR_FFS"] * S_FFS **2,
+                                     VAR_EM=plateau["VAR_EM"] * S_EM **2,
+                                     VAR_PM=(S_PM * power.uncertainty) **2)
 
 @dataclass
 class SpectralIndex(_Experimental):
@@ -460,12 +461,14 @@ class SpectralIndex(_Experimental):
             c = self._compute_correction(one_g_xs_)
             v = v - c.value
             u = np.sqrt(u **2 - c.uncertainty **2)
-        return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] / den.value **2,
-                                     VAR_EM_n=num["VAR_EM"] / den.value **2,
-                                     VAR_PM_n=num["VAR_PM"] / den.value **2,
-                                     VAR_FFS_d=den["VAR_FFS"] * (num.value / den.value **2) **2,
-                                     VAR_EM_d=den["VAR_EM"] * (num.value / den.value **2) **2,
-                                     VAR_PM_d=den["VAR_PM"] * (num.value / den.value **2) **2,
+        S_num = 1 / den.value
+        S_den = num.value / den.value **2
+        return _make_df(v, u).assign(VAR_FFS_n=num["VAR_FFS"] * S_num **2,
+                                     VAR_EM_n=num["VAR_EM"] * S_num **2,
+                                     VAR_PM_n=num["VAR_PM"] * S_num **2,
+                                     VAR_FFS_d=den["VAR_FFS"] * S_den **2,
+                                     VAR_EM_d=den["VAR_EM"] * S_den **2,
+                                     VAR_PM_d=den["VAR_PM"] * S_den **2,
                                      VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
                                      )
 
