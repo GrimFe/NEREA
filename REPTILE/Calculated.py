@@ -52,9 +52,9 @@ class CalculatedSpectralIndex(_Calculated):
         ## Shall be homogenized with the rest of the API
         v, u = sts.read(file).detectors[detector_name].bins[0][-2:]
         # Serpent detector uncertainty is relative
-        kwargs['data'] = _make_df(v, u * v).assign(VAR_C_n=None,
-                                                   VAR_C_d=None,
-                                                   VAR_C=(u * v) **2)
+        kwargs['data'] = _make_df(v, u * v).assign(VAR_FRAC_C_n=None,
+                                                   VAR_FRAC_C_d=None,
+                                                   VAR_FRAC_C=(u * v) **2)
         return cls(**kwargs)
 
     @classmethod
@@ -88,9 +88,9 @@ class CalculatedSpectralIndex(_Calculated):
         u1, u2 = u1_ * v1, u2_ * v2
         v, u = ratio_v_u(_make_df(v=v1, u=u1), _make_df(v=v2, u=u2))
         S1, S2= 1 / v2, v1 / v2 **2
-        kwargs['data'] = _make_df(v, u).assign(VAR_C_n=(S1 * u1) **2,
-                                               VAR_C_d=(S2 * u2) **2,
-                                               VAR_C=(S1 * u1) **2 + (S2 * u2) **2)
+        kwargs['data'] = _make_df(v, u).assign(VAR_FRAC_C_n=(S1 * u1) **2,
+                                               VAR_FRAC_C_d=(S2 * u2) **2,
+                                               VAR_FRAC_C=(S1 * u1) **2 + (S2 * u2) **2)
         return cls(**kwargs)
 
     def calculate(self):

@@ -49,9 +49,9 @@ class _Comparison:
         S_num, S_den = 1 / den.value, num.value / den.value **2
         factor = 100 if _minus_one_percent else 1
         # variances
-        var_cols_num = [c for c in num.columns if c.startswith("VAR")]
+        var_cols_num = [c for c in num.columns if c.startswith("VAR_FRAC")]
         var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
-        var_cols_den = [c for c in den.columns if c.startswith("VAR")]
+        var_cols_den = [c for c in den.columns if c.startswith("VAR_FRAC")]
         var_den = den[var_cols_den] * (S_den.value * factor) **2
         if isinstance(self.den, _Calculated):
             var_num.columns = [f'{c}_n' for c in var_cols_num]
