@@ -183,8 +183,38 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         """
         start_time = self.fission_fragment_spectrum.start_time
         duration = int(self.fission_fragment_spectrum.real_time)
-        v, u = ratio_v_u(_make_df(1, 0), self.power_monitor.average(start_time, duration))
+        pm = self.power_monitor.average(start_time, duration)
+        v, u = ratio_v_u(_make_df(1, 0), pm)
         return _make_df(v, u)
+
+    def _get_verbose(self, plateau, time, power) -> pd.DataFrame:
+        """
+        The information to be included in the verbose output.
+
+        Parameters
+        ----------
+        plateaut : pd.DataFrame
+            output of self.plateau()
+        time : pd.DataFrame
+            output of self._time_normalization
+        power : pd.DataFrame
+            output of self._power_normalization
+
+        Returns
+        -------
+        pd.DataFrame
+            (1 x N) DataFrame with the information.
+
+        """
+        ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
+        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins
+                                                       ).query("channel==@ch_ffs")
+        em = self.effective_mass.integral.query("channel==@ch_em")
+        df = pd.DataFrame({'FFS': ffs.value.iloc[0], 'VAR_FFS': ffs.uncertainty.iloc[0] **2,
+                           'EM': em.value.iloc[0], 'VAR_EM': em.uncertainty.iloc[0] **2,
+                           'PM': 1 / power.value, 'VAR_PM': power.uncertainty **2 / power.value **4,
+                           't': 1 / time.value, 'VAR_t': 0}, index=['value'])
+        return df
 
     @property
     def per_unit_mass(self) -> pd.DataFrame:
@@ -278,12 +308,15 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         out.index = ['value']
         return out
 
-    def process(self, *args, **kwargs) -> pd.DataFrame:
+    def process(self, verbose: bool=False, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate.
 
         Parameters
         ----------
+        verbose : bool, optional
+            Flag to turn on/off the full ouptup information, whcih includes
+            values and variances of all the processing elements, False by default.
         *args : Any
             Positional arguments to be passed to the `self.plateau()` method.
         **kwargs : Any
@@ -311,9 +344,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         time = self._time_normalization  # this is 1/t
         v, u = product_v_u([plateau, power, time])
         S_FFS, S_EM, S_PM = power.value * time.value, power.value * time.value, plateau.value * time.value
-        return _make_df(v, u).assign(VAR_FRAC_FFS=plateau["VAR_FRAC_FFS"] * S_FFS **2,
+        df = _make_df(v, u).assign(VAR_FRAC_FFS=plateau["VAR_FRAC_FFS"] * S_FFS **2,
                                      VAR_FRAC_EM=plateau["VAR_FRAC_EM"] * S_EM **2,
                                      VAR_FRAC_PM=(S_PM * power.uncertainty) **2)
+        return df if not verbose else pd.concat([df, self._get_verbose(plateau, time, power)], axis=1)
+
 
 @dataclass
 class SpectralIndex(_Experimental):
