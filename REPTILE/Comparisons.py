@@ -20,13 +20,13 @@ def _frame_comparison(num: pd.DataFrame, den: pd.DataFrame,
     S_num, S_den = 1 / den.value, num.value / den.value **2
     factor = 100 if _minus_one_percent else 1
     # variances
-    var_cols_num = [c for c in num.columns if c.startswith("VAR")]
+    var_cols_num = [c for c in num.columns if c.startswith("VAR_FRAC")]
     var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
-    var_cols_den = [c for c in den.columns if c.startswith("VAR")]
+    var_cols_den = [c for c in den.columns if c.startswith("VAR_FRAC")]
     var_den = den[var_cols_den] * (S_den.value * factor) **2
-    if 'VAR_C' in var_cols_den:
-        var_num.columns = [f'{c}_n' for c in num.columns if c.startswith('VAR')]
-        var_den.columns = [f'{c}_d' for c in den.columns if c.startswith('VAR')]
+    if 'VAR_FRAC_C' in var_cols_den:
+        var_num.columns = [f'{c}_n' for c in num.columns if c.startswith('VAR_FRAC')]
+        var_den.columns = [f'{c}_d' for c in den.columns if c.startswith('VAR_FRAC')]
         var_den = var_den.replace({np.nan: None})
     return df, var_num, var_den
 
@@ -63,7 +63,20 @@ class _Comparison:
 
     def _compute_si(self, _minus_one_percent=False, **kwargs):
         num, den = self.num.calculate(), self._get_denominator(**kwargs)
-        df, var_num, var_den = _frame_comparison(num, den, _minus_one_percent)
+        v, u = ratio_v_u(num, den)
+        df = _make_df((v - 1) * 100, u * 100, relative=False) if _minus_one_percent else _make_df(v, u)
+        # sensitivities
+        S_num, S_den = 1 / den.value, num.value / den.value **2
+        factor = 100 if _minus_one_percent else 1
+        # variances
+        var_cols_num = [c for c in num.columns if c.startswith("VAR_FRAC")]
+        var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
+        var_cols_den = [c for c in den.columns if c.startswith("VAR_FRAC")]
+        var_den = den[var_cols_den] * (S_den.value * factor) **2
+        if isinstance(self.den, _Calculated):
+            var_num.columns = [f'{c}_n' for c in var_cols_num]
+            var_den.columns = [f'{c}_d' for c in var_cols_den]
+            var_den = var_den.replace({np.nan: None})
         return pd.concat([df, var_num, var_den], axis=1)
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):

@@ -199,8 +199,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             ffs_, em_ = ffs.iloc[i], em.iloc[i]
             v, u = ratio_v_u(ffs_, em_)
             data.append(_make_df(v, u).assign(
-                                    VAR_FFS = (1/em_.value * ffs_.uncertainty) **2,
-                                    VAR_EM = (ffs_/em_**2 * em_.uncertainty) **2,
+                                    VAR_FRAC_FFS = (1/em_.value * ffs_.uncertainty) **2,
+                                    VAR_FRAC_EM = (ffs_/em_**2 * em_.uncertainty) **2,
                                     CH_FFS = ffs_.channel,
                                     CH_EM = em_.channel))
         data = pd.concat(data, ignore_index=True)
@@ -311,9 +311,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         time = self._time_normalization  # this is 1/t
         v, u = product_v_u([plateau, power, time])
         S_FFS, S_EM, S_PM = power.value * time.value, power.value * time.value, plateau.value * time.value
-        return _make_df(v, u).assign(VAR_FFS=plateau["VAR_FFS"] * S_FFS **2,
-                                     VAR_EM=plateau["VAR_EM"] * S_EM **2,
-                                     VAR_PM=(S_PM * power.uncertainty) **2)
+        return _make_df(v, u).assign(VAR_FRAC_FFS=plateau["VAR_FRAC_FFS"] * S_FFS **2,
+                                     VAR_FRAC_EM=plateau["VAR_FRAC_EM"] * S_EM **2,
+                                     VAR_FRAC_PM=(S_PM * power.uncertainty) **2)
 
 @dataclass
 class SpectralIndex(_Experimental):
@@ -462,13 +462,13 @@ class SpectralIndex(_Experimental):
             v = v - c.value
             u = np.sqrt(u **2 - c.uncertainty **2)
         df = _make_df(v, u)
-        var_cols = [c for c in num.columns if c.startswith("VAR")]
+        var_cols = [c for c in num.columns if c.startswith("VAR_FRAC")]
         var_num = num[var_cols] / den['value'].value **2
         var_num.columns = [f"{c}_n" for c in var_cols]
         var_den = num[var_cols] * (num['value'] / den['value'] **2).value **2
         var_den.columns = [f"{c}_d" for c in var_cols]
         return pd.concat([df, var_num, var_den], axis=1).assign(
-                                     VAR_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
+                                     VAR_FRAC_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
                                      )
 
 @dataclass(slots=True)
