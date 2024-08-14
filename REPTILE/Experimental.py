@@ -204,7 +204,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             (1 x N) DataFrame with the information.
-
         """
         ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
         ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins
@@ -439,8 +438,42 @@ class SpectralIndex(_Experimental):
         relative = True if imp_v.shape[0] != 0 else False
         return _make_df(correction, np.sqrt(correction_variance), relative=relative)
 
+    def _get_verbose(self, num, den, k) -> pd.DataFrame:
+        """
+        The information to be included in the verbose output.
+
+        Parameters
+        ----------
+        num : pd.DataFrame
+            output of self.numerator.process()
+        den : pd.DataFrame
+            output of self.denominator.process
+        k : pd.DataFrame
+            ...
+
+        Returns
+        -------
+        pd.DataFrame
+            (1 x N) DataFrame with the information.
+        """
+        if 'VAR_FFS' in num.columns or 'VAR_FFS' in den.columns:
+            num_ = num.rename(columns=dict(zip(num.columns[6:],
+                                          [f'{c}_n' for c in num.columns[6:]]))
+                                          ).iloc[:, 6:]
+            den_ = den.rename(columns=dict(zip(num.columns[6:],
+                                          [f'{c}_d' for c in num.columns[6:]]))
+                                          ).iloc[:, 6:]
+            k_ = pd.DataFrame({'1GXS': 0 if k is None else k['value'].iloc[0],
+                               'VAR_1GXS': None if k is None else k['uncertainty'].iloc[0] **2},
+                               index=['value'])
+            out = pd.concat([num_, den_, k_], axis=1)
+        else:
+            out = pd.DataFrame()
+        return out
+
     def process(self, one_g_xs: pd.DataFrame = None,
-                one_g_xs_file: dict[str, tuple[str, str]] = None, *args, **kwargs) -> pd.DataFrame:
+                one_g_xs_file: dict[str, tuple[str, str]] = None,
+                *args, **kwargs) -> pd.DataFrame:
         """
         Computes the ratio of two reaction rates.
 
@@ -493,18 +526,20 @@ class SpectralIndex(_Experimental):
             read = None
         one_g_xs_ = read if one_g_xs is None else one_g_xs
         if one_g_xs_ is not None:
-            c = self._compute_correction(one_g_xs_)
-            v = v - c.value
-            u = np.sqrt(u **2 - c.uncertainty **2)
+            k = self._compute_correction(one_g_xs_)
+            v = v - k.value
+            u = np.sqrt(u **2 - k.uncertainty **2)
+        else: k = None
         df = _make_df(v, u)
         var_cols = [c for c in num.columns if c.startswith("VAR_FRAC")]
         var_num = num[var_cols] / den['value'].value **2
         var_num.columns = [f"{c}_n" for c in var_cols]
         var_den = num[var_cols] * (num['value'] / den['value'] **2).value **2
         var_den.columns = [f"{c}_d" for c in var_cols]
-        return pd.concat([df, var_num, var_den], axis=1).assign(
-                                     VAR_FRAC_1GXS=c.uncertainty **2 if one_g_xs_ is not None else 0.
-                                     )
+        df =  pd.concat([df, var_num, var_den], axis=1).assign(
+                                    VAR_FRAC_1GXS=k.uncertainty **2 if k is not None else 0.
+                                    )
+        return pd.concat([df, self._get_verbose(num, den, k)], axis=1)
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
