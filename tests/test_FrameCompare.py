@@ -20,7 +20,7 @@ def frame2():
 def sample_fc(frame1, frame2):
     return FrameCompare(frame1, frame2)
 
-def test_fc(sample_fc):
+def test_frame_compare(sample_fc):
     expected_df = pd.DataFrame({'value': 1.01,
                                 'uncertainty': 0.036167,
                                 'uncertainty [%]': 3.580875,

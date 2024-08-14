@@ -85,6 +85,29 @@ def synthetic_one_g_xs_data():
 def test_deposit_ids(si):
     assert si.deposit_ids == ['D1', 'D2']
 
+def test_get_verbose(si):
+    expected_df = pd.DataFrame({'FFS_n': 8.79100000e+02,
+                                'VAR_FFS_n': 8.79100000e+02,
+                                'EM_n': 87,
+                                'VAR_EM_n': 2.50000000e-01,
+                                'PM_n': 1.00000000e+02,
+                                'VAR_PM_n': 1.00000000e+01,
+                                't_n': 10.,
+                                'VAR_t_n': 0,
+                                'FFS_d': 8.79100000e+02,
+                                'VAR_FFS_d': 8.79100000e+02,
+                                'EM_d': 87,
+                                'VAR_EM_d': 2.50000000e-01,
+                                'PM_d': 1.00000000e+02,
+                                'VAR_PM_d': 1.00000000e+01,
+                                't_d': 10.,
+                                'VAR_t_d': 0,
+                                '1GXS': 0,
+                                'VAR_1GXS': None}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, si._get_verbose(si.numerator.process(verbose=True),
+                                                               si.denominator.process(verbose=True),
+                                                               None))
+
 def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 0.06588712284729072,
@@ -96,7 +119,7 @@ def test_process(si):
                                 'VAR_FRAC_EM_d': 0.000033,
                                 'VAR_FRAC_PM_d': 0.001000,
                                 'VAR_FRAC_1GXS': 0.}, index= ['value'])
-    pd.testing.assert_frame_equal(si.process(), expected_df, check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, si.process(), check_exact=False, atol=0.00001)
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07

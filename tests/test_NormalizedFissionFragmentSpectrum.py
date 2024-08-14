@@ -20,7 +20,7 @@ def sample_spectrum_data():
 def sample_integral_data():
     data = {
         "channel": [ 6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        "value": [60, 80, 88, 87, 87, 88, 86, 85, 82, 78],
+        "value":   [60,  80,  88,  87,  87,  88,  86,  85,  82,  78],
         "uncertainty": [.1, .2, .3, .4, .5, .6, .7, .8, .9, .1]
     }
     return pd.DataFrame(data)
@@ -74,6 +74,16 @@ def test_time_normalization(nffs):
 def test_power_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._power_normalization,
                                   _make_df(.01, 0.00031622776601683794))
+
+def test_get_verbose(nffs):
+    expected_df = pd.DataFrame({'FFS': 879.0999999999999, 'VAR_FFS': 879.0999999999999,
+                                'EM': 87, 'VAR_EM': .5 **2,
+                                'PM': 1 / .01, 'VAR_PM': 0.00031622776601683794 **2 / .01 **4,
+                                't': 1 / .1, 'VAR_t': 0}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df,
+                                   nffs._get_verbose(nffs.plateau(),
+                                                     nffs._time_normalization,
+                                                     nffs._power_normalization))
 
 def test_per_unit_mass(nffs):
     expected_df = pd.DataFrame({
