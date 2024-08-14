@@ -9,7 +9,27 @@ from REPTILE import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
 from REPTILE.utils import ratio_v_u, _make_df
 
 
-__all__ = ['CoverE', 'CoverC']
+__all__ = ['CoverE', 'CoverC', 'FrameCompare']
+
+
+def _frame_comparison(num: pd.DataFrame, den: pd.DataFrame,
+                      _minus_one_percent: bool=False):
+    v, u = ratio_v_u(num, den)
+    df = _make_df((v - 1) * 100, u * 100, relative=False) if _minus_one_percent else _make_df(v, u)
+    # sensitivities
+    S_num, S_den = 1 / den.value, num.value / den.value **2
+    factor = 100 if _minus_one_percent else 1
+    # variances
+    var_cols_num = [c for c in num.columns if c.startswith("VAR")]
+    var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
+    var_cols_den = [c for c in den.columns if c.startswith("VAR")]
+    var_den = den[var_cols_den] * (S_den.value * factor) **2
+    if 'VAR_C' in var_cols_den:
+        var_num.columns = [f'{c}_n' for c in num.columns if c.startswith('VAR')]
+        var_den.columns = [f'{c}_d' for c in den.columns if c.startswith('VAR')]
+        var_den = var_den.replace({np.nan: None})
+    return df, var_num, var_den
+
 
 @dataclass(slots=True)
 class _Comparison:
@@ -49,9 +69,9 @@ class _Comparison:
         S_num, S_den = 1 / den.value, num.value / den.value **2
         factor = 100 if _minus_one_percent else 1
         # variances
-        var_cols_num = [c for c in num.columns if c.startswith("VAR_FRAC")]
+        var_cols_num = [c for c in num.columns if c.startswith("VAR")]
         var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
-        var_cols_den = [c for c in den.columns if c.startswith("VAR_FRAC")]
+        var_cols_den = [c for c in den.columns if c.startswith("VAR")]
         var_den = den[var_cols_den] * (S_den.value * factor) **2
         if isinstance(self.den, _Calculated):
             var_num.columns = [f'{c}_n' for c in var_cols_num]
@@ -174,3 +194,13 @@ class CoverC(_Comparison):
             raise Exception("Cannot compare Traverse and non-Traverse object.")
         if isinstance(self.num, CalculatedSpectralIndex) and not isinstance(self.den, CalculatedSpectralIndex):
             raise Exception("Cannot compare SpectralIndex and non-SpectralIndex object.")
+
+
+@dataclass(slots=True)
+class FrameCompare:
+    num: pd.DataFrame
+    den: pd.DataFrame
+
+    def compute(self, _minus_one_percent=False):
+        return pd.concat(_frame_comparison(self.num, self.den, _minus_one_percent),
+                         axis=1)
