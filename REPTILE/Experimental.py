@@ -589,15 +589,15 @@ class Traverse(_Experimental):
         Notes
         -----
         Working with `ReactionRates` instances, the first reaction rate is used.
+
         """
-        max_k, max = None, 0
-        normalized = {}
+        normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.reaction_rates.items()):
             n = rr.per_unit_time_power(monitors[i], *args, **kwargs)
             normalized[k] = n if isinstance(rr, ReactionRate) else list(n.values())[0]
-            if normalized[k].value[0] > max:
-                max_k, max = k, normalized[k].value[0]
+            if normalized[k]['value'].value > m:
+                max_k, m = k, normalized[k].value[0]
         norm_k = max_k if normalization is None else normalization
         out = []
         for k, v in normalized.items():
