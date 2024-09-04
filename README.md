@@ -1,6 +1,6 @@
-# REPTILE 
+# NEREA 
 
-REPTILE (Reactor Eexperiment Processing Tool for Integrated Light Evaluation) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
+NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
 
 ## Features
 
@@ -14,37 +14,37 @@ REPTILE (Reactor Eexperiment Processing Tool for Integrated Light Evaluation) is
 
 To install the package, clone the repository and use pip to install the dependencies:
 ```sh
-git clone https://github.com/GrimFe/REPTILE.git
-cd REPTILE
-pip install -r requirements.txt
+git clone https://github.com/GrimFe/NEREA.git
+cd nerea
+pip install .
 ```
 
-To import REPTILE
+To import NEREA (without installation)
 ```
 import sys
-sys.path.append(r"path/to/REPTILE")
-import REPTILE
+sys.path.append(r"path/to/nerea")
+import nerea
 ```
 ## 🗺️ Structure
 
-A schematic of REPTILE can be found ![here](https://github.com/GrimFe/REPTILE/tree/main/img/Structure.jpg). Reptile composes of four main parts:
+A schematic of NEREA can be found ![here](https://github.com/GrimFe/NEREA/tree/main/img/Structure.jpg). Reptile composes of four main parts:
 * DATA - dedicated to the interface with detector raw data and preprocessing:
-   - `EffectiveMass` or [`EM`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/EffectiveMass.py)
-   - `FissionFragmentSpectrum` or [`FFS`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/FisionFragmentSpectrum.py)
-   - `FissionFragmentSpectra` or [`FFSa`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/FisionFragmentSpectrum.py)
-   - `ReactionRate` or [`RR`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/ReactionRate.py)
-   - `ReactionRates` or [`RRs`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/ReactionRates.py)
+   - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/tree/main/NEREA/EffectiveMass.py)
+   - `FissionFragmentSpectrum` or [`FFS`](https://github.com/GrimFe/NEREA/tree/main/NEREA/FisionFragmentSpectrum.py)
+   - `FissionFragmentSpectra` or [`FFSa`](https://github.com/GrimFe/NEREA/tree/main/NEREA/FisionFragmentSpectrum.py)
+   - `ReactionRate` or [`RR`](https://github.com/GrimFe/NEREA/tree/main/NEREA/ReactionRate.py)
+   - `ReactionRates` or [`RRs`](https://github.com/GrimFe/NEREA/tree/main/NEREA/ReactionRates.py)
 * COMPUTABLES - objects created out of the DATA and related processing:
-  - `NormalizedFissionFragmentSpectrum` or [`NFFS`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
-  - `SpectralIndex` or [`SI`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
-  - `Traverse` or [`Traverse`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Computables.py)
+  - `NormalizedFissionFragmentSpectrum` or [`NFFS`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
+  - `SpectralIndex` or [`SI`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
+  - `Traverse` or [`Traverse`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
 * CALCULATED - objects crated from model outputs:
-  - `CalculatedSpectralIndex` or [`CSI`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Calculated.py)
-  - `CalculatedTraverse` or [`CT`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/Calculated.py)
+  - `CalculatedSpectralIndex` or [`CSI`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Calculated.py)
+  - `CalculatedTraverse` or [`CT`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Calculated.py)
 * C/E - comparison of calculations to experiments:
-  - `CoverE` or [`CE`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/CoverE.py)
- Useful functions are stored in [`utils.py`](https://github.com/GrimFe/REPTILE/tree/main/REPTILE/utils.py).
+  - `CoverE` or [`CE`](https://github.com/GrimFe/NEREA/tree/main/NEREA/CoverE.py)
+ Useful functions are stored in [`utils.py`](https://github.com/GrimFe/NEREA/tree/main/NEREA/utils.py).
 
 ## 🎮 Examples
 
-REPTILE comes with examples in the docstrings and test that can serve a similar purpose.
+NEREA comes with examples in the docstrings and test that can serve a similar purpose.
