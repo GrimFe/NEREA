@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 import pandas as pd
-from REPTILE.utils import *
+from nerea.utils import *
 
 EXPECTED_RATIO = 2.0
 EXPECTED_UNCERTAINTY = 0.282842712474619

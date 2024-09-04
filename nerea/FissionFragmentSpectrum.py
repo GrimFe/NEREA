@@ -6,8 +6,8 @@ import warnings
 
 from datetime import datetime, timedelta
 
-from REPTILE.utils import integral_v_u, _make_df
-from REPTILE.EffectiveMass import EffectiveMass
+from nerea.utils import integral_v_u, _make_df
+from nerea.EffectiveMass import EffectiveMass
 
 __all__ = [
     "FissionFragmentSpectrum",

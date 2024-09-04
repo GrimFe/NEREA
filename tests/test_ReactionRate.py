@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from REPTILE.ReactionRate import ReactionRate
+from nerea.ReactionRate import ReactionRate
 
 @pytest.fixture
 def sample_data():

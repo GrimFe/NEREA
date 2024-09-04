@@ -1,10 +1,10 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
-from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
-from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.ReactionRate import ReactionRate, ReactionRates
-from REPTILE.utils import ratio_v_u, product_v_u, _make_df
+from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
+from nerea.EffectiveMass import EffectiveMass
+from nerea.ReactionRate import ReactionRate, ReactionRates
+from nerea.utils import ratio_v_u, product_v_u, _make_df
 
 import pandas as pd
 import numpy as np

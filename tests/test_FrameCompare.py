@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from REPTILE.Comparisons import FrameCompare
+from nerea.Comparisons import FrameCompare
 
 @pytest.fixture
 def frame1():

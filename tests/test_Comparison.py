@@ -1,10 +1,10 @@
 import pytest
-from REPTILE.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
-from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum
-from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.ReactionRate import ReactionRate
-from REPTILE.Comparisons import _Comparison
-from REPTILE.Calculated import CalculatedSpectralIndex, CalculatedTraverse
+from nerea.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
+from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
+from nerea.EffectiveMass import EffectiveMass
+from nerea.ReactionRate import ReactionRate
+from nerea.Comparisons import _Comparison
+from nerea.Calculated import CalculatedSpectralIndex, CalculatedTraverse
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
