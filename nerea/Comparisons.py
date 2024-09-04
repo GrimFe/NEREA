@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from REPTILE import _Experimental, SpectralIndex, Traverse
-from REPTILE import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
-from REPTILE.utils import ratio_v_u, _make_df
+from nerea import _Experimental, SpectralIndex, Traverse
+from nerea import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
+from nerea.utils import ratio_v_u, _make_df
 
 
 __all__ = ['CoverE', 'CoverC', 'FrameCompare']

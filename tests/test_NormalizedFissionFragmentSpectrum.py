@@ -1,9 +1,9 @@
 import pytest
-from REPTILE.Experimental import NormalizedFissionFragmentSpectrum
-from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
-from REPTILE.EffectiveMass import EffectiveMass
-from REPTILE.ReactionRate import ReactionRate
-from REPTILE.utils import _make_df
+from nerea.Experimental import NormalizedFissionFragmentSpectrum
+from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+from nerea.EffectiveMass import EffectiveMass
+from nerea.ReactionRate import ReactionRate
+from nerea.utils import _make_df
 from datetime import datetime
 import pandas as pd
 

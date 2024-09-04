@@ -6,7 +6,7 @@ import linecache
 from datetime import datetime, timedelta
 import warnings
 
-from REPTILE.utils import ratio_v_u, _make_df, integral_v_u
+from nerea.utils import ratio_v_u, _make_df, integral_v_u
 
 __all__ = [
     "ReactionRate",
