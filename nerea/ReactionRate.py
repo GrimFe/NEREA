@@ -473,7 +473,7 @@ class ReactionRates:
         You can create a ReactionRate instance from this file as follows:
 
         ```python
-        from REPTILE.ReactionRate import ReactionRate
+        from nerea.ReactionRate import ReactionRate
 
         power_monitor = ReactionRate.from_ascii('path/to/power_data.txt', experiment_id='EXP123')
         print(power_monitor.data)

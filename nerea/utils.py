@@ -24,7 +24,7 @@ def integral_v_u(s: pd.Series) -> tuple[float]:
     Examples
     --------
     >>> import numpy as np
-    >>> from REPTILE.utils import integral_v_u
+    >>> from nerea.utils import integral_v_u
     >>> s = np.array([1, 2, 3, 4])
     >>> v, u = integral_v_u(s)
     >>> print(f"Sum: {v}, Uncertainty: {u}")
@@ -56,7 +56,7 @@ def ratio_uncertainty(n, un, d, ud) -> tuple[float]:
 
     Examples
     --------
-    >>> from REPTILE.utils import ratio_uncertainty
+    >>> from nerea.utils import ratio_uncertainty
     >>> n, un = 10, 0.5
     >>> d, ud = 5, 0.2
     >>> u_ratio = ratio_uncertainty(n, un, d, ud)
@@ -90,7 +90,7 @@ def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float]:
     ...         self.value = value
     ...         self.uncertainty = uncertainty
     ...
-    >>> from REPTILE.utils import ratio_v_u
+    >>> from nerea.utils import ratio_v_u
     >>> n = Measurement(10, 0.5)
     >>> d = Measurement(5, 0.2)
     >>> v, u = ratio_v_u(n, d)
@@ -137,7 +137,7 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
 
     Examples
     --------
-    >>> from REPTILE.utils import _make_df
+    >>> from nerea.utils import _make_df
     >>> v, u = 10, 0.5
     >>> df = _make_df(v, u)
     >>> print(df)

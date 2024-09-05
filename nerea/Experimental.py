@@ -387,7 +387,7 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.ReactionRate import ReactionRate
+        >>> from nerea.ReactionRate import ReactionRate
         >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
         >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
@@ -501,7 +501,7 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.ReactionRate import ReactionRate
+        >>> from nerea.ReactionRate import ReactionRate
         >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
         >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
