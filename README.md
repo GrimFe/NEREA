@@ -29,21 +29,21 @@ import nerea
 
 A schematic of NEREA can be found ![here](https://github.com/GrimFe/NEREA/tree/main/img/Structure.jpg). Reptile composes of four main parts:
 * DATA - dedicated to the interface with detector raw data and preprocessing:
-   - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/tree/main/NEREA/EffectiveMass.py)
-   - `FissionFragmentSpectrum` or [`FFS`](https://github.com/GrimFe/NEREA/tree/main/NEREA/FisionFragmentSpectrum.py)
-   - `FissionFragmentSpectra` or [`FFSa`](https://github.com/GrimFe/NEREA/tree/main/NEREA/FisionFragmentSpectrum.py)
-   - `ReactionRate` or [`RR`](https://github.com/GrimFe/NEREA/tree/main/NEREA/ReactionRate.py)
-   - `ReactionRates` or [`RRs`](https://github.com/GrimFe/NEREA/tree/main/NEREA/ReactionRates.py)
+   - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/tree/main/nerea/EffectiveMass.py)
+   - `FissionFragmentSpectrum` or [`FFS`](https://github.com/GrimFe/NEREA/tree/main/nerea/FisionFragmentSpectrum.py)
+   - `FissionFragmentSpectra` or [`FFSa`](https://github.com/GrimFe/NEREA/tree/main/nerea/FisionFragmentSpectrum.py)
+   - `ReactionRate` or [`RR`](https://github.com/GrimFe/NEREA/tree/main/nerea/ReactionRate.py)
+   - `ReactionRates` or [`RRs`](https://github.com/GrimFe/NEREA/tree/main/nerea/ReactionRates.py)
 * COMPUTABLES - objects created out of the DATA and related processing:
-  - `NormalizedFissionFragmentSpectrum` or [`NFFS`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
-  - `SpectralIndex` or [`SI`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
-  - `Traverse` or [`Traverse`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Computables.py)
+  - `NormalizedFissionFragmentSpectrum` or [`NFFS`](https://github.com/GrimFe/NEREA/tree/main/nerea/Computables.py)
+  - `SpectralIndex` or [`SI`](https://github.com/GrimFe/NEREA/tree/main/nerea/Computables.py)
+  - `Traverse` or [`Traverse`](https://github.com/GrimFe/NEREA/tree/main/nerea/Computables.py)
 * CALCULATED - objects crated from model outputs:
-  - `CalculatedSpectralIndex` or [`CSI`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Calculated.py)
-  - `CalculatedTraverse` or [`CT`](https://github.com/GrimFe/NEREA/tree/main/NEREA/Calculated.py)
+  - `CalculatedSpectralIndex` or [`CSI`](https://github.com/GrimFe/NEREA/tree/main/nerea/Calculated.py)
+  - `CalculatedTraverse` or [`CT`](https://github.com/GrimFe/NEREA/tree/main/nerea/Calculated.py)
 * C/E - comparison of calculations to experiments:
-  - `CoverE` or [`CE`](https://github.com/GrimFe/NEREA/tree/main/NEREA/CoverE.py)
- Useful functions are stored in [`utils.py`](https://github.com/GrimFe/NEREA/tree/main/NEREA/utils.py).
+  - `CoverE` or [`CE`](https://github.com/GrimFe/NEREA/tree/main/nerea/CoverE.py)
+ Useful functions are stored in [`utils.py`](https://github.com/GrimFe/NEREA/tree/main/nerea/utils.py).
 
 ## 🎮 Examples
 
