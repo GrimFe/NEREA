@@ -27,7 +27,7 @@ import nerea
 ```
 ## 🗺️ Structure
 
-A schematic of the main structure of NEREA can be found ![here](https://github.com/GrimFe/NEREA/blob/main/img/Structure.jpg). Reptile composes of four main parts:
+A schematic of the main structure of NEREA can be found ![here](https://github.com/GrimFe/NEREA/blob/main/img/Structure.jpg).
 Some of the main features of NEREA are:
 * DATA - dedicated to the interface with detector raw data and preprocessing:
    - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/blob/main/nerea/EffectiveMass.py)
