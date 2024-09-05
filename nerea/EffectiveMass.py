@@ -86,7 +86,7 @@ class EffectiveMass:
             self.composition_.to_excel(writer, index=False, sheet_name='Composition')
             pd.DataFrame({'R': [self.R_channel], 'bins': [self.bins]}
                          ).T.to_excel(writer, header=False, index=False, sheet_name='R')
-            pd.DataFrame({'c': [f'Calibrated on {date.today()} using REPTILE.py']}
+            pd.DataFrame({'c': [f'Calibrated on {date.today()} using nerea.py']}
                          ).T.to_excel(writer, header=False, index=False, sheet_name='_CalData')
 
     @classmethod
