@@ -1,10 +1,10 @@
 import pytest
-from nerea.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
-from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
-from nerea.EffectiveMass import EffectiveMass
-from nerea.ReactionRate import ReactionRate
-from nerea.Comparisons import _Comparison
-from nerea.Calculated import CalculatedSpectralIndex, CalculatedTraverse
+from nerea.experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
+from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
+from nerea.effective_mass import EffectiveMass
+from nerea.reaction_rate import ReactionRate
+from nerea.comparisons import _Comparison
+from nerea.calculated import CalculatedSpectralIndex, CalculatedTraverse
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -189,12 +189,17 @@ def test_compute_si(sample_si_ce):
                                 'VAR_FRAC_FFS_n': 0.0011603913092935957,
                                 'VAR_FRAC_EM_n': 3.369335447218919e-05,
                                 'VAR_FRAC_PM_n': 0.0010201000000000001,
+                                'VAR_FRAC_t_n': 0.,
                                 'VAR_FRAC_FFS_d': 0.0011603913092935955,
                                 'VAR_FRAC_EM_d': 3.369335447218918e-05,
                                 'VAR_FRAC_PM_d': 0.0010201000000000001,
+                                'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
     expected_df = pd.DataFrame({'value': [1., 0.99250555],
@@ -213,9 +218,11 @@ def test_minus_one_per_cent(sample_si_ce):
                                 'VAR_FRAC_FFS_n': 11.603913092935958,
                                 'VAR_FRAC_EM_n': 0.33693354472189185,
                                 'VAR_FRAC_PM_n': 10.201,
+                                'VAR_FRAC_t_n': 0.,
                                 'VAR_FRAC_FFS_d': 11.603913092935956,
                                 'VAR_FRAC_EM_d': 0.3369335447218918,
                                 'VAR_FRAC_PM_d': 10.201,
+                                'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)

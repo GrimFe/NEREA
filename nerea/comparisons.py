@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from nerea import _Experimental, SpectralIndex, Traverse
-from nerea import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
-from nerea.utils import ratio_v_u, _make_df
+from . import _Experimental, SpectralIndex, Traverse
+from . import _Calculated, CalculatedSpectralIndex, CalculatedTraverse
+from .utils import ratio_v_u, _make_df
 
 
 __all__ = ['CoverE', 'CoverC', 'FrameCompare']
@@ -14,6 +14,28 @@ __all__ = ['CoverE', 'CoverC', 'FrameCompare']
 
 def _frame_comparison(num: pd.DataFrame, den: pd.DataFrame,
                       _minus_one_percent: bool=False):
+    """
+    Ratio comparison of `pd.DataFrame` objects.
+
+    Parameters
+    ----------
+    num: pd.DataFrame
+        the ratio numerator.
+    den: pd.DataFrame
+        the ratio denominator.
+    _minus_one_percent: bool, optional
+        flag to determine whether the comparison should be
+        as N / D - 1 [%]. Defaults to False.
+    
+    Returns
+    -------
+    df: pd.DataFrame
+        the result in the standard format of `nerea.utils._make_df()`.
+    var_num: pd.DataFrame
+        variance apportioning of the numerator.
+    var_den: pd.DataFrame
+        variance apportioning of the denominator.
+    """
     v, u = ratio_v_u(num, den)
     df = _make_df((v - 1) * 100, u * 100, relative=False) if _minus_one_percent else _make_df(v, u)
     # sensitivities

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import serpentTools as sts
 import pandas as pd
 
-from nerea.utils import _make_df, ratio_v_u
+from .utils import _make_df, ratio_v_u
 
 __all__ = ['_Calculated',
            'CalculatedSpectralIndex',
