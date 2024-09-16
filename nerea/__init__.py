@@ -1,11 +1,11 @@
-from nerea.FissionFragmentSpectrum import *
-from nerea.EffectiveMass import *
-from nerea.ReactionRate import *
+from .FissionFragmentSpectrum import *
+from .EffectiveMass import *
+from .ReactionRate import *
 
-from nerea.Experimental import *
+from .Experimental import *
 
-from nerea.Calculated import *
+from .Calculated import *
 
-from nerea.Comparisons import *
+from .Comparisons import *
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'

@@ -6,7 +6,7 @@ import linecache
 from datetime import datetime, timedelta
 import warnings
 
-from nerea.utils import ratio_v_u, _make_df, integral_v_u
+from .utils import ratio_v_u, _make_df, integral_v_u
 
 __all__ = [
     "ReactionRate",

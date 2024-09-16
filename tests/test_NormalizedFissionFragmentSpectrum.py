@@ -1,6 +1,6 @@
 import pytest
 from nerea.Experimental import NormalizedFissionFragmentSpectrum
-from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
 from nerea.EffectiveMass import EffectiveMass
 from nerea.ReactionRate import ReactionRate
 from nerea.utils import _make_df
