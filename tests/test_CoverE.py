@@ -1,10 +1,10 @@
 import pytest
-from nerea.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
-from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
-from nerea.EffectiveMass import EffectiveMass
-from nerea.ReactionRate import ReactionRate
-from nerea.Comparisons import CoverE
-from nerea.Calculated import CalculatedSpectralIndex, CalculatedTraverse
+from nerea.experimental import NormalizedFissionFragmentSpectrum, SpectralIndex, Traverse
+from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
+from nerea.effective_mass import EffectiveMass
+from nerea.reaction_rate import ReactionRate
+from nerea.comparisons import CoverE
+from nerea.calculated import CalculatedSpectralIndex, CalculatedTraverse
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
@@ -174,3 +174,5 @@ def sample_ce_traverse(sample_c_traverse, sample_traverse_rr):
 
 def test_deposit_ids(sample_si_ce, sample_ce_traverse):
     assert sample_si_ce.deposit_ids == ['D1', 'D2']
+
+## More tests in test_Comparison.py

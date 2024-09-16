@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from nerea.Comparisons import FrameCompare
+from nerea.comparisons import FrameCompare
 
 @pytest.fixture
 def frame1():
@@ -29,3 +29,4 @@ def test_frame_compare(sample_fc):
                                 'VAR_FRAC_C_d_d': None,
                                 'VAR_FRAC_C_d': 0.00040804}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_fc.compute(), check_exact=False, atol=0.00001)
+    
