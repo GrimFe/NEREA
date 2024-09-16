@@ -75,15 +75,15 @@ def test_power_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._power_normalization,
                                   _make_df(.01, 0.00031622776601683794))
 
-def test_get_verbose(nffs):
+def test_get_long_output(nffs):
     expected_df = pd.DataFrame({'FFS': 879.0999999999999, 'VAR_FFS': 879.0999999999999,
                                 'EM': 87, 'VAR_EM': .5 **2,
                                 'PM': 1 / .01, 'VAR_PM': 0.00031622776601683794 **2 / .01 **4,
                                 't': 1 / .1, 'VAR_t': 0}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs._get_verbose(nffs.plateau(),
-                                                     nffs._time_normalization,
-                                                     nffs._power_normalization))
+                                   nffs._get_long_output(nffs.plateau(),
+                                                         nffs._time_normalization,
+                                                         nffs._power_normalization))
 
 def test_per_unit_mass(nffs):
     expected_df = pd.DataFrame({
@@ -148,5 +148,6 @@ def test_process(nffs):
                                 'uncertainty [%]': 4.658923135819038,
                                 'VAR_FRAC_FFS':  1.161448e-7,
                                 'VAR_FRAC_EM': 0.0033724e-7,
-                                'VAR_FRAC_PM': 1.0210289470207425e-07}, index=['value'])
+                                'VAR_FRAC_PM': 1.0210289470207425e-07,
+                                'VAR_FRAC_t': 0.}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, nffs.process(), check_exact=False, atol=0.00001)

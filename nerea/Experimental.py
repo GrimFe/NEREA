@@ -348,7 +348,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         power = self._power_normalization       # this is 1/PM
         time = self._time_normalization         # this is 1/t
         v, u = product_v_u([plateau, power, time])
-        print("I'm here")
 
         # compute variance fractions
         S_PLAT, S_PM, S_T = power.value * time.value, plateau.value * time.value, plateau.value * power.value
@@ -462,7 +461,7 @@ class SpectralIndex(_Experimental):
         den : pd.DataFrame
             output of self.denominator.process
         k : pd.DataFrame
-            ...
+            impurity correction
 
         Returns
         -------
@@ -471,18 +470,19 @@ class SpectralIndex(_Experimental):
             if the varaince was not computed for none of `num` and `den`.
         """
         empty = True
+        start_col = 7
         if 'VAR_FFS' in num.columns:
-            num_ = num.rename(columns=dict(zip(num.columns[6:],
-                                          [f'{c}_n' for c in num.columns[6:]]))
-                                          ).iloc[:, 6:]
+            num_ = num.rename(columns=dict(zip(num.columns[start_col:],
+                                          [f'{c}_n' for c in num.columns[start_col:]]))
+                                          ).iloc[:, start_col:]
             empty = False
         else:
             num_ = pd.DataFrame()
 
         if 'VAR_FFS' in den.columns:
-            den_ = den.rename(columns=dict(zip(num.columns[6:],
-                                          [f'{c}_d' for c in num.columns[6:]]))
-                                          ).iloc[:, 6:]
+            den_ = den.rename(columns=dict(zip(num.columns[start_col:],
+                                          [f'{c}_d' for c in num.columns[start_col:]]))
+                                          ).iloc[:, start_col:]
             empty = False
         else:
             den = pd.DataFrame()

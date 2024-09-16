@@ -189,9 +189,11 @@ def test_compute_si(sample_si_ce):
                                 'VAR_FRAC_FFS_n': 0.0011603913092935957,
                                 'VAR_FRAC_EM_n': 3.369335447218919e-05,
                                 'VAR_FRAC_PM_n': 0.0010201000000000001,
+                                'VAR_FRAC_t_n': 0.,
                                 'VAR_FRAC_FFS_d': 0.0011603913092935955,
                                 'VAR_FRAC_EM_d': 3.369335447218918e-05,
                                 'VAR_FRAC_PM_d': 0.0010201000000000001,
+                                'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
@@ -213,9 +215,11 @@ def test_minus_one_per_cent(sample_si_ce):
                                 'VAR_FRAC_FFS_n': 11.603913092935958,
                                 'VAR_FRAC_EM_n': 0.33693354472189185,
                                 'VAR_FRAC_PM_n': 10.201,
+                                'VAR_FRAC_t_n': 0.,
                                 'VAR_FRAC_FFS_d': 11.603913092935956,
                                 'VAR_FRAC_EM_d': 0.3369335447218918,
                                 'VAR_FRAC_PM_d': 10.201,
+                                'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)

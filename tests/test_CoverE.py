@@ -174,3 +174,5 @@ def sample_ce_traverse(sample_c_traverse, sample_traverse_rr):
 
 def test_deposit_ids(sample_si_ce, sample_ce_traverse):
     assert sample_si_ce.deposit_ids == ['D1', 'D2']
+
+## More tests in test_Comparison.py

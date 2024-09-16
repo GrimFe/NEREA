@@ -85,7 +85,7 @@ def synthetic_one_g_xs_data():
 def test_deposit_ids(si):
     assert si.deposit_ids == ['D1', 'D2']
 
-def test_get_verbose(si):
+def test_get_long_output(si):
     expected_df = pd.DataFrame({'FFS_n': 8.79100000e+02,
                                 'VAR_FFS_n': 8.79100000e+02,
                                 'EM_n': 87,
@@ -104,9 +104,9 @@ def test_get_verbose(si):
                                 'VAR_t_d': 0,
                                 '1GXS': 0,
                                 'VAR_1GXS': None}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, si._get_verbose(si.numerator.process(verbose=True),
-                                                               si.denominator.process(verbose=True),
-                                                               None))
+    pd.testing.assert_frame_equal(expected_df, si._get_long_output(si.numerator.process(long_output=True),
+                                                                   si.denominator.process(long_output=True),
+                                                                   None))
 
 def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
@@ -115,9 +115,11 @@ def test_process(si):
                                 'VAR_FRAC_FFS_n': 0.001138,
                                 'VAR_FRAC_EM_n': 0.000033,
                                 'VAR_FRAC_PM_n': 0.001000,
+                                'VAR_FRAC_t_n': 0.,
                                 'VAR_FRAC_FFS_d': 0.001138,
                                 'VAR_FRAC_EM_d': 0.000033,
                                 'VAR_FRAC_PM_d': 0.001000,
+                                'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.}, index= ['value'])
     pd.testing.assert_frame_equal(expected_df, si.process(), check_exact=False, atol=0.00001)
 
