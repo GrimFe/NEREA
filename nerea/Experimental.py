@@ -1,10 +1,10 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
-from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
-from nerea.effective_mass import EffectiveMass
-from nerea.reaction_rate import ReactionRate, ReactionRates
-from nerea.utils import ratio_v_u, product_v_u, _make_df
+from .fission_fragment_spectrum import FissionFragmentSpectrum
+from .effective_mass import EffectiveMass
+from .reaction_rate import ReactionRate, ReactionRates
+from .utils import ratio_v_u, product_v_u, _make_df
 
 import pandas as pd
 import numpy as np
@@ -348,6 +348,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         power = self._power_normalization       # this is 1/PM
         time = self._time_normalization         # this is 1/t
         v, u = product_v_u([plateau, power, time])
+        print("I'm here")
 
         # compute variance fractions
         S_PLAT, S_PM, S_T = power.value * time.value, plateau.value * time.value, plateau.value * power.value
