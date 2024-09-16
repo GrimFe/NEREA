@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from nerea.calculated import CalculatedTraverse
+from ..nerea.calculated import CalculatedTraverse
 
 @pytest.fixture
 def sample_data():

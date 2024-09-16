@@ -2,8 +2,8 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.reaction_rate import ReactionRate, ReactionRates
-from nerea.experimental import Traverse
+from ..nerea.reaction_rate import ReactionRate, ReactionRates
+from ..nerea.experimental import Traverse
 
 counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,
           0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3.9,3.9,4.2,4.1,4,

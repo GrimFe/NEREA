@@ -1,7 +1,7 @@
 
 import pytest
 import pandas as pd
-from nerea.effective_mass import EffectiveMass
+from ..nerea.effective_mass import EffectiveMass
 
 @pytest.fixture
 def sample_effective_mass():
