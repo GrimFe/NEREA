@@ -197,6 +197,9 @@ def test_compute_si(sample_si_ce):
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.compute(), check_exact=False, atol=0.00001)
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
     expected_df = pd.DataFrame({'value': [1., 0.99250555],

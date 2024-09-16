@@ -107,6 +107,16 @@ def test_get_long_output(si):
     pd.testing.assert_frame_equal(expected_df, si._get_long_output(si.numerator.process(long_output=True),
                                                                    si.denominator.process(long_output=True),
                                                                    None))
+    # check that the variances are unchanged when relate to numerator and denominator
+    assert si.numerator.process(long_output=True)["VAR_FFS"].value == expected_df["VAR_FFS_n"].value
+    assert si.denominator.process(long_output=True)["VAR_FFS"].value == expected_df["VAR_FFS_d"].value
+    assert si.numerator.process(long_output=True)["VAR_EM"].value == expected_df["VAR_EM_n"].value
+    assert si.denominator.process(long_output=True)["VAR_EM"].value == expected_df["VAR_EM_d"].value
+    assert si.numerator.process(long_output=True)["VAR_PM"].value == expected_df["VAR_PM_n"].value
+    assert si.denominator.process(long_output=True)["VAR_PM"].value == expected_df["VAR_PM_d"].value
+    assert si.numerator.process(long_output=True)["VAR_t"].value == expected_df["VAR_t_n"].value
+    assert si.denominator.process(long_output=True)["VAR_t"].value == expected_df["VAR_t_d"].value
+
 
 def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
@@ -122,6 +132,9 @@ def test_process(si):
                                 'VAR_FRAC_t_d': 0.,
                                 'VAR_FRAC_1GXS': 0.}, index= ['value'])
     pd.testing.assert_frame_equal(expected_df, si.process(), check_exact=False, atol=0.00001)
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07

@@ -6,6 +6,7 @@ from nerea.reaction_rate import ReactionRate
 from nerea.utils import _make_df
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 @pytest.fixture
 def sample_spectrum_data():
@@ -141,6 +142,9 @@ def test_plateau(nffs):
                              'CH_EM': 14.000000}, name=4).to_frame().T
     expected_df.index = ['value']
     pd.testing.assert_frame_equal(expected_df, nffs.plateau())
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_process(nffs):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,
@@ -151,3 +155,6 @@ def test_process(nffs):
                                 'VAR_FRAC_PM': 1.0210289470207425e-07,
                                 'VAR_FRAC_t': 0.}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, nffs.process(), check_exact=False, atol=0.00001)
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
