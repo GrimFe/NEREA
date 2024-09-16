@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-from ..nerea.calculated import CalculatedSpectralIndex
+from nerea.calculated import CalculatedSpectralIndex
 
 @pytest.fixture
 def sample_data():
