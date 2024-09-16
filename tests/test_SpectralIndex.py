@@ -1,8 +1,8 @@
 import pytest
-from nerea.Experimental import NormalizedFissionFragmentSpectrum, SpectralIndex
-from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum
-from nerea.EffectiveMass import EffectiveMass
-from nerea.ReactionRate import ReactionRate
+from nerea.experimental import NormalizedFissionFragmentSpectrum, SpectralIndex
+from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
+from nerea.effective_mass import EffectiveMass
+from nerea.reaction_rate import ReactionRate
 from datetime import datetime
 import pandas as pd
 import numpy as np

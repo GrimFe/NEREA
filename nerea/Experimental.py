@@ -1,9 +1,9 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
-from .FissionFragmentSpectrum import FissionFragmentSpectrum
-from .EffectiveMass import EffectiveMass
-from .ReactionRate import ReactionRate, ReactionRates
+from .fission_fragment_spectrum import FissionFragmentSpectrum
+from .effective_mass import EffectiveMass
+from .reaction_rate import ReactionRate, ReactionRates
 from .utils import ratio_v_u, product_v_u, _make_df
 
 import pandas as pd

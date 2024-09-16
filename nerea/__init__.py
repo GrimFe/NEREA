@@ -1,11 +1,11 @@
-from .FissionFragmentSpectrum import *
-from .EffectiveMass import *
-from .ReactionRate import *
+from .fission_fragment_spectrum import *
+from .effective_mass import *
+from .reaction_rate import *
 
-from .Experimental import *
+from .experimental import *
 
-from .Calculated import *
+from .calculated import *
 
-from .Comparisons import *
+from .comparisons import *
 
 __version__ = '0.0.3'

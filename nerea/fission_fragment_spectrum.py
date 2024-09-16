@@ -7,7 +7,7 @@ import warnings
 from datetime import datetime, timedelta
 
 from .utils import integral_v_u, _make_df
-from .EffectiveMass import EffectiveMass
+from .effective_mass import EffectiveMass
 
 __all__ = [
     "FissionFragmentSpectrum",
