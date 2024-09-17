@@ -163,7 +163,7 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
 
     v_ = 1 - v
-    u_ = np.sqrt(0.06588712284729072 **2 - u **2)
+    u_ = np.sqrt(0.06588712284729072 **2 + u **2)
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
 
