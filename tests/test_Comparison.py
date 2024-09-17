@@ -76,7 +76,7 @@ def sample_spectral_index(rr_1, rr_2):
 
 @pytest.fixture
 def sample_c_si_data():
-    return pd.DataFrame({'value': 1.01, 'uncertainty': .05, 'VAR_FRAC_C_n': None, 'VAR_FRAC_C_d': None, 'VAR_FRAC_C': 0.05 **2}, index=['value'])
+    return pd.DataFrame({'value': 1.01, 'uncertainty': .05, 'VAR_FRAC_C_n': 2 / 3 * 0.05 **2, 'VAR_FRAC_C_d': 1 / 3 * 0.05 **2}, index=['value'])
 
 @pytest.fixture
 def sample_c(sample_c_si_data):
@@ -183,9 +183,8 @@ def test_compute_si(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.01,
                                 'uncertainty': 0.08323682675073317,
                                 'uncertainty [%]': 8.241269975320115,
-                                'VAR_FRAC_C_n': None, 
-                                'VAR_FRAC_C_d': None,
-                                'VAR_FRAC_C': 0.0025000000000000005,
+                                'VAR_FRAC_C_n': 1.66666667e-03, 
+                                'VAR_FRAC_C_d': 8.33333333e-04,
                                 'VAR_FRAC_FFS_n': 0.0011603913092935957,
                                 'VAR_FRAC_EM_n': 3.369335447218919e-05,
                                 'VAR_FRAC_PM_n': 0.0010201000000000001,
@@ -212,9 +211,8 @@ def test_minus_one_per_cent(sample_si_ce):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 8.323682675073316,
                                 'uncertainty [%]': np.nan,
-                                'VAR_FRAC_C_n': None, 
-                                'VAR_FRAC_C_d': None,
-                                'VAR_FRAC_C': 25.000000000000004,
+                                'VAR_FRAC_C_n': 16.66666667, 
+                                'VAR_FRAC_C_d': 8.33333333,
                                 'VAR_FRAC_FFS_n': 11.603913092935958,
                                 'VAR_FRAC_EM_n': 0.33693354472189185,
                                 'VAR_FRAC_PM_n': 10.201,
@@ -226,15 +224,19 @@ def test_minus_one_per_cent(sample_si_ce):
                                 'VAR_FRAC_1GXS': 0.},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, sample_si_ce.minus_one_percent(), check_exact=False, atol=0.00001)
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_si_cc(sample_si_cc):
-    target_df = pd.DataFrame({'value': 1.,
+    expected_df = pd.DataFrame({'value': 1.,
                               'uncertainty': 0.07001057239470768,
                               'uncertainty [%]': 7.001057239470768,
-                              'VAR_FRAC_C_n_n': None,
-                              'VAR_FRAC_C_d_n': None,
-                              'VAR_FRAC_C_n': 0.0024507401235173026,
-                              'VAR_FRAC_C_n_d': None,
-                              'VAR_FRAC_C_d_d': None,
-                              'VAR_FRAC_C_d': 0.0024507401235173026}, index=['value'])
-    pd.testing.assert_frame_equal(target_df, sample_si_cc.compute())
+                              'VAR_FRAC_C_n_n': 1.63382675e-03,
+                              'VAR_FRAC_C_d_n': 8.16913375e-04,
+                              'VAR_FRAC_C_n_d': 1.63382675e-03,
+                              'VAR_FRAC_C_d_d': 8.16913375e-04}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, sample_si_cc.compute())
+    # check that sum(VAR_FRAC) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)

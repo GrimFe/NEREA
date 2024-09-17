@@ -564,7 +564,7 @@ class SpectralIndex(_Experimental):
         var_num = num[var_cols] / den['value'].value **2
         var_num.columns = [f"{c}_n" for c in var_cols]
 
-        var_den = num[var_cols] * (num['value'] / den['value'] **2).value **2
+        var_den = den[var_cols] * (num['value'] / den['value'] **2).value **2
         var_den.columns = [f"{c}_d" for c in var_cols]
 
         # concatenate variances to `df`
