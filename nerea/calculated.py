@@ -45,7 +45,7 @@ class CalculatedSpectralIndex(_Calculated):
 
         Examples
         --------
-        >>> c_instance = CalculatedSpectralIndex.from_sts('file.det',
+        >>> c_instance = CalculatedSpectralIndex.from_sts('file_det0.m',
                                                     'SI_detector', model_id='Model1')
         """
         ## works with relative uncertainties for the moment.
