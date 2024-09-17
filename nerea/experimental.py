@@ -554,7 +554,7 @@ class SpectralIndex(_Experimental):
         if one_g_xs_ is not None:
             k = self._compute_correction(one_g_xs_)
             v = v - k.value
-            u = np.sqrt(u **2 - k.uncertainty **2)
+            u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None
         df = _make_df(v, u)
 
