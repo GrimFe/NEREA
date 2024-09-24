@@ -7,6 +7,7 @@ import warnings
 from datetime import datetime, timedelta
 
 from .utils import integral_v_u, _make_df
+from .constants import avogadro, atomic_mass
 from .effective_mass import EffectiveMass
 
 __all__ = [
@@ -172,14 +173,30 @@ class FissionFragmentSpectrum:
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    def calibrate(spectrum, bins: int=None) -> EffectiveMass:
+    def calibrate(self, k: float, composition: dict[str, float], monitor,
+                  one_group_xs : dict[str, float], bins: int=None) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
 
         Takes
         -----
-        spectrum : pass
+        k : float,
+            the facility calibration factor as in
+            "Miniature fission chambers calibration in
+            pulse mode: interlaboratory comparison at
+            the SCK•CEN BR1 and CEA CALIBAN reactors".
+        composition : dict[str, float]
+            the fission chamber composition relative to
+            the deposit main nuclide. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its atomic abundance relative to the main one.
+        one_group_xs : dict[str, float]
+            the one group cross sections of the fission
+            chamber components. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its one group cross section.
+        monitor : ??
             pass
         bins : int, optional
             Number of bins for integration.
@@ -190,7 +207,25 @@ class FissionFragmentSpectrum:
         >>> spectrum = pass
         >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
-        pass
+        composition_ = pd.DataFrame(composition, index=['share']).T
+        match composition_.share.max():
+            case 1:
+                composition_ = composition_
+            case 100:
+                composition_.share = composition_.share / 100
+            case _:
+                raise ValueError("`composition` should be relative to the main isotope," +
+                                 "which should be reported in it.")
+        xs = pd.DataFrame(one_group_xs, index=['xs']).T
+
+        main = composition_.query("share == 1").index.values[0]
+        c1 = avogadro / atomic_mass[main] * composition_[composition_[~composition_.index.isin([main])]
+                                                         ].T.dot(xs[~xs.index.isin([main])])
+        out = self.integrate(bins) / (k * monitor * c1)
+        ## Missing:
+        ##      - make EffectiveMass instance
+        ##      - propagate uncertainties to EM
+        return EffectiveMass()
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
