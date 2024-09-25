@@ -25,8 +25,8 @@ class FissionFragmentSpectrum:
     measurement_id: str
     life_time: int
     real_time: int
-    life_time_uncertainty: float = 0
-    real_time_uncertainty: float = 0
+    life_time_uncertainty: float = 0.
+    real_time_uncertainty: float = 0.
 
     @property
     def smooth(self) -> pd.DataFrame:
