@@ -93,7 +93,7 @@ def test_get_long_output(si):
                                 'PM_n': 1.00000000e+02,
                                 'VAR_PM_n': 1.00000000e+01,
                                 't_n': 10.,
-                                'VAR_t_n': 0,
+                                'VAR_t_n': 0.,
                                 'FFS_d': 8.79100000e+02,
                                 'VAR_FFS_d': 8.79100000e+02,
                                 'EM_d': 87,
@@ -101,7 +101,7 @@ def test_get_long_output(si):
                                 'PM_d': 1.00000000e+02,
                                 'VAR_PM_d': 1.00000000e+01,
                                 't_d': 10.,
-                                'VAR_t_d': 0,
+                                'VAR_t_d': 0.,
                                 '1GXS': 0,
                                 'VAR_1GXS': None}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, si._get_long_output(si.numerator.process(long_output=True),

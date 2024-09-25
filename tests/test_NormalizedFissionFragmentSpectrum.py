@@ -70,7 +70,12 @@ def test_reaction_rate_deposit_id(nffs):
     assert nffs.deposit_id == "D"
 
 def test_time_normalization(nffs):
-    pd.testing.assert_frame_equal(nffs._time_normalization, _make_df(.1, 0))
+    pd.testing.assert_frame_equal(nffs._time_normalization, _make_df(.1, 0.))
+    # test variance
+    tmp = nffs
+    tmp.fission_fragment_spectrum.life_time_uncertainty = .1
+    tmp.fission_fragment_spectrum.real_time_uncertainty = .1
+    pd.testing.assert_frame_equal(tmp._time_normalization, _make_df(.1, np.sqrt(5) * 1e-3))
 
 def test_power_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._power_normalization,
@@ -80,7 +85,7 @@ def test_get_long_output(nffs):
     expected_df = pd.DataFrame({'FFS': 879.0999999999999, 'VAR_FFS': 879.0999999999999,
                                 'EM': 87, 'VAR_EM': .5 **2,
                                 'PM': 1 / .01, 'VAR_PM': 0.00031622776601683794 **2 / .01 **4,
-                                't': 1 / .1, 'VAR_t': 0}, index=['value'])
+                                't': 1 / .1, 'VAR_t': 0.}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                                    nffs._get_long_output(nffs.plateau(),
                                                          nffs._time_normalization,
