@@ -16,10 +16,6 @@ __all__ = [
 @dataclass(slots=True)
 class FissionFragmentSpectrum:
     start_time: datetime
-    life_time: int
-    life_time_uncertainty: float = 0
-    real_time: int
-    real_time_uncertainty: float = 0
     data: pd.DataFrame
     campaign_id: str
     experiment_id: str
@@ -27,6 +23,10 @@ class FissionFragmentSpectrum:
     deposit_id: str
     location_id: str
     measurement_id: str
+    life_time: int
+    real_time: int
+    life_time_uncertainty: float = 0
+    real_time_uncertainty: float = 0
 
     @property
     def smooth(self) -> pd.DataFrame:
