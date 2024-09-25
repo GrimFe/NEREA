@@ -17,7 +17,9 @@ __all__ = [
 class FissionFragmentSpectrum:
     start_time: datetime
     life_time: int
+    life_time_uncertainty: float = 0
     real_time: int
+    real_time_uncertainty: float = 0
     data: pd.DataFrame
     campaign_id: str
     experiment_id: str
