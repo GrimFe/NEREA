@@ -7,8 +7,9 @@ import warnings
 from datetime import datetime, timedelta
 
 from .utils import integral_v_u, _make_df
-from .constants import avogadro, atomic_mass
+from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
+from .reaction_rate import ReactionRate
 
 __all__ = [
     "FissionFragmentSpectrum",
@@ -175,34 +176,42 @@ class FissionFragmentSpectrum:
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    def calibrate(self, k: float, composition: dict[str, float], monitor,
-                  one_group_xs : dict[str, float], bins: int=None) -> EffectiveMass:
+    def calibrate(self, k: pd.DataFrame, composition: dict[str, float], monitor: ReactionRate,
+                  one_group_xs : dict[str, float], bins: int=None, **kwargs) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
 
         Takes
         -----
-        k : float,
+        k : pd.DataFrame,
             the facility calibration factor as in
             "Miniature fission chambers calibration in
             pulse mode: interlaboratory comparison at
             the SCK•CEN BR1 and CEA CALIBAN reactors".
+            Has columns for its value and uncertainty.
         composition : dict[str, float]
             the fission chamber composition relative to
             the deposit main nuclide. `key` is the nuclide
             string identifier (e.g., `'U235'`), and `value`
             is its atomic abundance relative to the main one.
+            Has columns for its value and uncertainty.
         one_group_xs : dict[str, float]
             the one group cross sections of the fission
             chamber components. `key` is the nuclide
             string identifier (e.g., `'U235'`), and `value`
             is its one group cross section.
-        monitor : ??
-            pass
+            Has columns for its value and uncertainty.
+        monitor : nerea.ReactionRate
+            the counts of the monitor fission chamber used
+            during calibration.
         bins : int, optional
-            Number of bins for integration.
+            number of bins for integration.
             Defaults to `None`, which uses all the bins.
+        **kwargs:
+            keyword arguments for the creation of the
+            nerea.EffectiveMass object instance.
+            - `detector_id`
     
         Examples
         --------
@@ -220,14 +229,28 @@ class FissionFragmentSpectrum:
                                  "which should be reported in it.")
         xs = pd.DataFrame(one_group_xs, index=['xs']).T
 
+        ## calculation of the sum over non-main nuclides (n * xs)
         main = composition_.query("share == 1").index.values[0]
-        c1 = avogadro / atomic_mass[main] * composition_[composition_[~composition_.index.isin([main])]
-                                                         ].T.dot(xs[~xs.index.isin([main])])
-        out = self.integrate(bins) / (k * monitor * c1)
-        ## Missing:
-        ##      - make EffectiveMass instance
-        ##      - propagate uncertainties to EM
-        return EffectiveMass()
+        comp_no_main = composition_[composition_[~composition_.index.isin([main])]]
+        xs_no_main = xs[~xs.index.isin([main])]
+        a = AVOGADRO / ATOMIC_MASS[main]
+        c_v = a * comp_no_main.value @ xs_no_main.value
+        c_u = a * np.sqrt((comp_no_main.value @ xs_no_main.uncertainty) **2
+                          (comp_no_main.uncertainty @ xs_no_main.value) **2)
+
+        ## calculation of the actual effective mass
+        pm = monitor.average(self.start_time, self.real_time)
+        kmc = k["value"].value * pm["value"].value * c_v
+        integral = self.integrate(bins)
+        v = integral["value"] / kmc
+        u_integral = np.sqrt(integral["uncertainty"] / kmc)
+        u_other = integral["value"] * np.sqrt((c_u / k["value"].value / pm["value"].value) **2 +
+                                              (k["uncertainty"].value / c_v / pm["value"].value) **2 +
+                                              (pm["uncertainty"].value / c_v / k["value"].value) **2)
+        u = np.sqrt(u_integral **2 + u_other **2)
+        data = _make_df(v, u)
+        return EffectiveMass(deposit_id=main, data=data, bins=bins,
+                             composition=composition_, **kwargs)
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
