@@ -75,7 +75,7 @@ def test_time_normalization(nffs):
     tmp = nffs
     tmp.fission_fragment_spectrum.life_time_uncertainty = .1
     tmp.fission_fragment_spectrum.real_time_uncertainty = .1
-    pd.testing.assert_frame_equal(tmp._time_normalization, _make_df(.1, np.sqrt(5) * 1e-3))
+    pd.testing.assert_frame_equal(tmp._time_normalization, _make_df(.1, 1/10 **2 * .1))
 
 def test_power_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._power_normalization,

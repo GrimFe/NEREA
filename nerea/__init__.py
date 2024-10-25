@@ -8,4 +8,6 @@ from .calculated import *
 
 from .comparisons import *
 
-__version__ = '0.0.7.2'
+from .constants import *
+
+__version__ = '0.0.8'
