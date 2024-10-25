@@ -166,10 +166,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             with normalization value and uncertainty
         """
-        r, l = self.fission_fragment_spectrum.real_time, self.fission_fragment_spectrum.life_time
-        v = r / l**2
-        u = np.sqrt((1 / l **2 * self.fission_fragment_spectrum.real_time_uncertainty) **2 +
-                    (2 * r / l **3 * self.fission_fragment_spectrum.life_time_uncertainty)**2)
+        l = self.fission_fragment_spectrum.life_time
+        v = 1 / l
+        u = np.sqrt((1 / self.fission_fragment_spectrum.life_time **2 \
+                     * self.fission_fragment_spectrum.life_time_uncertainty)**2)
         return _make_df(v, u)
 
     @property
