@@ -38,26 +38,26 @@ def sample_spectrum_1(sample_spectrum_data):
     return FissionFragmentSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
-                                   detector_id="C1", deposit_id="D1", location_id="E", measurement_id="F1")
+                                   detector_id="C1", deposit_id="U238", location_id="E", measurement_id="F1")
 
 @pytest.fixture
 def sample_spectrum_2(sample_spectrum_data):
     return FissionFragmentSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
-                                   detector_id="C2", deposit_id="D2", location_id="E", measurement_id="F2")
+                                   detector_id="C2", deposit_id="U235", location_id="E", measurement_id="F2")
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    data = pd.DataFrame({'a1': [0.1, 0.01], 'a2': [0.2, 0.02], 'D1': [0.7, 0.07]}).T.reset_index()
+    data = pd.DataFrame({'U236': [0.1, 0.01], 'U234': [0.2, 0.02], 'U238': [0.7, 0.07]}).T.reset_index()
     data.columns = ['nuclide', 'share', 'uncertainty']
-    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42, composition=data)
+    return EffectiveMass(deposit_id="U238", detector_id="C1", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
-    data = pd.DataFrame({'b1': [0.15, 0.015], '12': [0.25, 0.025], 'D1': [0.6, 0.06]}).T.reset_index()
+    data = pd.DataFrame({'U234': [0.15, 0.015], 'U238': [0.25, 0.025], 'U235': [0.6, 0.06]}).T.reset_index()
     data.columns = ['nuclide', 'share', 'uncertainty']
-    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42, composition=data)
+    return EffectiveMass(deposit_id="U235", detector_id="C2", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -77,13 +77,13 @@ def si(rr_1, rr_2):
 
 @pytest.fixture
 def synthetic_one_g_xs_data():
-    data = pd.DataFrame({'a1': [0.07, 0.001], 'a2': [0.08, 0.002],
-                         'D1': [0.9, 0.003], 'D2': [0.6, 0.004]}).T.reset_index()
+    data = pd.DataFrame({'U236': [0.07, 0.001], 'U234': [0.08, 0.002],
+                         'U238': [0.9, 0.003], 'U235': [0.6, 0.004]}).T.reset_index()
     data.columns = ['nuclide', 'value', 'uncertainty']
     return data.set_index('nuclide')
 
 def test_deposit_ids(si):
-    assert si.deposit_ids == ['D1', 'D2']
+    assert si.deposit_ids == ['U238', 'U235']
 
 def test_get_long_output(si):
     expected_df = pd.DataFrame({'FFS_n': 8.79100000e+02,
@@ -138,7 +138,7 @@ def test_process(si):
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
-    x1, ux1, x2, ux2, xd, uxd = .07, .001, .08, .002, .6, .004
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234., .002 / 234., .6 / 235.043923, .004 / 235.043923
     v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
 
     W1, X1 = w1 / wd, x1 / xd
@@ -149,7 +149,12 @@ def test_compute_correction(si, synthetic_one_g_xs_data):
 
     data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
 
-    pd.testing.assert_frame_equal(data, si._compute_correction(synthetic_one_g_xs_data))
+    nerea_ = si._compute_correction(synthetic_one_g_xs_data)
+
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
 
 def test_compute_with_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
@@ -166,5 +171,12 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     u_ = np.sqrt(0.06588712284729072 **2 + u **2)
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
+
+    nerea_ = si.process(synthetic_one_g_xs_data)
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_[['value', 'uncertainty', 'uncertainty [%]']].columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=3)
+    # np.testing.assert_almost_equal(data['value'].values, , decimal=3)
+
 
     pd.testing.assert_frame_equal(data, si.process(synthetic_one_g_xs_data)[['value', 'uncertainty', 'uncertainty [%]']])

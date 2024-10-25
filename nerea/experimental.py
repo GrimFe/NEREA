@@ -430,15 +430,18 @@ class SpectralIndex(_Experimental):
         """
         imp = self.numerator.effective_mass.composition_.set_index('nuclide')
         imp.columns = ['value', 'uncertainty']
-        
+
         # normalize Serpent output per unit mass
-        xs_v = ratio_v_u(one_g_xs, ATOMIC_MASS.T).dropna()
+        v = one_g_xs['value'] / ATOMIC_MASS.T['value']
+        u = one_g_xs['uncertainty'] / ATOMIC_MASS.T['value']
+        xs = pd.concat([v.dropna(), u.dropna()], axis=1)
+        xs.columns = ["value", "uncertainty"]
 
         # normalize impurities and one group xs to the numerator deposit
         imp_v, imp_u = ratio_v_u(imp,
                                  imp.loc[self.numerator.deposit_id])
-        xs_v, xs_u = ratio_v_u(xs_v,
-                               xs_v.loc[self.denominator.deposit_id])
+        xs_v, xs_u = ratio_v_u(xs,
+                               xs.loc[self.denominator.deposit_id])
         
         # remove information on the main isotope
         # will sum over all impurities != self.numerator.deposit_id
