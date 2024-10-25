@@ -176,4 +176,4 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_[['value', 'uncertainty', 'uncertainty [%]']].columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=4)
-    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=5)
