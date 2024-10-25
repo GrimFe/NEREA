@@ -5,6 +5,7 @@ import serpentTools as sts
 import pandas as pd
 
 from .utils import _make_df, ratio_v_u
+from .constants import ATOMIC_MASS
 
 __all__ = ['_Calculated',
            'CalculatedSpectralIndex',
@@ -22,7 +23,7 @@ class _Calculated:
 class CalculatedSpectralIndex(_Calculated):
     data: pd.DataFrame
     model_id: str
-    deposit_ids: list[str]
+    deposit_ids: list[str]  # 0: num, 1: den
 
     @classmethod
     def from_sts(cls, file: str, detector_name: str, **kwargs):
@@ -48,12 +49,12 @@ class CalculatedSpectralIndex(_Calculated):
         >>> c_instance = CalculatedSpectralIndex.from_sts('file_det0.m',
                                                     'SI_detector', model_id='Model1')
         """
-        ## works with relative uncertainties for the moment.
-        ## Shall be homogenized with the rest of the API
         v, u = sts.read(file).detectors[detector_name].bins[0][-2:]
+        mass_norm = ATOMIC_MASS[kwargs['deposit_ids'][1]]['value'] / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value']
         # Serpent detector uncertainty is relative
-        kwargs['data'] = _make_df(v, u * v).assign(VAR_FRAC_C_n=None,
-                                                   VAR_FRAC_C_d=None)
+        kwargs['data'] = _make_df(v * mass_norm, u * v * mass_norm
+                                  ).assign(VAR_FRAC_C_n=None,
+                                           VAR_FRAC_C_d=None)
         return cls(**kwargs)
 
     @classmethod
@@ -85,7 +86,10 @@ class CalculatedSpectralIndex(_Calculated):
         v2, u2_ = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
         # Serpent detector uncertainty is relative
         u1, u2 = u1_ * v1, u2_ * v2
-        v, u = ratio_v_u(_make_df(v=v1, u=u1), _make_df(v=v2, u=u2))
+        v, u = ratio_v_u(_make_df(v=v1 / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value'],
+                                  u=u1 / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value']),
+                         _make_df(v=v2 / ATOMIC_MASS[kwargs['deposit_ids'][1]]['value'],
+                                  u=u2 / ATOMIC_MASS[kwargs['deposit_ids'][1]]['value']))
         S1, S2= 1 / v2, v1 / v2 **2
         kwargs['data'] = _make_df(v, u).assign(VAR_FRAC_C_n=(S1 * u1) **2,
                                                VAR_FRAC_C_d=(S2 * u2) **2)

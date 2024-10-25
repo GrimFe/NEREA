@@ -5,6 +5,7 @@ from .fission_fragment_spectrum import FissionFragmentSpectrum
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate, ReactionRates
 from .utils import ratio_v_u, product_v_u, _make_df
+from .constants import ATOMIC_MASS
 
 import pandas as pd
 import numpy as np
@@ -166,10 +167,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             with normalization value and uncertainty
         """
-        r, l = self.fission_fragment_spectrum.real_time, self.fission_fragment_spectrum.life_time
-        v = r / l**2
-        u = np.sqrt((1 / l **2 * self.fission_fragment_spectrum.real_time_uncertainty) **2 +
-                    (2 * r / l **3 * self.fission_fragment_spectrum.life_time_uncertainty)**2)
+        l = self.fission_fragment_spectrum.life_time
+        v = 1 / l
+        u = np.sqrt((1 / self.fission_fragment_spectrum.life_time **2 \
+                     * self.fission_fragment_spectrum.life_time_uncertainty)**2)
         return _make_df(v, u)
 
     @property
@@ -429,17 +430,26 @@ class SpectralIndex(_Experimental):
         """
         imp = self.numerator.effective_mass.composition_.set_index('nuclide')
         imp.columns = ['value', 'uncertainty']
-        # normalize impurities and one group xs
+
+        # normalize Serpent output per unit mass
+        v = one_g_xs['value'] / ATOMIC_MASS.T['value']
+        u = one_g_xs['uncertainty'] / ATOMIC_MASS.T['value']
+        xs = pd.concat([v.dropna(), u.dropna()], axis=1)
+        xs.columns = ["value", "uncertainty"]
+
+        # normalize impurities and one group xs to the numerator deposit
         imp_v, imp_u = ratio_v_u(imp,
                                  imp.loc[self.numerator.deposit_id])
-        xs_v, xs_u = ratio_v_u(one_g_xs,
-                               one_g_xs.loc[self.denominator.deposit_id])
+        xs_v, xs_u = ratio_v_u(xs,
+                               xs.loc[self.denominator.deposit_id])
+        
         # remove information on the main isotope
         # will sum over all impurities != self.numerator.deposit_id
         imp_v = imp_v.drop(self.numerator.deposit_id)
         imp_u = imp_u.drop(self.numerator.deposit_id)
         xs_v = xs_v.drop(self.numerator.deposit_id)
         xs_u = xs_u.drop(self.numerator.deposit_id)
+        
         # compute correction and its uncertainty
         if not all([i in xs_v.index] for i in imp_v.index):
             warnings.warn("Not all impurities were provided with a cross section.")
