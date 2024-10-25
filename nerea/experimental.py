@@ -5,6 +5,7 @@ from .fission_fragment_spectrum import FissionFragmentSpectrum
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate, ReactionRates
 from .utils import ratio_v_u, product_v_u, _make_df
+from .constants import ATOMIC_MASS
 
 import pandas as pd
 import numpy as np
@@ -429,17 +430,23 @@ class SpectralIndex(_Experimental):
         """
         imp = self.numerator.effective_mass.composition_.set_index('nuclide')
         imp.columns = ['value', 'uncertainty']
-        # normalize impurities and one group xs
+        
+        # normalize Serpent output per unit mass
+        xs_v = ratio_v_u(one_g_xs, ATOMIC_MASS.T).dropna()
+
+        # normalize impurities and one group xs to the numerator deposit
         imp_v, imp_u = ratio_v_u(imp,
                                  imp.loc[self.numerator.deposit_id])
-        xs_v, xs_u = ratio_v_u(one_g_xs,
-                               one_g_xs.loc[self.denominator.deposit_id])
+        xs_v, xs_u = ratio_v_u(xs_v,
+                               xs_v.loc[self.denominator.deposit_id])
+        
         # remove information on the main isotope
         # will sum over all impurities != self.numerator.deposit_id
         imp_v = imp_v.drop(self.numerator.deposit_id)
         imp_u = imp_u.drop(self.numerator.deposit_id)
         xs_v = xs_v.drop(self.numerator.deposit_id)
         xs_u = xs_u.drop(self.numerator.deposit_id)
+        
         # compute correction and its uncertainty
         if not all([i in xs_v.index] for i in imp_v.index):
             warnings.warn("Not all impurities were provided with a cross section.")
