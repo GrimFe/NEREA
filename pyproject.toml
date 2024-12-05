@@ -20,7 +20,7 @@ classifiers = [
   "Operating System :: OS Independent"
 ]
 
-install_requires = [
+dependencies = [
   "numpy>=1.23.4,< 2.0",
   "pandas>=1.5.1",
   "serpentTools>=0.10.1",
