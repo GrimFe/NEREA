@@ -6,8 +6,10 @@ import warnings
 
 from datetime import datetime, timedelta
 
-from .utils import integral_v_u, _make_df
+from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
+from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
+from .reaction_rate import ReactionRate
 
 __all__ = [
     "FissionFragmentSpectrum",
@@ -174,17 +176,37 @@ class FissionFragmentSpectrum:
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    def calibrate(spectrum, bins: int=None) -> EffectiveMass:
+    def calibrate(self, k: pd.DataFrame, composition: dict[str, float], monitor: ReactionRate,
+                  one_group_xs: dict[str, float], bins: int=None) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
 
         Takes
         -----
-        spectrum : pass
-            pass
+        k : pd.DataFrame,
+            the facility calibration factor as in
+            "Miniature fission chambers calibration in
+            pulse mode: interlaboratory comparison at
+            the SCK•CEN BR1 and CEA CALIBAN reactors".
+            Has columns for its value and uncertainty.
+        composition : dict[str, float]
+            the fission chamber composition relative to
+            the deposit main nuclide. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its atomic abundance relative to the main one.
+            Has columns for its value and uncertainty.
+        one_group_xs : dict[str, float]
+            the one group cross sections of the fission
+            chamber components. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its one group cross section.
+            Has columns for its value and uncertainty.
+        monitor : nerea.ReactionRate
+            the counts of the monitor fission chamber used
+            during calibration.
         bins : int, optional
-            Number of bins for integration.
+            number of bins for integration.
             Defaults to `None`, which uses all the bins.
     
         Examples
@@ -192,7 +214,39 @@ class FissionFragmentSpectrum:
         >>> spectrum = pass
         >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
-        pass
+        xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
+        composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+        match composition_.value.max():
+            case 1:
+                composition_ = composition_
+            case 100:
+                composition_.value = composition_.value / 100
+            case _:
+                raise ValueError("`composition` should be relative to the main isotope," +
+                                 "which should be reported in it.")
+
+        ## calculation of the sum over nuclides in the deposit (n * xs)
+        main = composition_.query("value == 1").index.values[0]
+        xs_ = xs.loc[composition_.index]
+        a = _make_df(ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[0],
+                     ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[1])
+        c_v = a['value'].value * composition_.value @ xs_.value
+        c_u = np.sqrt((a['value'].value * composition_.value @ xs_.uncertainty) **2 +
+                      (a['value'].value * composition_.uncertainty @ xs_.value) **2 +
+                      (a['uncertainty'].value * composition_.value @ xs_.value) **2)
+        c = _make_df(c_v / 1e6, c_u / 1e6)  # I am not sure why I am dividing by 1e6
+
+        ## calculation of the actual effective mass
+        pm = monitor.average(self.start_time, self.real_time)
+        kmc = _make_df(product_v_u([k, pm, c])[0], product_v_u([k, pm, c])[1])
+        integral = pd.concat([_make_df(v, u) for v, u in [ratio_v_u(i, _make_df(self.life_time,
+                                                                                self.life_time_uncertainty)
+                                                                                ) for _, i in self.integrate(bins).iterrows()]])        
+        data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
+                                                         ratio_v_u(integral, kmc)[1])])
+        
+        return EffectiveMass(data=data, composition=composition_, detector_id=self.detector_id,
+                             deposit_id=self.deposit_id, bins=self.data.channel.max() if bins is None else bins)
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
