@@ -6,7 +6,7 @@ import warnings
 
 from datetime import datetime, timedelta
 
-from .utils import integral_v_u, _make_df
+from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate
@@ -177,7 +177,7 @@ class FissionFragmentSpectrum:
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def calibrate(self, k: pd.DataFrame, composition: dict[str, float], monitor: ReactionRate,
-                  one_group_xs : dict[str, float], bins: int=None, **kwargs) -> EffectiveMass:
+                  one_group_xs: dict[str, float], bins: int=None) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
@@ -208,49 +208,45 @@ class FissionFragmentSpectrum:
         bins : int, optional
             number of bins for integration.
             Defaults to `None`, which uses all the bins.
-        **kwargs:
-            keyword arguments for the creation of the
-            nerea.EffectiveMass object instance.
-            - `detector_id`
     
         Examples
         --------
         >>> spectrum = pass
         >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
-        composition_ = pd.DataFrame(composition, index=['share']).T
-        match composition_.share.max():
+        xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
+        composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+        match composition_.value.max():
             case 1:
                 composition_ = composition_
             case 100:
-                composition_.share = composition_.share / 100
+                composition_.value = composition_.value / 100
             case _:
                 raise ValueError("`composition` should be relative to the main isotope," +
                                  "which should be reported in it.")
-        xs = pd.DataFrame(one_group_xs, index=['xs']).T
 
-        ## calculation of the sum over non-main nuclides (n * xs)
-        main = composition_.query("share == 1").index.values[0]
-        comp_no_main = composition_[composition_[~composition_.index.isin([main])]]
-        xs_no_main = xs[~xs.index.isin([main])]
-        a = AVOGADRO / ATOMIC_MASS[main]
-        c_v = a * comp_no_main.value @ xs_no_main.value
-        c_u = a * np.sqrt((comp_no_main.value @ xs_no_main.uncertainty) **2
-                          (comp_no_main.uncertainty @ xs_no_main.value) **2)
+        ## calculation of the sum over nuclides in the deposit (n * xs)
+        main = composition_.query("value == 1").index.values[0]
+        xs_ = xs.loc[composition_.index]
+        a = _make_df(ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[0],
+                     ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[1])
+        c_v = a['value'].value * composition_.value @ xs_.value
+        c_u = np.sqrt((a['value'].value * composition_.value @ xs_.uncertainty) **2 +
+                      (a['value'].value * composition_.uncertainty @ xs_.value) **2 +
+                      (a['uncertainty'].value * composition_.value @ xs_.value) **2)
+        c = _make_df(c_v / 1e6, c_u / 1e6)  # I am not sure why I am dividing by 1e6
 
         ## calculation of the actual effective mass
         pm = monitor.average(self.start_time, self.real_time)
-        kmc = k["value"].value * pm["value"].value * c_v
-        integral = self.integrate(bins)
-        v = integral["value"] / kmc
-        u_integral = np.sqrt(integral["uncertainty"] / kmc)
-        u_other = integral["value"] * np.sqrt((c_u / k["value"].value / pm["value"].value) **2 +
-                                              (k["uncertainty"].value / c_v / pm["value"].value) **2 +
-                                              (pm["uncertainty"].value / c_v / k["value"].value) **2)
-        u = np.sqrt(u_integral **2 + u_other **2)
-        data = _make_df(v, u)
-        return EffectiveMass(deposit_id=main, data=data, bins=bins,
-                             composition=composition_, **kwargs)
+        kmc = _make_df(product_v_u([k, pm, c])[0], product_v_u([k, pm, c])[1])
+        integral = pd.concat([_make_df(v, u) for v, u in [ratio_v_u(i, _make_df(self.life_time,
+                                                                                self.life_time_uncertainty)
+                                                                                ) for _, i in self.integrate(bins).iterrows()]])        
+        data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
+                                                         ratio_v_u(integral, kmc)[1])])
+        
+        return EffectiveMass(data=data, composition=composition_, detector_id=self.detector_id,
+                             deposit_id=self.deposit_id, bins=self.data.channel.max() if bins is None else bins)
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
