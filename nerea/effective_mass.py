@@ -44,7 +44,7 @@ class EffectiveMass:
         >>> eff_mass = EffectiveMass(...)
         >>> channel = eff_mass.R_channel
         """
-        return int(self.integral.channel[0] / 0.15)
+        return int(self.integral.channel.iloc[0] / 0.15)
 
     @property
     def integral(self) -> pd.DataFrame:
@@ -61,9 +61,9 @@ class EffectiveMass:
         """
         return self.data
 
-    def to_xls(self, file_path: str) -> None:
+    def to_xlsx(self, file_path: str) -> None:
         """
-        Writes the effective mass to a formatted excel filee.
+        Writes the effective mass to a formatted excel file.
 
         Parameters
         ----------
@@ -76,11 +76,14 @@ class EffectiveMass:
 
         Example
         -------
-        >>> em = EffectiveMass.from_xls(file_path)
-        >>> em.to_xls(file_path1)
+        >>> em = EffectiveMass.from_xlsx(file_path)
+        >>> em.to_xlsx(file_path1)
         """
         slash = '' if file_path == '' else '\\'
-        file = file_path + slash + f'Meff_{self.deposit_id}_{self.detector_id}.xls'
+        if '.xls' in file_path or '.xls' in file_path:
+            file = file_path
+        else:
+            file = file_path + slash + f'Meff_{self.deposit_id}_{self.detector_id}.xlsx'
         with pd.ExcelWriter(file) as writer:
             self.data.to_excel(writer, index=False, sheet_name='Meff')
             self.composition_.to_excel(writer, index=False, sheet_name='Composition')
@@ -90,7 +93,7 @@ class EffectiveMass:
                          ).T.to_excel(writer, header=False, index=False, sheet_name='_CalData')
 
     @classmethod
-    def from_xls(cls, file: str):
+    def from_xlsx(cls, file: str):
         """
         Reads data from an Excel file and extracts deposit and detector ID from the file name.
         The filename is expected to be formatted as:
@@ -108,7 +111,7 @@ class EffectiveMass:
 
         Examples
         --------
-        >>> eff_mass = EffectiveMass.from_xls('filename.xlsx')
+        >>> eff_mass = EffectiveMass.from_xlsx('filename.xlsx')
         """
         _, deposit_id, detector_id = file.split('\\')[-1].replace('.xlsx','').replace('.xls','').split('_')
         integral = pd.read_excel(file, sheet_name='Meff')
