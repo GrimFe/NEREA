@@ -139,7 +139,7 @@ class FissionFragmentSpectrum:
             df = self.smooth.copy()
             bins_ = int(min(bins, max_bins))
             df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
-            df = df.groupby('bins', as_index=False
+            df = df.groupby('bins', as_index=False, observed=False
                             ).agg({'counts': 'sum'}).drop('bins', axis=1
                                                             ).assign(channel=range(1, bins_+1))
         else:
@@ -244,9 +244,10 @@ class FissionFragmentSpectrum:
                                                                                 ) for _, i in self.integrate(bins).iterrows()]])        
         data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
                                                          ratio_v_u(integral, kmc)[1])])
-        
-        return EffectiveMass(data=data, composition=composition_, detector_id=self.detector_id,
-                             deposit_id=self.deposit_id, bins=self.data.channel.max() if bins is None else bins)
+        data["channel"] = np.floor(np.array(range(15, 65, 5)) / 100 * self.get_R(bins).channel)
+        return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]"]],
+                             composition=composition_, detector_id=self.detector_id, deposit_id=self.deposit_id,
+                             bins=self.data.channel.max() if bins is None else bins)
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
