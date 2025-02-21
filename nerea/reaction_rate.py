@@ -1,12 +1,15 @@
 from collections.abc import Iterable
+from typing import Self
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import linecache
+import serpentTools as sts
 from datetime import datetime, timedelta
 import warnings
+import logging
 
-from .utils import ratio_v_u, _make_df, integral_v_u
+from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u
 
 __all__ = [
     "ReactionRate",
@@ -21,6 +24,41 @@ class ReactionRate:
     detector_id: str
     deposit_id: str
     timebase: int = 1 ## in seconds
+    dead_time_corrected: bool = False
+
+    @property
+    def period(self) -> pd.DataFrame:
+        """
+        Calculate the reactor period from a ReactionRate instance.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with reactor period value and uncertainty
+        """
+        from scipy.optimize import curve_fit
+        def linear_fit(x, a, b):
+            return x / a + b  # Linear fit function (a = T)
+
+        # Curve fitting to find the reactor period (T)
+        data = self.data[self.data.value != 0]
+        if data.shape != self.data.shape:
+            logging.warning("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
+        y = np.log(data.value)  # Log-transform the data to allow lineaer fit
+        
+        popt, pcov, out, _, _ = curve_fit(linear_fit,
+                                          (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
+                                          y,
+                                          full_output=True)
+
+        period = _make_df(popt[0], np.sqrt(pcov[0, 0]) * popt[0])
+
+        # Calculate the residual sum of squares (SSR)
+        ssr = (out["fvec"] ** 2).sum()
+        sst = np.sum((y - np.average(y)) ** 2)
+        r2 = 1 - ssr / sst
+        logging.info("Reactor period fit R^2 = %s", r2)  # probably not functioning
+        return period
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
         """
@@ -55,6 +93,34 @@ class ReactionRate:
         v, u = integral_v_u(series.value)
         relative = True if v != 0 else False
         return _make_df(v / duration * self.timebase, u / duration * self.timebase, relative)
+
+    def moving_average(self, length: float) -> pd.DataFrame:
+        """
+        Calculates the power monitor moving average.
+
+        Parameters
+        ----------
+        length : float
+            the window span to average, in seconds.
+        
+        Returns
+        -------
+        pd.DataFrame
+            with time and counts data.
+        """
+        if length < self.timebase:
+            raise ValueError("Moving average window length should be larger than the Reaction Rate timebase.")
+        elif length == self.timebase:
+            out = self.data
+        else:
+            out = []
+            time = self.start_time
+            for i in range((self.data.Time.iloc[-1] - self.start_time).total_seconds() / length):
+                v = self.average(time, length)
+                out.append(pd.DataFrame({"Time": time, "value": v["value"].value}))
+                time = time + timedelta(seconds=length)
+            out = pd.concat(out, ignore_index=True)
+        return out
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
@@ -163,7 +229,7 @@ class ReactionRate:
         v, u = ratio_v_u(_make_df(v, u), normalization)
         return _make_df(v, u)
 
-    def per_unit_time_power(self, monitor, *args, **kwargs):
+    def per_unit_time_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
         """
         Normalizes the raction rate to a power monitor and gives the conunt rate
         per unit power.
@@ -188,6 +254,105 @@ class ReactionRate:
         unit_p = self.per_unit_power(monitor, *args, **kwargs)
         v, u = unit_p.value / duration, unit_p.uncertainty / duration
         return _make_df(v, u)
+
+    def dead_time_correction(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
+        """
+        Apply dead time correction to the reaction rate data.
+        
+        Parameters
+        ----------
+        tau_p : float, optional
+            prompt dead time constant.
+            Defaults to 88e-9.
+        tau_np : float, optional
+            non-prompt dead time constant.
+            Defaults to 108e-9.
+        
+        Returns
+        -------
+        self.__class__
+            instance with corrected data
+        """
+        from scipy import optimize
+        def dead_time_correction_m(n, m, tp, tnp): 
+            # Equation for dead time correction
+            return n / ((1 - tp / tnp) * n * tp + np.exp(tp * n)) - m
+        if self.dead_time_corrected:
+            warnings.warn("Dead time correction already applied to this detector.")
+        pm = self.data.copy()
+        pm["value"] = pm.value.apply(lambda x:
+                                     optimize.newton(lambda n:
+                                                     dead_time_correction_m(n, x, tau_p, tau_np),
+                                                     x))
+        return self.__class__(pm, self.start_time, self.campaign_id, self.experiment_id, self.detector_id,
+                              self.deposit_id, self.timebase, dead_time_corrected=True)
+
+    def get_reactivity(self, file) -> pd.DataFrame:
+        """
+        Calculates the reactor reactivity based on the Reaction Rate-estimated
+        reactor period and on effective nuclear data computed by Serpent.
+        
+        Parameters
+        ----------
+        file : str
+            path to the Serpent `res.m` output file to read effective delayed
+            neutron data from.
+
+        Returns
+        -------
+        pd.DataFrame
+            with reactivity value and uncertainty
+        """
+        # get delayed data from Serpent simulation
+        bi = sts.read(file).resdata['adjIfpImpBetaEff']
+        li = sts.read(file).resdata['adjIfpImpLambda']
+        bi = _make_df(bi[:, 0], bi[:, 1] * bi[:, 0])
+        li = _make_df(li[:, 0], li[:, 1] * li[:, 0])
+
+        # compute reactivity
+        T = self.period
+        rho = np.sum(bi.value / (1 + li.value * T.value))
+
+        # variance portions
+        VAR_FRAC_T = np.sum((-bi.value * li.value / (1 + li.value * T.value) * T.uncertainty) **2)
+        VAR_FRAC_B = np.sum((1 / (1 + li.value * T.value) * bi.uncertainty) **2)
+        VAR_FRAC_L = np.sum((-bi.value * T.value / (1 + li.value * T.value) * li.uncertainty) **2)
+        
+        return _make_df(rho, np.sqrt(VAR_FRAC_T + VAR_FRAC_B + VAR_FRAC_L)).assign(VAR_FRAC_T=VAR_FRAC_T,
+                                                                                   VAR_FRAC_B=VAR_FRAC_B,
+                                                                                   VAR_FRAC_L=VAR_FRAC_L)
+
+    def get_asymptotic_counts(self, t_f: float = 3e-2, t_l: float = 1e-2, **kwargs) -> Self:
+        """
+        Cut the power monitor data based on specific conditions to find the
+        asymptotic exponential (after all harmonics have decayed).
+        
+        Parameters
+        ----------
+        t_f : float
+            threshold for the first significant change
+        t_l : float
+            threshold for the last significant change
+        **kwargs
+            arguments to pass to `self.moving_average`
+        
+        Returns
+        -------
+        self.__class__
+            instance with truncated data
+        """
+        data = self.moving_average().value
+        checker = np.log(data).diff().diff()
+        if t_f > checker.max():
+            raise ValueError(f'lower threshold should be lower than {checker.max():.2e}')
+        max_ = data.idxmax()  # Time index of the maximum value
+        last = data.loc[:max_].loc[checker.loc[:max_].abs() < t_l].iloc[-1].name
+        first_1 = data.loc[:last].loc[checker.loc[:last].abs() > t_f].iloc[-1].name
+        first = data.loc[first_1:].iloc[1].name
+        out = data.loc[first:last]
+        return self.__class__(out, out.Time.iloc[0], self.campaign_id,
+                              self.experiment_id, self.detector_id, self.deposit_id,
+                              kwargs['length'], self.dead_time_corrected)
 
     @classmethod
     def from_ascii(cls, file: str, detector: int, deposit_id: str):

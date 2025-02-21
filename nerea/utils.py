@@ -117,6 +117,10 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
     u = np.sqrt(np.sum([(x['uncertainty [%]']/100)**2 for x in factors])) * v
     return v, u
 
+def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float]:
+    a = pd.concat(addends)
+    return a["value"].sum(), np.sum(a["uncertainty"] **2)
+
 def _make_df(v, u, relative=True) -> pd.DataFrame:
     """
     Create a pandas DataFrame with the given value and uncertainty.
@@ -144,7 +148,12 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
             value  uncertainty
     value    10.0          0.5
     """
-    out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': u / v * 100},
-                       index=['value']) if relative else pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': np.nan},
-                                                                      index=['value'])
+    if not isinstance(v, Iterable):
+        rel = u / v * 100 if relative else np.nan
+        out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
+                           index=['value'])
+    else:
+        rel = u / v * 100 if relative else [np.nan] * len(v)
+        out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
+                           index=['value'] * len(v))
     return out
