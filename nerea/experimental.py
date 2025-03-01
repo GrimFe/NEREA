@@ -90,7 +90,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             Indicating whether the relative difference between the R channels is within tolerance.
         """
         if self.fission_fragment_spectrum.data.channel.max() == self.effective_mass.bins:
-            check = abs(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel
+            check = abs(self.fission_fragment_spectrum.get_R(self.effective_mass.bins).channel.iloc[0]
             - self.effective_mass.R_channel) / self.effective_mass.R_channel < tolerance
         else:
             check = True
@@ -190,7 +190,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         v, u = ratio_v_u(_make_df(1, 0), pm)
         return _make_df(v, u)
 
-    def _get_long_output(self, plateau, time, power) -> pd.DataFrame:
+    def _get_long_output(self, plateau, time, power, **max_kwargs) -> pd.DataFrame:
         """
         The information to be included in the long output: component
         variances.
@@ -203,6 +203,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             output of self._time_normalization
         power : pd.DataFrame
             output of self._power_normalization
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
 
         Returns
         -------
@@ -210,7 +213,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             (1 x N) DataFrame with the information.
         """
         ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
-        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins
+        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins, **max_kwargs
                                                        ).query("channel==@ch_ffs")
         em = self.effective_mass.integral.query("channel==@ch_em")
 
@@ -224,13 +227,23 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                            't': val_t, 'VAR_t': var_t}, index=['value'])
         return df
 
-    @property
-    def per_unit_mass(self) -> pd.DataFrame:
+    def per_unit_mass(self, **max_kwargs) -> pd.DataFrame:
         """
         The tabulated ratio of FFS.integrate() / EM.integral, integrated from
         10 discrimination levels computed as a function of the R channel.
+
+        Parameters
+        ----------
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the mass-normalized spectrum.
         """
-        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins)
+        ffs = self.fission_fragment_spectrum.integrate(self.effective_mass.bins, **max_kwargs)
         em = self.effective_mass.integral
         data = []
         for i in range(ffs.shape[0]):
@@ -244,40 +257,60 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         data = pd.concat(data, ignore_index=True)
         return data
 
-    @property
-    def per_unit_mass_and_time(self) -> pd.DataFrame:
+    def per_unit_mass_and_time(self, **max_kwargs) -> pd.DataFrame:
         """
         The integrated FFS normalized per unit mass and time.
+
+        Parameters
+        ----------
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the mass- and time- normalized spectrum.
         """
         ffs, em = self.fission_fragment_spectrum, self.effective_mass
         bins = em.bins
         data = pd.concat([_make_df(x[0], x[1]) for x in
                           [product_v_u([self._time_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass.loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass.index]],
-                         ignore_index=True).assign(A=ffs.integrate(bins).channel,
+                                        self.per_unit_mass(**max_kwargs).loc[i].to_frame().T]) for i in
+                                        self.per_unit_mass(**max_kwargs).index]],
+                         ignore_index=True).assign(A=ffs.integrate(bins, **max_kwargs).channel,
                                                    B=em.integral.channel)
         data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
         return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    @property
-    def per_unit_mass_and_power(self) -> pd.DataFrame:
+    def per_unit_mass_and_power(self, **max_kwargs) -> pd.DataFrame:
         """
         The integrated FFS normalized per unit mass and power.
+
+        Parameters
+        ----------
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the mass- and power- normalized spectrum.
         """
         ffs, em = self.fission_fragment_spectrum, self.effective_mass
         bins = em.bins
         data = pd.concat([_make_df(x[0], x[1]) for x in
                           [product_v_u([self._power_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass.loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass.index]],
-                         ignore_index=True).assign(A=ffs.integrate(bins).channel,
+                                        self.per_unit_mass(**max_kwargs).loc[i].to_frame().T]) for i in
+                                        self.per_unit_mass(**max_kwargs).index]],
+                         ignore_index=True).assign(A=ffs.integrate(bins, **max_kwargs).channel,
                                                    B=em.integral.channel)
         data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
         return data[['CH_FFS', 'CH_EM',
                     'value', 'uncertainty', 'uncertainty [%]']]
 
-    def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01) -> pd.DataFrame:
+    def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01, **max_kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate per unit mass.
 
@@ -287,6 +320,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             Tolerance for the integration check, by default 0.01.
         ch_tolerance : float, optional
             Tolerance for the channel check, by default 0.01.
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
 
         Returns
         -------
@@ -298,7 +334,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ValueError
             If the channel values differ beyond the specified tolerance.
         """
-        data = self.per_unit_mass
+        data = self.per_unit_mass(**max_kwargs)
         # check where the values in the mass-normalized count rate converge withing tolerance
         close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
         if close_values.shape[0] == 0:
@@ -327,8 +363,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             values and variances of all the processing elements, False by default.
         *args : Any
             Positional arguments to be passed to the `self.plateau()` method.
-        **kwargs : Any
+        **kwargs : dict
             Keyword arguments to be passed to the `self.plateau()` method.
+            Also fst_ch : int optional arguments for nerea.FissionFragmentSpecturm.get_max()
 
         Returns
         -------
@@ -358,7 +395,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                    VAR_FRAC_EM=plateau["VAR_FRAC_EM"] * S_PLAT **2,
                                    VAR_FRAC_PM=(S_PM * power.uncertainty) **2,
                                    VAR_FRAC_t=(S_T * time.uncertainty) **2)
-        return df if not long_output else pd.concat([df, self._get_long_output(plateau, time, power)], axis=1)
+        return df if not long_output else pd.concat([df, self._get_long_output(plateau, time, power, fst_ch=kwargs.get("fst_ch"))], axis=1)
 
 
 @dataclass
@@ -459,7 +496,7 @@ class SpectralIndex(_Experimental):
         relative = True if imp_v.shape[0] != 0 else False
         return _make_df(correction, np.sqrt(correction_variance), relative=relative)
 
-    def _get_long_output(self, num, den, k) -> pd.DataFrame:
+    def _get_long_output(self, num, den, k, **max_kwargs) -> pd.DataFrame:
         """
         The information to be included in the long output:
         variances of numerator and denominator if those were
@@ -474,6 +511,9 @@ class SpectralIndex(_Experimental):
             output of self.denominator.process
         k : pd.DataFrame
             impurity correction
+        max_kwargs : dict, optional
+            kwargs for nerea.FissionFragmentSpectrum.get_max().
+            - fst_ch : int
 
         Returns
         -------
@@ -583,7 +623,7 @@ class SpectralIndex(_Experimental):
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
                                     VAR_FRAC_1GXS=k.uncertainty **2 if k is not None else 0.
                                     )
-        return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
+        return pd.concat([df, self._get_long_output(num, den, k, fst_ch=kwargs.get("fst_ch"))], axis=1)
 
 @dataclass(slots=True)
 class Traverse(_Experimental):

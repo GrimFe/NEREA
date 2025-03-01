@@ -28,7 +28,7 @@ def sample_spectrum(sample_spectrum_data):
                                    measurement_id="measurement")
 
 def test_smoothing(sample_spectrum):
-    smoothed_data = sample_spectrum.smooth
+    smoothed_data = sample_spectrum.smooth.data
     EXPECTED_MEAN_0 = 0
     EXPECTED_MEAN_1 = 325.0
     EXPECTED_MEAN_2 = 375.0
@@ -42,8 +42,8 @@ def test_get_max(sample_spectrum):
     assert max_data["counts"][0] == 600
 
 def test_get_R(sample_spectrum):
-    expected_df = pd.Series([50, 12], index=['counts', 'channel'], name=11)
-    pd.testing.assert_series_equal(expected_df, sample_spectrum.get_R())
+    expected_df = pd.DataFrame({"channel": 12, "counts": 50}, index=[11])
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.get_R())
 
 def test_rebin(sample_spectrum):
     expected_df = pd.DataFrame({ "counts": [325.0, 2551.9], "channel": [1, 2]},
