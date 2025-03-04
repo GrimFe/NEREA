@@ -1,15 +1,18 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Self
 import pandas as pd
 import numpy as np
 import warnings
 
 from datetime import datetime, timedelta
+from scipy.signal import savgol_filter
 
 from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate
+from .defaults import *
 
 __all__ = [
     "FissionFragmentSpectrum",
@@ -30,12 +33,26 @@ class FissionFragmentSpectrum:
     life_time_uncertainty: float = 0.
     real_time_uncertainty: float = 0.
 
-    @property
-    def smooth(self) -> pd.DataFrame:
+    def smooth(self, method: str="moving_average", *args, **kwargs) -> Self:
         """
         Calculates the sum of 'counts' and the minimum value of 'channel' for each
         group based on the integer division of 'channel' by 10.
         Contains the data used to find `max` and hence `R`.
+
+        Parameters
+        ----------
+        method : str, optional
+            the method to use. Allowed options are:
+                - moving_average
+                    (requires window)
+                - savgol_filter
+                    (requires window_length
+                            polyorder)
+            Defailt is "moving_average"
+        * args :
+            arguments for the chosen method
+        **kwargs :
+            arguments for the chosen method
 
         Returns
         -------
@@ -45,10 +62,17 @@ class FissionFragmentSpectrum:
         Examples
         --------
         >>> ffs = FissionFragmentSpectrum(...)
-        >>> smoothened_data = ffs.smooth
+        >>> smoothened_data = ffs.smooth()
         """
         df = self.data.copy()
-        df['counts'] = df.rolling(10).mean()['counts'].fillna(0)
+        match method:
+            case "moving_average":
+                if kwargs.get("window") is None: kwargs["window"] = 10
+                df['counts'] = df.rolling(*args, **kwargs).mean()['counts'].fillna(0)
+            case "savgol_filter":
+                df['counts'] = savgol_filter(df['counts'], *args, **kwargs)
+            case _:
+                raise Exception(f"The chosen method {method} is not allowed")
         out = self.__class__(
             start_time = self.start_time,
             data = df,
@@ -62,12 +86,12 @@ class FissionFragmentSpectrum:
             real_time = self.real_time,
             life_time_uncertainty = self.life_time_uncertainty,
             real_time_uncertainty = self.real_time_uncertainty
-        )
+        )        
         return out
 
-    def get_max(self, bins: int=None, fst_ch: int=None) -> pd.DataFrame:
+    def rebin(self, bins: int=None, smooth: bool=True, *args, **kwargs) -> pd.DataFrame:
         """
-        Finds the channel with the maximum count value in a DataFrame.
+        Rebins the spectrum.
 
         Parameters
         ----------
@@ -75,10 +99,49 @@ class FissionFragmentSpectrum:
             Number of bins for rebinned spectrum.
             Recommended values are 4096, 2048, 1024, 512.
             Defaults to `None` for no rebinning.
+        smooth : bool, optional
+            Flag to rebin smoothened spectrum.
+            Defaults to True.
+        *args :
+            arguments for self.smooth()
+        **kwargs :
+            arguments for self.smooth()
+
+        Returns
+        -------
+        pd.DataFrame
+            Rebinned spectrum data.
+
+        Examples
+        --------
+        >>> ffs = FissionFragmentSpectrum(...)
+        >>> rebinned_data = ffs.rebin()
+        """
+        df = self.smooth(*args, **kwargs).data if smooth else self.data.copy()
+        if bins is not None:
+            max_bins = self.data.channel.max()
+            if bins > max_bins:
+                warnings.warn(f"The maximum amount of allowed bins is {max_bins}. Bins set to {max_bins}.")
+            bins_ = int(min(bins, max_bins))
+            df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
+            df = df.groupby('bins', as_index=False, observed=False
+                            ).agg({'counts': 'sum'}).drop('bins', axis=1
+                                                            ).assign(channel=range(1, bins_+1))
+        return df[['channel', 'counts']]
+
+    def get_max(self, fst_ch: int=None, bin_kwargs: dict=None) -> pd.DataFrame:
+        """
+        Finds the channel with the maximum count value in a DataFrame.
+
+        Parameters
+        ----------
         fst_ch : int, optional
             Left channel to search the maximum from.
             Defaults to `None` for automatic 1/10 of total
             channels acquired.
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
 
         Returns
         -------
@@ -90,31 +153,25 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> max_data = ffs.get_max(...)
         """
-        ## Implementing what is in MATLAB
-        # reb = self.rebin(bins)
-        # lst_ch = reb[reb.counts > 0].channel.max()
-        # fst_ch = np.floor(lst_ch / 10)
-        # df = reb.set_index("channel").loc[fst_ch:lst_ch]
+        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
 
-        ## New implementation (skipping the first channels to cut noise)
-        reb = self.rebin(bins)
+        reb = self.rebin(**bin_kw)
         if fst_ch is None:
             lst_ch = reb[reb.counts > 0].channel.max()
             fst_ch = reb[reb.counts > 0].channel.min() + np.floor(lst_ch / 10)
         df = reb[reb.channel > fst_ch]
         return pd.DataFrame({"channel": [df.counts.idxmax() + 1], "counts": [df.counts.max()]})
 
-    def get_R(self, bins: int=None, **max_kwargs) -> pd.DataFrame:
+    def get_R(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
         """
         Filters data in channels above the channel of the spectrum maximum
         and returns the first row with counts <= than the maximum.
 
         Parameters
         ----------
-        bins : int, optional
-            Number of bins for rebinned spectrum.
-            Recommended values are 4096, 2048, 1024, 512.
-            Defaults to `None` for no rebinning.
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
         max_kwargs : dict, optional
             Other kwargs for self.get_max()
             - fst_ch : int
@@ -129,55 +186,23 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> r_data = ffs.get_R(...)
         """
-        reb = self.rebin(bins)
-        data = reb.query("channel > @self.get_max(@bins, **max_kwargs).channel[0]")
-        return data[data.counts <= self.get_max(bins, **max_kwargs).counts[0] / 2].iloc[0].to_frame().T[["channel", "counts"]]
+        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
+        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
 
-    def rebin(self, bins: int=None):
-        """
-        Rebins the spectrum.
+        reb = self.rebin(**bin_kw)
+        data = reb.query("channel > @self.get_max(bin_kwargs=@bin_kw, **max_kw).channel[0]")
+        return data[data.counts <= self.get_max(bin_kwargs=bin_kw, **max_kw).counts[0] / 2].iloc[0].to_frame().T[["channel", "counts"]]
 
-        Parameters
-        ----------
-        bins : int, optional
-            Number of bins for rebinned spectrum.
-            Recommended values are 4096, 2048, 1024, 512.
-            Defaults to `None` for no rebinning.
-
-        Returns
-        -------
-        pd.DataFrame
-            Rebinned spectrum data.
-
-        Examples
-        --------
-        >>> ffs = FissionFragmentSpectrum(...)
-        >>> rebinned_data = ffs.rebin()
-        """
-        if bins is not None:
-            max_bins = self.data.channel.max()
-            if bins > max_bins:
-                warnings.warn(f"The maximum amount of allowed bins is {max_bins}. Bins set to {max_bins}.")
-            df = self.smooth.data.copy()
-            bins_ = int(min(bins, max_bins))
-            df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
-            df = df.groupby('bins', as_index=False, observed=False
-                            ).agg({'counts': 'sum'}).drop('bins', axis=1
-                                                            ).assign(channel=range(1, bins_+1))
-        else:
-            df = self.data[['counts', 'channel']]
-        return df
-
-    def integrate(self, bins: int=None, **max_kwargs) -> pd.DataFrame:
+    def integrate(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
         """
         Calculates the integral of data based on specified channels (as a function of R)
         and returns a DataFrame with channel, value, and uncertainty columns.
-
+    
         Parameters
         ----------
-        bins : int, optional
-            Number of bins for integration.
-            Defaults to `None`, which uses all the bins.
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
         max_kwargs : dict, optional
             kwargs for self.get_max().
             - fst_ch : int
@@ -192,17 +217,20 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> integral_data = ffs.integrate()
         """
+        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
+        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        if bin_kw.get('bins') is None: bin_kw['bins'] = self.data.channel.max()
+
         out = []
-        bins_ = self.data.channel.max() if bins is None else bins
-        reb = self.rebin(bins_)
+        reb = self.rebin(**bin_kw)
         for ch in np.array(range(15, 65, 5)) / 100:
-            ch_ = np.floor(ch * self.get_R(bins_, **max_kwargs).channel.iloc[0])
+            ch_ = np.floor(ch * self.get_R(bin_kwargs=bin_kw, max_kwargs=max_kwargs).channel.iloc[0])
             v, u = integral_v_u(reb.query("channel >= @ch_").counts)
             out.append(_make_df(v, u).assign(channel=ch_))
         return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def calibrate(self, k: pd.DataFrame, composition: dict[str, float], monitor: ReactionRate,
-                  one_group_xs: dict[str, float], bins: int=None, **max_kwargs) -> EffectiveMass:
+                  one_group_xs: dict[str, float], bin_kwargs: dict=None, max_kwargs: dict=None) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
@@ -230,9 +258,9 @@ class FissionFragmentSpectrum:
         monitor : nerea.ReactionRate
             the counts of the monitor fission chamber used
             during calibration.
-        bins : int, optional
-            number of bins for integration.
-            Defaults to `None`, which uses all the bins.
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
         max_kwargs : dict, optional
             kwargs for self.max().
             - fst_ch : int
@@ -242,13 +270,18 @@ class FissionFragmentSpectrum:
         >>> spectrum = pass
         >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
+        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
+        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        if bin_kw.get('bins') is None: bin_kw['bins'] = self.data.channel.max()
+
         xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
         composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']).T if not isinstance(composition, pd.DataFrame) else composition.copy()
         match composition_.value.max():
             case 1:
-                composition_ = composition_
+                pass
             case 100:
-                composition_.value = composition_.value / 100
+                composition_.value /= 100
+                composition_.uncertainty /= 100
             case _:
                 raise ValueError("`composition` should be relative to the main isotope," +
                                  "which should be reported in it.")
@@ -267,15 +300,19 @@ class FissionFragmentSpectrum:
         ## calculation of the actual effective mass
         pm = monitor.average(self.start_time, self.real_time)
         kmc = _make_df(product_v_u([k, pm, c])[0], product_v_u([k, pm, c])[1])
-        integral = pd.concat([_make_df(v, u) for v, u in [ratio_v_u(i, _make_df(self.life_time,
-                                                                                self.life_time_uncertainty)
-                                                                                ) for _, i in self.integrate(bins, **max_kwargs).iterrows()]])        
+        integral = []
+        for _, row in self.integrate(bin_kwargs=bin_kw, max_kwargs=max_kw).iterrows():
+            v, u = ratio_v_u(row, _make_df(self.life_time, self.life_time_uncertainty))
+            integral.append(_make_df(v, u).assign(channel=row.channel))
+        integral = pd.concat(integral)
+
         data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
-                                                         ratio_v_u(integral, kmc)[1])])
-        data["channel"] = np.floor(np.array(range(15, 65, 5)) / 100 * self.get_R(bins, **max_kwargs).channel.iloc[0])
+                                                         ratio_v_u(integral, kmc)[1])]
+                                                         ).assign(channel=integral.channel)
+
         return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]"]],
                              composition=composition_, detector_id=self.detector_id, deposit_id=self.deposit_id,
-                             bins=self.data.channel.max() if bins is None else bins)
+                             bins=bin_kw.get('bins'))
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
