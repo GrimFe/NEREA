@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from nerea.utils import *
+import datetime
 
 EXPECTED_RATIO = 2.0
 EXPECTED_UNCERTAINTY = 0.282842712474619
@@ -11,6 +12,13 @@ def test_integral_v_u():
     v, u = integral_v_u(s)
     assert v == pytest.approx(10, 1e-9)
     assert u == pytest.approx(0.31622776601683794 * v, rel=1e-9)
+
+def test_time_integral_v_u():
+    d = pd.DataFrame({"Time": [datetime.datetime(2025, 3, 3, 14, 22, 0) + datetime.timedelta(seconds=i) for i in [10, 15, 25, 30]],
+                      "value": [2, 5, 1, 5]})
+    v, u = time_integral_v_u(d)
+    assert v == 65
+    assert u == np.sqrt(65)
 
 def test_ratio_v_u():
     v1, u1, v2, u2 = 10, 1, 5, 0.5

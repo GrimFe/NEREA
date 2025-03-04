@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from nerea.reaction_rate import ReactionRate
-
+#  +\
+                # [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in [0, 1.001, 1.999, 3, 4, 5, 6]
 @pytest.fixture
 def sample_data():
     data = pd.DataFrame({
@@ -15,6 +16,19 @@ def sample_data():
 @pytest.fixture
 def power_monitor(sample_data):
     return ReactionRate(data=sample_data, campaign_id="C1", experiment_id="E1",
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+
+@pytest.fixture
+def sample_data_uncertain_time_binning():
+    data = pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in [0, 0.999, 2.001, 3, 4, 5, 5.999]],
+        'value': [0, 10, 15, 10, 20, 15, 10]
+    })
+    return data
+
+@pytest.fixture
+def power_monitor_uncertain_time_binning(sample_data_uncertain_time_binning):
+    return ReactionRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
@@ -73,27 +87,26 @@ def plateau_monitor(plateau_data):
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
-def test_average(power_monitor):
-    expected_df = pd.DataFrame({'value': 11.66666667,
-                                'uncertainty': 1.9720265943665387,
+def test_average(power_monitor, power_monitor_uncertain_time_binning):
+    expected_df = pd.DataFrame({'value': 8.75,
+                                'uncertainty': 1.479019945774904,
                                 'uncertainty [%]': 16.903085094570333},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
-                                                                     3), check_exact=False, atol=0.00001)
-
-def test_average_timebase(power_monitor):
-    expected_df = pd.DataFrame({'value': 11.66666667 * 2,
-                                'uncertainty': 1.9720265943665387 * 2,
-                                'uncertainty [%]': 16.903085094570333},
+                                                                     4), check_exact=False, atol=0.00001)
+    # now with uncertain time binning
+    expected_df = pd.DataFrame({'value': 8.751249999999999,
+                                'uncertainty': 1.4791255862840045,
+                                'uncertainty [%]': 16.90187786069424},
                                 index=['value'])
-    power_monitor.timebase = 2
-    pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
-                                                                     3), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, power_monitor_uncertain_time_binning.average(
+                                                                                power_monitor.start_time, 4),
+                                                                            check_exact=False, atol=0.00001)
 
 def test_integrate(power_monitor):
-    expected_df = pd.DataFrame({'value': [12.5, 15, 12.5],
-                                'uncertainty': [5. / 2, 5.47722558 / 2, 5. / 2],
-                                'uncertainty [%]': [40. / 2, 36.51483717 / 2, 40. / 2]})
+    expected_df = pd.DataFrame({'value': [5, 12.5, 17.5],
+                                'uncertainty': [1.5811388300841898, 2.5, 2.958039891549808],
+                                'uncertainty [%]': [31.622776601683793, 20.0, 16.903085094570333]})
     pd.testing.assert_frame_equal(expected_df, power_monitor.integrate(2), check_exact=False, atol=0.00001)
 
 def test_plateau(rr_plateau):

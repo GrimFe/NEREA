@@ -71,6 +71,8 @@ class FissionFragmentSpectrum:
                 df['counts'] = df.rolling(*args, **kwargs).mean()['counts'].fillna(0)
             case "savgol_filter":
                 df['counts'] = savgol_filter(df['counts'], *args, **kwargs)
+                if any(df['counts'] < 0):
+                    warnings.warn("Using Savgol Filter smoothing negative counts appear.")
             case _:
                 raise Exception(f"The chosen method {method} is not allowed")
         out = self.__class__(
