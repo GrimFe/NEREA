@@ -10,7 +10,9 @@ AVOGADRO = _make_df(6.02214076e23, 0)
 # Abundance Measurements by K.J.R. Rosman, P.D.P. Taylor Pure Appl. Chem. 1999, 71, 1593-1607.
 # WHEN AVAILABLE, nucleon number otherwise.
 ATOMIC_MASS = pd.DataFrame(
-    {"U233": [233.0, 0.0],
+    {"Th232": [232.038050, 0.0],
+     "U233": [233.0, 0.0],
+     "U233": [233.0, 0.0],
      "U234": [234.040916, 0.0],
      "U235": [235.043923, 0.0],
      "U236": [236.0, 0.0],
@@ -35,7 +37,7 @@ XS_FAST = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.
                         "uncertainty": [0., 0., 0., 0., 0., 0.,
                                   0., 0., 0., 0., 0., 0.,
                                   0.]   ## to be computed [b]
-                        }, index=["Th223", "U234", "U235", "U236", "U238", "Np237",
+                        }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
                                   "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
                                   "Am243"])
 
@@ -45,7 +47,7 @@ XS_TH = pd.DataFrame({"value": [np.nan, 0.0669646, 584.977, 0.0613027, 2.65118E-
                       "uncertainty": [0., 0., 0., 0., 0., 0.,
                                       0., 0., 0., 0., 0., 0.,
                                       0.]   ## to be computed [b]
-                     }, index=["Th223", "U234", "U235", "U236", "U238", "Np237",
+                     }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
                                "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
                                "Am243"])
 
@@ -56,6 +58,6 @@ XS_MAXWELIAN = pd.DataFrame({"value": XS_TH.value *
                              "uncertainty": [0., 0., 0., 0., 0., 0.,
                                              0., 0., 0., 0., 0., 0.,
                                              0.]   ## to be computed [b]
-                            }, index=["Th223", "U234", "U235", "U236", "U238", "Np237",
+                            }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
                                       "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
                                       "Am243"])

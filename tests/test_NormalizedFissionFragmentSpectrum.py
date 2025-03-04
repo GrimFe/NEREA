@@ -106,7 +106,7 @@ def test_per_unit_mass(nffs):
         'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass,
+                                   nffs.per_unit_mass(),
                                    check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_time(nffs):
@@ -120,7 +120,7 @@ def test_per_unit_mass_and_time(nffs):
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass_and_time,
+                                   nffs.per_unit_mass_and_time(),
                                    check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_power(nffs):
@@ -134,7 +134,7 @@ def test_per_unit_mass_and_power(nffs):
         'uncertainty [%]': [4.61620691, 4.61996628, 4.62577642, 4.64032008, 4.65892314,
                             4.68072029, 4.70934719, 4.75245461, 4.84087431, 4.78692694]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass_and_power,
+                                   nffs.per_unit_mass_and_power(),
                                    check_exact=False, atol=0.00001)
 
 def test_plateau(nffs):
