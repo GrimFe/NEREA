@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing_extensions import Self
+from typing import Self
 import pandas as pd
 import numpy as np
 import warnings
