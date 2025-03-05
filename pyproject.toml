@@ -3,7 +3,7 @@ name = "nerea"
 dynamic = ['version']
 description = "NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 keywords = ["neutron experiment", "nuclear engineering", "experiment data processing", "energy-integrated experiments", "nuclear reactor"]
 authors = [
