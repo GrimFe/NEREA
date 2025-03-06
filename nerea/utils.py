@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import warnings
 
-__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df']
+__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df', 'get_fit_R2']
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -157,3 +157,13 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
         out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
                            index=['value'] * len(v))
     return out
+
+
+def get_fit_R2(y, fvec, weight: Iterable[float]=None):
+    # calculation of fit R2
+    # we use weighted average to account for uncertainties on y
+    # https://stats.stackexchange.com/questions/439590/how-does-r-compute-r-squared-for-weighted-least-squares
+    w = np.array([1] * len(y)) if weight is None else weight
+    weighted_mean_y = np.average(y, weights=w)
+    r2 = 1 - (fvec ** 2).sum() / np.sum((y - weighted_mean_y) ** 2 * w)
+    return r2

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import warnings
 import logging
 
-from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u
+from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u, get_fit_R2
 
 __all__ = [
     "ReactionRate",
@@ -53,10 +53,7 @@ class ReactionRate:
 
         period = _make_df(popt[0], np.sqrt(pcov[0, 0]) * popt[0])
 
-        # Calculate the residual sum of squares (SSR)
-        ssr = (out["fvec"] ** 2).sum()
-        sst = np.sum((y - np.average(y)) ** 2)
-        r2 = 1 - ssr / sst
+        r2 = get_fit_R2(y, out['fvec'])
         logging.info("Reactor period fit R^2 = %s", r2)  # probably not functioning
         return period
 
