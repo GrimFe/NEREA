@@ -158,7 +158,6 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
                            index=['value'] * len(v))
     return out
 
-
 def get_fit_R2(y, fvec, weight: Iterable[float]=None):
     # calculation of fit R2
     # we use weighted average to account for uncertainties on y
@@ -167,3 +166,44 @@ def get_fit_R2(y, fvec, weight: Iterable[float]=None):
     weighted_mean_y = np.average(y, weights=w)
     r2 = 1 - (fvec ** 2).sum() / np.sum((y - weighted_mean_y) ** 2 * w)
     return r2
+
+def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) -> pd.DataFrame:
+    """
+    Calculates the sum of 'counts' and the minimum value of 'channel' for each
+    group based on the integer division of 'channel' by 10.
+    Contains the data used to find `max` and hence `R`.
+
+    Parameters
+    ----------
+    data : ps.Series
+        the data to smooth
+    method : str, optional
+        the method to use. Allowed options are:
+            - moving_average
+                (requires window)
+            - savgol_filter
+                (requires window_length
+                        polyorder)
+        Defailt is "moving_average"
+    * args :
+        arguments for the chosen method
+    **kwargs :
+        arguments for the chosen method
+
+    Returns
+    -------
+    pd.DataFrame
+    """
+    s = data.copy()
+    match method:
+        case "moving_average":
+            if kwargs.get("window") is None: kwargs["window"] = 10
+            s = s.rolling(*args, **kwargs).mean().fillna(0)
+        case "savgol_filter":
+            from scipy.signal import savgol_filter
+            s = savgol_filter(s, *args, **kwargs)
+            if any(s < 0):
+                warnings.warn("Using Savgol Filter smoothing, negative values appear.")
+        case _:
+            raise Exception(f"The chosen method {method} is not allowed")
+    return s
