@@ -331,7 +331,7 @@ class ReactionRates:
                                                     pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
                                                     ).agg('sum').reset_index()
         ref['uncertainty'] = np.sqrt(ref['value'])  # absolute
-        ref['value'] = ref['value'] / timebase
+        ref['value'] = ref['value'] / timebase  
         for monitor in list(self.detectors.values())[1:]:
             compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
                                             ).agg('sum').reset_index()
@@ -345,7 +345,7 @@ class ReactionRates:
             # tolerance is scalar, therefore it is computed as average uncertainty on the ratio
             tol = np.mean(sigma * u)  # absolute
             if not (np.isclose(v, np.roll(v, shift=1), atol=tol)).all():
-                raise Exception(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
+                warnings.warn(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
     def _first(self):

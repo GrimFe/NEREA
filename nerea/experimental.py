@@ -212,7 +212,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
 
         Returns
@@ -252,7 +252,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
 
         Returns
@@ -289,7 +289,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
 
         Returns
@@ -322,7 +322,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
 
         Returns
@@ -361,7 +361,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
 
         Returns
@@ -409,7 +409,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         max_kwargs : dict, optional
-            kwargs for self.max().
+            kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
         *args : Any
             Positional arguments to be passed to the `self.plateau()` method.
