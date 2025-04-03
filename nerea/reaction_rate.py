@@ -7,7 +7,6 @@ import linecache
 import serpentTools as sts
 from datetime import datetime, timedelta
 import warnings
-import logging
 
 from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u, get_fit_R2, smoothing
 from .defaults import *
@@ -44,11 +43,11 @@ class ReactionRate:
             # Curve fitting to find the reactor period (T)
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
-                logging.warning("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
+                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
             y = np.log(data.value)  # Log-transform the data to allow lineaer fit
             
             popt, pcov, out, _, _ = curve_fit(linear_fit,
-                                            (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
+                                             (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
                                              y,
                                              full_output=True,
                                              absolute_sigma=True)
@@ -56,7 +55,7 @@ class ReactionRate:
             period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
 
             r2 = get_fit_R2(y, out['fvec'])
-            logging.info("Reactor period fit R^2 = %s", r2)  # probably not functioning
+            warnings.warn(f"Reactor period fit R^2 = r2")  # probably not functioning
             return period
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
@@ -375,7 +374,7 @@ class ReactionRate:
         else:
             data = self.smooth(**smt_kw).data
             if dtc_kwargs is not None:
-                warnings.warn("Dead time corection already applies, ignoring kwargs.")
+                warnings.warn("Dead time corection already applied, ignoring kwargs.")
         log_double_derivative = np.log(data.value).diff().diff()
         max_ = data.value.idxmax()
         last = data.loc[:max_].loc[log_double_derivative.loc[:max_].abs() < t_right].iloc[-1].name
