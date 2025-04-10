@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from nerea.reaction_rate import ReactionRate
+from nerea.calculated import EffectiveDelayedParams
+from nerea.utils import _make_df
 
 @pytest.fixture
 def sample_data():
@@ -236,5 +238,23 @@ def test_period(exponential_monitor):
                            index=["value"])
     pd.testing.assert_frame_equal(exponential_monitor.get_asymptotic_counts(t_left=0.012).period, target)
 
-def test_get_reactivity():
-    pass
+def test_get_reactivity(exponential_monitor):
+    dd = EffectiveDelayedParams(_make_df(np.array([1, 2]), np.array([0.01, 0.01]), relative=True),
+                                _make_df(np.array([10, 20]), np.array([0.1, 0.1]), relative=True))
+    T = 49.61310925
+    uT = 8.27759428
+    data = exponential_monitor.get_asymptotic_counts(t_left=0.012).get_reactivity(dd)
+
+    a = (1 / (1 + T) * 0.1)**2
+    b = (1 / (1 + 2*T) * 0.1)**2
+    c = (10 / (1 + T)**2 * T * 0.01)**2
+    d = (20 / (1 + 2*T)**2 * T * 0.01)**2
+    e = (10 / (1 + T)**2 * uT)**2 + (20 * 2 / (1 + 2*T)**2 * uT)**2
+
+    target = pd.DataFrame({"value": [10 / (1 + T) + 20 / (1 + 2 * T)],
+                           "uncertainty": [np.sqrt(a + b + c + d + e)],
+                           "uncertainty [%]": [np.sqrt(a + b + c + d + e) / (10 / (1 + T) + 20 / (1 + 2 * T)) * 100],
+                           "VAR_FRAC_T": [e],
+                           "VAR_FRAC_B": [a + b],
+                           "VAR_FRAC_L": [c + d]}, index=["value"])
+    pd.testing.assert_frame_equal(data, target)

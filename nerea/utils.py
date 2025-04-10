@@ -158,13 +158,29 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
                            index=['value'] * len(v))
     return out
 
-def get_fit_R2(y, fvec, weight: Iterable[float]=None):
+def get_fit_R2(y: Iterable[float], fvec: Iterable[float], weight: Iterable[float]=None):
+    """
+    Calculates the R2 of a fit from the fitted points and the fitting line residuals.
+
+    Paramters
+    ---------
+    y : Iterable[float]
+        the fitted y points
+    fvec : Iterable[float]
+        residuals of the fitting line corresponding to those of y
+    weight : Iterable[float], optional
+        the weights for R2 weighting. Degaults to None, meaning w = 1
+
+    Notes
+    -----
+    assumes y and fvec share x.
+    """
     # calculation of fit R2
     # we use weighted average to account for uncertainties on y
     # https://stats.stackexchange.com/questions/439590/how-does-r-compute-r-squared-for-weighted-least-squares
     w = np.array([1] * len(y)) if weight is None else weight
     weighted_mean_y = np.average(y, weights=w)
-    r2 = 1 - (fvec ** 2).sum() / np.sum((y - weighted_mean_y) ** 2 * w)
+    r2 = 1 - (np.array(fvec) ** 2).sum() / np.sum((y - weighted_mean_y) ** 2 * w)
     return r2
 
 def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) -> pd.DataFrame:

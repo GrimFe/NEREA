@@ -10,6 +10,7 @@ import warnings
 
 from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u, get_fit_R2, smoothing
 from .defaults import *
+from .calculated import EffectiveDelayedParams
 
 __all__ = [
     "ReactionRate",
@@ -107,6 +108,12 @@ class ReactionRate:
         -------
         pd.DataFrame
             with time and counts data.
+        
+        Notes
+        -----
+        Allowed methods are:
+            - "moving average"
+            - "savgol_filter"
         """
         if kwargs.get("method") == 'moving_average':
             w = kwargs.get("window")
@@ -302,27 +309,23 @@ class ReactionRate:
                               self.timebase,
                               _dead_time_corrected=True)
 
-    def get_reactivity(self, delayed_data_file: str) -> pd.DataFrame:
+    def get_reactivity(self, delayed_data: EffectiveDelayedParams) -> pd.DataFrame:
         """
         Calculates the reactor reactivity based on the Reaction Rate-estimated
         reactor period and on effective nuclear data computed by Serpent.
         
         Parameters
         ----------
-        delayed_data_file : str
-            path to the Serpent `res.m` output file to read effective delayed
-            neutron data from.
+        delayed_data_file : nerea.EffectiveDelayedParams
+            effective delayed neutron paramters to use for reactivity calculation
 
         Returns
         -------
         pd.DataFrame
             with reactivity value and uncertainty
         """
-        # get delayed data from Serpent simulation
-        bi = sts.read(delayed_data_file).resdata['adjIfpImpBetaEff'].reshape(-1, 2)[1:, :]
-        li = sts.read(delayed_data_file).resdata['adjIfpImpLambda'].reshape(-1, 2)[1:, :]
-        bi = _make_df(bi[:, 0], bi[:, 1] * bi[:, 0])
-        li = _make_df(li[:, 0], li[:, 1] * li[:, 0])
+        bi = delayed_data.beta_i
+        li = delayed_data.lambda_i
 
         # compute reactivity
         T = self.period
@@ -388,7 +391,6 @@ class ReactionRate:
                               timebase=self.timebase,
                               _dead_time_corrected=self._dead_time_corrected
                               )
-
 
     @classmethod
     def from_ascii(cls, file: str, detector: int, deposit_id: str):

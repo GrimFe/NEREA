@@ -50,3 +50,21 @@ def test_make_df_not_relative():
                                 'uncertainty [%]': np.nan},
                                 index=['value'])
     pd.testing.assert_frame_equal(df, expected_df)
+
+def test_get_fit_R2():
+    y = [1, 2, 3, 4, 5, 6, 7]
+    f = [0, 0, 0, 0, 0, 0, 0]
+    assert get_fit_R2(y, f) == 1
+
+    f = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]
+    r2 = 1 - sum(np.array(f) **2) / np.sum((4 - np.array(y)) **2)
+    assert get_fit_R2(y, f) == r2
+
+    w = [1, 1, 1, 1, 1, 1, 1]
+    assert get_fit_R2(y, f, w) == r2
+
+    w = [2, 2, 2, 2, 2, 2, 2]
+    assert get_fit_R2(y, f, w) == 0.975
+
+def test_smoothing():
+    pass

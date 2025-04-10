@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from typing import Self
 from dataclasses import dataclass
 
 import serpentTools as sts
@@ -9,7 +10,8 @@ from .constants import ATOMIC_MASS
 
 __all__ = ['_Calculated',
            'CalculatedSpectralIndex',
-           'CalculatedTraverse']
+           'CalculatedTraverse',
+           'EffectiveDelayedParams']
 
 @dataclass(slots=True)
 class _Calculated:
@@ -26,7 +28,7 @@ class CalculatedSpectralIndex(_Calculated):
     deposit_ids: list[str]  # 0: num, 1: den
 
     @classmethod
-    def from_sts(cls, file: str, detector_name: str, **kwargs):
+    def from_sts(cls, file: str, detector_name: str, **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for a specific detector.
@@ -58,7 +60,7 @@ class CalculatedSpectralIndex(_Calculated):
         return cls(**kwargs)
 
     @classmethod
-    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs):
+    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for multiple detectors.
@@ -121,7 +123,7 @@ class CalculatedTraverse(_Calculated):
     deposit_id: str
 
     @classmethod
-    def from_sts(cls, file: str, detector_names: list[str], **kwargs):
+    def from_sts(cls, file: str, detector_names: list[str], **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for multiple detectors.
@@ -176,3 +178,30 @@ class CalculatedTraverse(_Calculated):
             v, u = ratio_v_u(num, den)
             out.append(_make_df(v, u).assign(traverse=d))
         return pd.concat(out, ignore_index=True)
+
+@dataclass(slots=True)
+class EffectiveDelayedParams:
+    lambda_i: pd.DataFrame
+    beta_i: pd.DataFrame
+
+    @classmethod
+    def from_sts(cls, file: str) -> Self:
+        """
+        Creates an instance using data extracted from a Serpent res.m.
+
+        Parameters
+        ----------
+        file : str
+            The file path from which data will be read.
+
+        Returns
+        -------
+        EffectiveDelayedParams
+            An instance of the `EffectiveDelayedParams` class created from
+            the specified file.
+        """
+        bi = sts.read(file).resdata['adjIfpImpBetaEff'].reshape(-1, 2)[1:, :]
+        li = sts.read(file).resdata['adjIfpImpLambda'].reshape(-1, 2)[1:, :]
+        bi = _make_df(bi[:, 0], bi[:, 1] * bi[:, 0])
+        li = _make_df(li[:, 0], li[:, 1] * li[:, 0])
+        return cls(li, bi)
