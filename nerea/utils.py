@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import warnings
 
-__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df', 'get_fit_R2']
+__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df', 'get_fit_R2', 'smoothing']
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -220,6 +220,7 @@ def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) ->
             s = savgol_filter(s, *args, **kwargs)
             if any(s < 0):
                 warnings.warn("Using Savgol Filter smoothing, negative values appear.")
+            s = pd.Series(s, index=data.index)
         case _:
             raise Exception(f"The chosen method {method} is not allowed")
     return s

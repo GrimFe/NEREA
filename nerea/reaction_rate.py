@@ -37,27 +37,42 @@ class ReactionRate:
             pd.DataFrame
                 with reactor period value and uncertainty
             """
-            from scipy.optimize import curve_fit
-            def linear_fit(x, a, b):
-                return x / a + b  # Linear fit function (a = T)
-
             # Curve fitting to find the reactor period (T)
+            fitted_data, popt, pcov, out = self._linear_fit()
+            period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
+            r2 = get_fit_R2(fitted_data, out['fvec'])
+            warnings.warn(f"Reactor period fit R^2 = {r2}")
+            return period
+
+    def _linear_fit(self, preprocessing: str='log', nonzero: bool=True):
+        """
+        Linearly fits monitor data after preprocessing.
+
+        Parameters:
+        -----------
+        preprocessing : str, optional
+            numpy function to apply to self.data prior to linear fitting.
+            Default is 'log'.
+        nonzero : bool, optional
+            queries non-zero values in self.data. Default is True.
+        """
+        from scipy.optimize import curve_fit
+        def linear_fit(x, a, b):
+            return x / a + b  # Linear fit function (a = T)
+        if nonzero:
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
                 warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
-            y = np.log(data.value)  # Log-transform the data to allow lineaer fit
-            
-            popt, pcov, out, _, _ = curve_fit(linear_fit,
-                                             (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
-                                             y,
-                                             full_output=True,
-                                             absolute_sigma=True)
-
-            period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
-
-            r2 = get_fit_R2(y, out['fvec'])
-            warnings.warn(f"Reactor period fit R^2 = r2")  # probably not functioning
-            return period
+        if preprocessing is not None:
+            y = getattr(np, preprocessing)(data.value)  # apply preprocessing
+        else:
+            y = data.value
+        popt, pcov, out, _, _ = curve_fit(linear_fit,
+                                          (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
+                                          y,
+                                          full_output=True,
+                                          absolute_sigma=True)
+        return y, popt, pcov, out
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
         """
@@ -115,11 +130,12 @@ class ReactionRate:
             - "moving average"
             - "savgol_filter"
         """
+        w = False
         if kwargs.get("method") == 'moving_average':
             w = kwargs.get("window")
         elif kwargs.get("method") == 'savgol_filter':
             w = kwargs.get("window_length")
-        if w < self.timebase:
+        if w and w < self.timebase:  ## if nor window nor window_length are passed w is False
             raise ValueError("Moving average window length should be larger than the Reaction Rate timebase.")
         else:
             out = pd.DataFrame({"Time": self.data["Time"],

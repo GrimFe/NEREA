@@ -90,6 +90,20 @@ def dtc_monitor():
     )
 
 @pytest.fixture
+def linear_monitor():
+    t_start = datetime(2025, 4, 3, 15, 33, 20)
+    return ReactionRate(
+        data=pd.DataFrame({"Time": [t_start] + [t_start + timedelta(seconds=i) for i in range(1, 5)], "value": [1, 2, 3, 4, 5]}),
+        start_time=t_start,
+        campaign_id="TEST",
+        experiment_id="TEST_LINEAR_MONITOR",
+        detector_id="A",
+        deposit_id="U235",
+        timebase=1
+    )
+
+
+@pytest.fixture
 def exponential_monitor():
     counts = [10050.        ,  9700.        , 10300.        ,  9908.        ,
        10050.        ,  9700.        , 10300.        ,  9908.        ,
@@ -206,8 +220,14 @@ def test_per_unit_time_power(rr_plateau, plateau_monitor):
     assert np.isclose(target.value.values[0], V, atol=0.00001)
     assert np.isclose(target.uncertainty.values[0], U, atol=0.00001)
 
-def test_smooth():
-    pass
+def test_smooth(plateau_monitor):
+    # individual smoothings tested in test_utils.py
+    data = plateau_monitor.smooth()
+    assert data.campaign_id == "A"
+    assert data.experiment_id == "B"
+    assert data.start_time == datetime(2024,5,27,13,19,20)
+    assert data.detector_id == 2
+    assert data.deposit_id == 'dep'
 
 def test_dead_time_corrected(dtc_monitor):
     target = pd.DataFrame({"Time": [datetime(2025, 4, 3, 15, 33, 20),
@@ -230,6 +250,14 @@ def test_get_asymptotic_counts(exponential_monitor):
 
     # test continuity in time
     assert ((asymptotic.index.values - np.roll(asymptotic.index.values, 1))[1:] == 1).all()
+
+def test_linear_fit(linear_monitor):
+    fitted_data, popt, pcov, out = linear_monitor._linear_fit(preprocessing=None)
+    np.testing.assert_array_equal(fitted_data, linear_monitor.data.value.values)
+    np.testing.assert_almost_equal(popt, np.array([1., 1.]))
+    np.testing.assert_almost_equal(pcov, np.array([[0.1, 0.2],
+                                                  [0.2, 0.6]]))
+    np.testing.assert_almost_equal(out['fvec'], np.array([0.] * 5))
 
 def test_period(exponential_monitor):
     target = pd.DataFrame({"value": [49.61310925],

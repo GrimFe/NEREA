@@ -67,4 +67,8 @@ def test_get_fit_R2():
     assert get_fit_R2(y, f, w) == 0.975
 
 def test_smoothing():
-    pass
+    data = pd.Series([1.,2.,3.,4.,5.,6.,7.,8.,9.,10.,11.,12.,13.])
+    ma = smoothing(data)
+    pd.testing.assert_series_equal(ma, pd.Series([0.] * 9 + [5.5, 6.5, 7.5, 8.5]))
+    sf = smoothing(data, 'savgol_filter', 2, 1)
+    pd.testing.assert_series_equal(sf, pd.Series([1.] + list(np.arange(2, 13) + 0.5) + [13.]), atol=1e-5)
