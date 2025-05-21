@@ -74,15 +74,17 @@ def test_fitting_polynomial():
     assert fitting_polynomial(2)(1, *[1,2,3]) == polynomial(2, [1, 2, 3], 1) == 6.
 
 def test_polyfit():
+    # It looks like the fit differs here and on the GitHub PC -> assert with tolerance
     data = pd.DataFrame({'x': [1, 2, 3],
                          'y': [2, 4, 6],
                          'u': [0.01, 0.01, 0.01]})
     coef, coef_cov = polyfit(1, data)
     np.testing.assert_almost_equal(coef,
-                                  np.array([ 2.00000000e+00, -2.18001797e-12]))
+                                   np.array([ 2.00000000e+00, -2.18001797e-12]))
     np.testing.assert_almost_equal(coef_cov, np.array(
                                             [[ 1.00000000e-05, -7.31498003e-10],
-                                             [-7.31498003e-10,  1.87281265e-13]]))
+                                             [-7.31498003e-10,  1.87281265e-13]]),
+                                    decimal=5)
     
     # test zero uncertainties
     data = pd.DataFrame({'x': [1, 2, 3],
