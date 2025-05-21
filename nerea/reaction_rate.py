@@ -1,16 +1,12 @@
 from collections.abc import Iterable
-from typing import Self
 from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import linecache
-import serpentTools as sts
 from datetime import datetime, timedelta
 import warnings
 
-from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u, get_fit_R2, smoothing
-from .defaults import *
-from .classes import EffectiveDelayedParams
+from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u
 
 __all__ = [
     "ReactionRate",
@@ -25,54 +21,6 @@ class ReactionRate:
     detector_id: str
     deposit_id: str
     timebase: int = 1 ## in seconds
-    _dead_time_corrected: bool = False
-
-    @property
-    def period(self) -> pd.DataFrame:
-            """
-            Calculate the reactor period from a ReactionRate instance.
-            
-            Returns
-            -------
-            pd.DataFrame
-                with reactor period value and uncertainty
-            """
-            # Curve fitting to find the reactor period (T)
-            fitted_data, popt, pcov, out = self._linear_fit()
-            period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
-            r2 = get_fit_R2(fitted_data, out['fvec'])
-            warnings.warn(f"Reactor period fit R^2 = {r2}")
-            return period
-
-    def _linear_fit(self, preprocessing: str='log', nonzero: bool=True):
-        """
-        Linearly fits monitor data after preprocessing.
-
-        Parameters:
-        -----------
-        preprocessing : str, optional
-            numpy function to apply to self.data prior to linear fitting.
-            Default is 'log'.
-        nonzero : bool, optional
-            queries non-zero values in self.data. Default is True.
-        """
-        from scipy.optimize import curve_fit
-        def linear_fit(x, a, b):
-            return x / a + b  # Linear fit function (a = T)
-        if nonzero:
-            data = self.data[self.data.value != 0]
-            if data.shape != self.data.shape:
-                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
-        if preprocessing is not None:
-            y = getattr(np, preprocessing)(data.value)  # apply preprocessing
-        else:
-            y = data.value
-        popt, pcov, out, _, _ = curve_fit(linear_fit,
-                                          (data.Time - self.start_time).dt.seconds,  # x must be in seconds from 0
-                                          y,
-                                          full_output=True,
-                                          absolute_sigma=True)
-        return y, popt, pcov, out
 
     def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
         """
@@ -115,49 +63,6 @@ class ReactionRate:
         # beginning of the next step-post time stamp.
         delta = (series.Time.iloc[-1] - series.Time.iloc[0]).total_seconds()
         return _make_df(v / delta, u / delta, relative)
-
-    def smooth(self, **kwargs) -> Self:
-        """
-        Calculates the reaction rate moving average.
-
-        Parameters
-        ----------
-        **kwargs :
-            arguments to nerea.utils.smoothing()
-            - method
-            - arguments to the metod
-        
-        Returns
-        -------
-        pd.DataFrame
-            with time and counts data.
-        
-        Notes
-        -----
-        Allowed methods are:
-            - "moving average"
-            - "savgol_filter"
-        """
-        w = False
-        if kwargs.get("method") == 'moving_average':
-            w = kwargs.get("window")
-        elif kwargs.get("method") == 'savgol_filter':
-            w = kwargs.get("window_length")
-        if w and w < self.timebase:  ## if nor window nor window_length are passed w is False
-            raise ValueError("Moving average window length should be larger than the Reaction Rate timebase.")
-        else:
-            out = pd.DataFrame({"Time": self.data["Time"],
-                                "value": smoothing(self.data["value"], **kwargs)})
-        return self.__class__(
-            data=out,
-            start_time=self.start_time,
-            campaign_id=self.campaign_id,
-            experiment_id=self.experiment_id,
-            detector_id=self.detector_id,
-            deposit_id=self.deposit_id,
-            timebase=self.timebase,
-            _dead_time_corrected=self._dead_time_corrected
-        )
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
@@ -267,7 +172,7 @@ class ReactionRate:
         v, u = ratio_v_u(_make_df(v, u), normalization)
         return _make_df(v, u)
 
-    def per_unit_time_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
+    def per_unit_time_power(self, monitor, *args, **kwargs):
         """
         Normalizes the raction rate to a power monitor and gives the conunt rate
         per unit power.
@@ -292,142 +197,6 @@ class ReactionRate:
         unit_p = self.per_unit_power(monitor, *args, **kwargs)
         v, u = unit_p.value / duration, unit_p.uncertainty / duration
         return _make_df(v, u)
-
-    def dead_time_corrected(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
-        """
-        Apply dead time correction to the reaction rate data.
-        
-        Parameters
-        ----------
-        tau_p : float, optional
-            prompt dead time constant.
-            Defaults to 88e-9.
-        tau_np : float, optional
-            non-prompt dead time constant.
-            Defaults to 108e-9.
-        
-        Returns
-        -------
-        self.__class__
-            instance with corrected data
-        """
-        if self._dead_time_corrected:
-            pm = self.data.copy()
-        else:
-            from scipy import optimize
-            def dead_time_correction(n, m, tp, tnp): 
-                # Equation for dead time correction
-                return n / ((1 - tp / tnp) * n * tp + np.exp(tp * n)) - m
-            if self._dead_time_corrected:
-                warnings.warn("Dead time correction already applied to this detector.")
-            pm = self.data.copy()
-            pm["value"] = pm.value.apply(lambda x:
-                                        optimize.newton(lambda n:
-                                                        dead_time_correction(n, x, tau_p, tau_np),
-                                                        x))
-        return self.__class__(pm,
-                              self.start_time,
-                              self.campaign_id,
-                              self.experiment_id,
-                              self.detector_id,
-                              self.deposit_id,
-                              self.timebase,
-                              _dead_time_corrected=True)
-
-    def get_reactivity(self, delayed_data: EffectiveDelayedParams) -> pd.DataFrame:
-        """
-        Calculates the reactor reactivity based on the Reaction Rate-estimated
-        reactor period and on effective nuclear data computed by Serpent.
-        
-        Parameters
-        ----------
-        delayed_data_file : nerea.EffectiveDelayedParams
-            effective delayed neutron paramters to use for reactivity calculation
-
-        Returns
-        -------
-        pd.DataFrame
-            with reactivity value and uncertainty
-        """
-        bi = delayed_data.beta_i
-        li = delayed_data.lambda_i
-
-        # compute reactivity
-        T = self.period
-        rho = np.sum(bi.value / (1 + li.value * T.value))
-
-        # variance portions
-        VAR_FRAC_T = np.sum((-bi.value * li.value / (1 + li.value * T.value)**2 * T.uncertainty) **2)
-        VAR_FRAC_B = np.sum((1 / (1 + li.value * T.value) * bi.uncertainty) **2)
-        VAR_FRAC_L = np.sum((-bi.value * T.value / (1 + li.value * T.value)**2 * li.uncertainty) **2)
-        
-        return _make_df(rho, np.sqrt(VAR_FRAC_T + VAR_FRAC_B + VAR_FRAC_L)).assign(VAR_FRAC_T=VAR_FRAC_T,
-                                                                                   VAR_FRAC_B=VAR_FRAC_B,
-                                                                                   VAR_FRAC_L=VAR_FRAC_L)
-
-    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2, smooth_kwargs: dict=None, dtc_kwargs: dict=None) -> Self:
-        """
-        Cut the power monitor data based on specific conditions to find the
-        asymptotic exponential (after all harmonics have decayed).
-        
-        Parameters
-        ----------
-        t_left : float, optional
-            tolerance to find the beginning of the asymptotic
-            exponential counts. Default is 3e-2.
-        t_right : float, optional
-            tolerance to find the end of the asymptotic
-            exponential counts. Default is 1e-2.
-        smooth_kwargs: dict, optional
-            arguments to pass to `self.smooth`.
-            Default is None.
-        dtc_kwargs : dict, optional
-            arguments to pass to `self.dead_time_corrected`.
-            Default is None.
-            
-        Returns
-        -------
-        self.__class__
-            instance with truncated data
-
-        Notes
-        -----
-        Inherently uses dead time corrected counts
-        Inherently uses smoothed data to ease the search
-        """
-        smt_kw = DEFAULT_SMOOTH_KWARGS if smooth_kwargs is None else smooth_kwargs
-        if not self._dead_time_corrected:
-            dtc_kw = DEFAULT_DTC_KWARGS if dtc_kwargs is None else dtc_kwargs
-            data = self.dead_time_corrected(**dtc_kw).smooth(**smt_kw).data
-        else:
-            data = self.smooth(**smt_kw).data
-            if dtc_kwargs is not None:
-                warnings.warn("Dead time corection already applied, ignoring kwargs.")
-        log_double_derivative = np.log(data.value).diff().diff()
-        max_ = data.value.idxmax()
-        ## Right discrimination
-        last = data.loc[:max_].loc[log_double_derivative.loc[:max_].abs() < t_right]
-        if last.shape[0] == 0:
-            warnings.warn(f"Right bound not found with t_right = {t_right}. Using end point.")
-            last = data.loc[max_].to_frame().T.iloc[-1].name
-        else:
-            last = last.iloc[-1].name
-        ## Left discrimination
-        first = data.loc[:last].loc[log_double_derivative.loc[:last].abs() > t_left]
-        if first.shape[0] == 0:
-            warnings.warn(f"Left bound not found with t_left = {t_left}. Using start point.")
-            first = data.loc[0].to_frame().T.iloc[-1].name
-        else:
-            first = first.iloc[-1].name
-        return self.__class__(self.data[first:last],
-                              start_time=self.start_time,
-                              campaign_id=self.campaign_id,
-                              experiment_id=self.experiment_id,
-                              detector_id=self.detector_id,
-                              deposit_id=self.deposit_id,
-                              timebase=self.timebase,
-                              _dead_time_corrected=self._dead_time_corrected
-                              )
 
     @classmethod
     def from_ascii(cls, file: str, detector: int, deposit_id: str):

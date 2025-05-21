@@ -105,4 +105,4 @@ def test_per_unit_power(rr_plateau, plateau_monitor):
     pd.testing.assert_frame_equal(expected_df,
                                   ReactionRates({1: rr_plateau,
                                                  2: plateau_monitor}
-                                                 ).per_unit_power(2)[1])   
+                                                 ).per_unit_power(2)[1])
