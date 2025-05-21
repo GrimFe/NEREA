@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from typing import Self
 from dataclasses import dataclass
 
 import serpentTools as sts
@@ -26,7 +27,7 @@ class CalculatedSpectralIndex(_Calculated):
     deposit_ids: list[str]  # 0: num, 1: den
 
     @classmethod
-    def from_sts(cls, file: str, detector_name: str, **kwargs):
+    def from_sts(cls, file: str, detector_name: str, **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for a specific detector.
@@ -58,7 +59,7 @@ class CalculatedSpectralIndex(_Calculated):
         return cls(**kwargs)
 
     @classmethod
-    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs):
+    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for multiple detectors.
@@ -121,7 +122,7 @@ class CalculatedTraverse(_Calculated):
     deposit_id: str
 
     @classmethod
-    def from_sts(cls, file: str, detector_names: list[str], **kwargs):
+    def from_sts(cls, file: str, detector_names: list[str], **kwargs) -> Self:
         """
         Creates an instance using data extracted from a Serpent det.m
         file for multiple detectors.
