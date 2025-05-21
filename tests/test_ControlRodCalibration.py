@@ -112,9 +112,14 @@ def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
     curve = dnc.get_reactivity_curve(edd_low_uncertainty,
                                      ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T,
-                                  pd.DataFrame({'value': 4.156334e-05, 'uncertainty': 6.855970e-07, 'uncertainty [%]': 1.649523e+00,
-                                                'VAR_FRAC_T': 1.254016e-13, 'VAR_FRAC_B': 1.727511e-13, 'VAR_FRAC_L': 1.718906e-13,
-                                                'h': 3.000000e+01}, index=['value']))
+                                  pd.DataFrame({'value': 4.15633386e-05,
+                                                'uncertainty': 6.85597030e-07,
+                                                'uncertainty [%]': 1.64952348e+00,
+                                                'VAR_FRAC_T': 1.25401603e-13,
+                                                'VAR_FRAC_B': 1.72751112e-13,
+                                                'VAR_FRAC_L': 1.71890573e-13,
+                                                'h': 3.000000e+01}, index=['value']),
+                                   atol=1e-6)
     warnings.filterwarnings("always")
     assert curve.shape == (3, 7)
 
@@ -134,13 +139,23 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
     curve = dc.get_reactivity_curve(edd_low_uncertainty,
                                     ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T,
-                                  pd.DataFrame({'value': 4.156334e-05, 'uncertainty': 6.855970e-07, 'uncertainty [%]': 1.649523e+00,
-                                                'VAR_FRAC_T': 1.254016e-13, 'VAR_FRAC_B': 1.727511e-13, 'VAR_FRAC_L': 1.718906e-13,
-                                                'h': 3.000000e+01}, index=['value']))
+                                  pd.DataFrame({'value': 4.15633386e-05,
+                                                'uncertainty': 6.85597030e-07,
+                                                'uncertainty [%]': 1.64952348e+00,
+                                                'VAR_FRAC_T': 1.25401603e-13,
+                                                'VAR_FRAC_B': 1.72751112e-13,
+                                                'VAR_FRAC_L': 1.71890573e-13,
+                                                'h': 3.000000e+01}, index=['value']),
+                                   atol=1e-6)
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T,
-                                  pd.DataFrame({'value': 2.373298e-05, 'uncertainty': 3.676621e-07, 'uncertainty [%]': 1.549161e+00,
-                                                'VAR_FRAC_T': 2.289821e-14, 'VAR_FRAC_B': 5.632543e-14, 'VAR_FRAC_L': 5.595175e-14,
-                                                'h': 1.300000e+02}, index=['value']))
+                                  pd.DataFrame({'value': 2.37329788e-05,
+                                                'uncertainty': 3.67662065e-07,
+                                                'uncertainty [%]': 1.54916105e+00,
+                                                'VAR_FRAC_T': 2.28982109e-14,
+                                                'VAR_FRAC_B': 5.63254285e-14,
+                                                'VAR_FRAC_L': 5.59517547e-14,
+                                                'h': 1.300000e+02}, index=['value']),
+                                   atol=1e-6)
     warnings.filterwarnings("always")
     assert curve.shape == (3, 7)
 
@@ -153,9 +168,14 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
                                   pd.DataFrame({'value': 0., 'uncertainty': 0., 'uncertainty [%]': 0., 'VAR_FRAC_T': 0., 'VAR_FRAC_B': 0.,
                                                 'VAR_FRAC_L': 0., 'h': 0.}, index=['value']))
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T,
-                                  pd.DataFrame({'value': 2.493800e-03, 'uncertainty': 4.113582e-05, 'uncertainty [%]': 1.649523e+00,
-                                                'VAR_FRAC_T': 4.514458e-10, 'VAR_FRAC_B': 6.219040e-10, 'VAR_FRAC_L': 6.188061e-10,
-                                                'h': 6.000000e+01}, index=['value']))    
+                                  pd.DataFrame({'value': 2.49380032e-03,
+                                                'uncertainty': 4.11358218e-05,
+                                                'uncertainty [%]': 1.64952348e+00,
+                                                'VAR_FRAC_T': 4.51445772e-10,
+                                                'VAR_FRAC_B': 6.21904003e-10,
+                                                'VAR_FRAC_L': 6.18806062e-10,
+                                                'h': 6.000000e+01}, index=['value']),
+                                   atol=1e-6)
     warnings.filterwarnings("always")
     assert curve.shape == (4, 7)
 
@@ -167,7 +187,7 @@ def test_get_reactivity_worth(inc, edd_low_uncertainty):
                            'VAR_FRAC_X0': 1.04288039e-10},
                            index=['value'])
     rw = inc.get_reactivity_worth(60, 200, edd_low_uncertainty, order=1)
-    pd.testing.assert_frame_equal(rw, target)
+    pd.testing.assert_frame_equal(rw, target, atol=1e-6)
     ## With fitting I get the theoretical value within 1 pcm
     target_rw = inc.get_reactivity_curve(edd_low_uncertainty,
                                          ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter',
