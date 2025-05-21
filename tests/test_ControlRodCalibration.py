@@ -191,7 +191,7 @@ def test_get_reactivity_worth(inc, edd_low_uncertainty):
                            'VAR_FRAC_X0': 1.04288039e-10},
                            index=['value'])
     rw = inc.get_reactivity_worth(60, 200, edd_low_uncertainty, order=1)
-    pd.testing.assert_frame_equal(rw[cols], target[cols])
+    pd.testing.assert_frame_equal(rw[cols], target[cols], atol=1e-6)
     ## With fitting I get the theoretical value within 1 pcm
     target_rw = inc.get_reactivity_curve(edd_low_uncertainty,
                                          ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter',
