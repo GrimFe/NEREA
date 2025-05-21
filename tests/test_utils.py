@@ -61,7 +61,7 @@ def test_make_df_not_relative():
 
 def test_make_df_iterable():
     it = _make_df(np.array([1, 2]), np.array([0.01, 0.01]), relative=True)
-    target = pd.DataFrame({'value': [1,2],
+    target = pd.DataFrame({'value': np.array([1, 2]),
                            'uncertainty': [0.01, 0.01],
                            'uncertainty [%]': [1., 0.5]},
                            index=['value', 'value'])
