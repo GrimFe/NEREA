@@ -120,6 +120,7 @@ def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
                                                 'VAR_FRAC_L': 1.71890573e-13,
                                                 'h': 3.000000e+01}, index=['value']),
                                    atol=1e-6)
+
     warnings.filterwarnings("always")
     assert curve.shape == (3, 7)
 
