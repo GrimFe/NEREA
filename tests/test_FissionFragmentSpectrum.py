@@ -1,6 +1,7 @@
 import pytest
 import datetime
 import pandas as pd
+import numpy as np
 from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
 from nerea.reaction_rate import ReactionRate
 from nerea.constants import KNBS, XS_FAST
@@ -28,27 +29,60 @@ def sample_spectrum(sample_spectrum_data):
                                    measurement_id="measurement")
 
 def test_smoothing(sample_spectrum):
-    smoothed_data = sample_spectrum.smooth
     EXPECTED_MEAN_0 = 0
+
+    # test default (Moving Average window = 10)
+    smoothed_data = sample_spectrum.smooth().data
     EXPECTED_MEAN_1 = 325.0
     EXPECTED_MEAN_2 = 375.0
     assert all(smoothed_data.query("channel < 10").counts == [EXPECTED_MEAN_0] * 9)
     assert smoothed_data.query("channel == 10").counts.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
     assert smoothed_data.query("channel == 11").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
+    assert all(smoothed_data.channel == sample_spectrum.data.channel)
+
+    # test Moving Average window = 5
+    smoothed_data = sample_spectrum.smooth(window=5).data
+    EXPECTED_MEAN_1 = 200
+    EXPECTED_MEAN_2 = 250
+    assert all(smoothed_data.query("channel < 5").counts == [EXPECTED_MEAN_0] * 4)
+    assert smoothed_data.query("channel == 5").counts.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
+    assert smoothed_data.query("channel == 6").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
+    assert all(smoothed_data.channel == sample_spectrum.data.channel)
+
+    # test Savgol Filter
+    smoothed_data = sample_spectrum.smooth(method="savgol_filter", window_length=5, polyorder=3).data
+    target = [100, 150, 200, 250, 300, 350, 400, 450, 500, 601.428571, 452.142857, 190.571429,
+              -19.1428571, 10.6000000, 4.6571428, 2.65714286, 1.08571429, 0.0857142857,
+              -0.0571428571, 0.0142857143]
+    for i, row in smoothed_data.iterrows():
+        np.testing.assert_almost_equal(row.counts, target[i], decimal=5)
+    assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
 def test_get_max(sample_spectrum):
-    max_data = sample_spectrum.get_max()
+    max_data = sample_spectrum.get_max(bin_kwargs={'smooth': False})
     assert max_data["channel"][0] == 11
     assert max_data["counts"][0] == 600
 
 def test_get_R(sample_spectrum):
-    expected_df = pd.Series([50, 12], index=['counts', 'channel'], name=11)
-    pd.testing.assert_series_equal(expected_df, sample_spectrum.get_R())
+    expected_df = pd.DataFrame({"channel": 12, "counts": 50}, index=[11])
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.get_R(bin_kwargs={'smooth': False}))
 
 def test_rebin(sample_spectrum):
-    expected_df = pd.DataFrame({ "counts": [325.0, 2551.9], "channel": [1, 2]},
+    expected_df = pd.DataFrame({"channel": [1, 2], "counts": [325.0, 2551.9]},
                                 index=pd.RangeIndex(0, 2))
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2))
+
+    # test it gives the same data if rebinned to the same amount of bins
+    pd.testing.assert_frame_equal(sample_spectrum.data,
+                                  sample_spectrum.rebin(20, smooth=False))
+    
+    # test it gives smoothened data if rebinned to the same amount of bins, buth smooth is True
+    pd.testing.assert_frame_equal(sample_spectrum.smooth().data,
+                                  sample_spectrum.rebin(20, smooth=True))
+    
+    # test it also gives the same when smoothing and bins=None
+    pd.testing.assert_frame_equal(sample_spectrum.smooth().data,
+                                  sample_spectrum.rebin(bins=None, smooth=True))
 
 def test_integrate(sample_spectrum):
     expected_df = pd.DataFrame({'channel':  [1., 2., 2., 3., 3., 4., 4., 5., 5., 6.],
@@ -64,7 +98,7 @@ def test_integrate(sample_spectrum):
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.97955774]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}), check_exact=False, atol=0.00001)
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
@@ -77,12 +111,12 @@ def test_calibrate(sample_spectrum):
                              deposit_id="U235",
                              timebase= 1)
     expected_df = pd.DataFrame({'channel': [1., 2., 3., 3., 4., 4., 5., 6., 6., 7.],
-                                'value': [320.28691336, 320.28691336, 320.28691336, 320.28691336, 320.28691336, 320.28691336, 320.28691336, 320.28691336,
-                                          320.28691336, 284.1044785],
-                                'uncertainty': [33.21006196, 33.21006196, 33.21006196, 33.21006196, 33.21006196, 33.21006196, 33.21006196, 33.21006196,
-                                                33.21006196, 29.51894558],
-                                'uncertainty [%]': [10.36884761, 10.36884761, 10.36884761, 10.36884761, 10.36884761, 10.36884761, 10.36884761, 10.36884761,
-                                                    10.36884761, 10.39017256]},
+                                'value': [439.08776331513275, 427.9547064359458, 411.25512111716546, 411.25512111716546, 388.9890073587916,
+                                          388.9890073587916, 361.15636516082424, 327.7571945232634, 327.7571945232634, 288.79149544610914],
+                                'uncertainty': [45.328774766486085, 44.19313472096307, 42.48966619235774, 42.48966619235774, 40.21835702157304,
+                                                40.21835702157304, 37.37918673739926, 33.972120356027794, 33.972120356027794, 29.99709489018778],
+                                'uncertainty [%]': [10.323397405623822, 10.326591589331588, 10.331705068361337, 10.331705068361337, 10.339201432619625,
+                                                    10.339201432619625, 10.349862370764024, 10.365026587880601, 10.365026587880601, 10.3871115885355]},
                                 index=['value'] * 10)
 
     # fractional composition
@@ -91,7 +125,7 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bins=None)
+                                  bin_kwargs={'bins': None, 'smooth': False})
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # per cent composition
@@ -100,7 +134,7 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bins=None)
+                                  bin_kwargs={'bins': None, 'smooth': False})
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # pd.DataFrame composition
@@ -109,7 +143,7 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bins=None)
+                                  bin_kwargs={'bins': None, 'smooth': False})
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # test other effective mass attributes
@@ -124,5 +158,5 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bins=10)
+                                  bin_kwargs={'bins': 10, 'smooth': False})
     assert 10 == c.bins

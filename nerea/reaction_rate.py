@@ -102,11 +102,19 @@ class ReactionRate:
         >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
         >>> print(avg_df)
         """
-        end_time = start_time + timedelta(seconds=duration)
-        series = self.data.query("Time > @start_time and Time <= @end_time")
-        v, u = integral_v_u(series.value)
+        # end_time should be 1 timebase after the real end time to use
+        end_time = start_time + timedelta(seconds=duration + self.timebase)
+        series = self.data.query("Time >= @start_time and Time < @end_time")
+        v, u = time_integral_v_u(series)
         relative = True if v != 0 else False
-        return _make_df(v / duration * self.timebase, u / duration * self.timebase, relative)
+        # Time Normalization of the Average
+        # If the RR time binning is not 1 s, there is a chance the query truncated
+        # the time series so that the difference between first and last time in
+        # `series` are closer than duration. Hence I define delta.
+        # iloc[-1] explained by the use of time_integral_v_u(): we stop at the 
+        # beginning of the next step-post time stamp.
+        delta = (series.Time.iloc[-1] - series.Time.iloc[0]).total_seconds()
+        return _make_df(v / delta, u / delta, relative)
 
     def smooth(self, **kwargs) -> Self:
         """
@@ -158,7 +166,8 @@ class ReactionRate:
         Parameters
         ----------
         timebase : int
-            The interval of time in seconds over which to calculate the average. This interval is used to group the data for averaging.
+            The interval of time in seconds over which to calculate the average.
+            This interval is used to group the data for averaging.
         start_time : datetime, optional
             The starting time for the integration process. Defaults to `self.start_time`.
 

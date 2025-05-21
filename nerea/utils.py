@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
 import warnings
+from datetime import datetime
 
-__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df',
-           'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
+__all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u',
+           '_make_df', 'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -34,6 +35,35 @@ def integral_v_u(s: pd.Series) -> tuple[float]:
     Sum: 10, Uncertainty: 3.1622776601683794
     """
     v = s.sum()
+    u = np.sqrt(v)
+    return v, u
+
+def time_integral_v_u(s: pd.DataFrame) -> tuple[float]:
+    """
+    Compute the time integral (c.dot(dt)) of a series and its associated uncertainty.
+
+    Parameters
+    ----------
+    s : pd.DataFrame
+        The series of values to inegrate.
+        Has `Time` and `value` columns.
+
+    Returns
+    -------
+    v : float
+        The sum of the series.
+    u : float
+        The absolute uncertainty of the sum, calculated as the inverse of the square root of the sum.
+
+    Notes
+    -----
+    s is assumed to be steps-post and the data are treated accordingly, hence s
+    should end 1 time step after the desired end of integration.
+    To allow calculation of time differences, s should start 1 time spep before
+    the desired start time.
+
+    """
+    v = (s.value * s.Time.diff().shift(-1).apply(lambda x: x.total_seconds())).sum()
     u = np.sqrt(v)
     return v, u
 

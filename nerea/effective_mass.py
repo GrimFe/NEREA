@@ -86,7 +86,7 @@ class EffectiveMass:
             file = file_path + slash + f'Meff_{self.deposit_id}_{self.detector_id}.xlsx'
         with pd.ExcelWriter(file) as writer:
             self.data.to_excel(writer, index=False, sheet_name='Meff')
-            self.composition_.to_excel(writer, index=False, sheet_name='Composition')
+            self.composition_.to_excel(writer, index=True, sheet_name='Composition')
             pd.DataFrame({'R': [self.R_channel], 'bins': [self.bins]}
                          ).T.to_excel(writer, header=False, index=False, sheet_name='R')
             pd.DataFrame({'c': [f'Calibrated on {date.today()} using nerea.py']}
