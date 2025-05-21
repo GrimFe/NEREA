@@ -175,11 +175,15 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
             value  uncertainty
     value    10.0          0.5
     """
-    out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': u / v * 100},
-                       index=['value']) if relative else pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': np.nan},
-                                                                      index=['value'])
+    if not isinstance(v, Iterable):
+        rel = u / v * 100 if relative else np.nan
+        out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
+                           index=['value'])
+    else:
+        rel = u / v * 100 if relative else [np.nan] * len(v)
+        out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
+                           index=['value'] * len(v))
     return out
-
 
 def polynomial(order: int, c: Iterable[float], x: float):
     if len(c) != order + 1:
