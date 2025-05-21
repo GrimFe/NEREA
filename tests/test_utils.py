@@ -1,4 +1,6 @@
 import pytest
+import types
+
 import numpy as np
 import pandas as pd
 from nerea.utils import *
@@ -50,6 +52,47 @@ def test_make_df_not_relative():
                                 'uncertainty [%]': np.nan},
                                 index=['value'])
     pd.testing.assert_frame_equal(df, expected_df)
+
+def test_polynomial():
+    assert polynomial(2, [1, 2, 3], 1) == 6.
+
+def test_fitting_polynomial():
+    assert fitting_polynomial(2)(1, *[1,2,3]) == polynomial(2, [1, 2, 3], 1) == 6.
+
+def test_polyfit():
+    data = pd.DataFrame({'x': [1, 2, 3],
+                         'y': [2, 4, 6],
+                         'u': [0.01, 0.01, 0.01]})
+    coef, coef_cov = polyfit(1, data)
+    np.testing.assert_almost_equal(coef,
+                                  np.array([ 2.00000000e+00, -2.18001797e-12]))
+    np.testing.assert_almost_equal(coef_cov, np.array(
+                                            [[ 1.00000000e-05, -7.31498003e-10],
+                                             [-7.31498003e-10,  1.87281265e-13]]))
+    
+    # test zero uncertainties
+    data = pd.DataFrame({'x': [1, 2, 3],
+                         'y': [2, 4, 6],
+                         'u': [0, 0.01, 0.01]})
+    data_ = pd.DataFrame({'x': [1, 2, 3],
+                         'y': [2, 4, 6],
+                         'u': [0.01 * 1e-3, 0.01, 0.01]})
+    coef, coef_cov = polyfit(1, data)
+    coef_, coef_cov_ = polyfit(1, data_)
+    np.testing.assert_almost_equal(coef, coef_)
+    np.testing.assert_almost_equal(coef_cov, coef_cov_)
+
+    # test NaN uncertainties
+    data = pd.DataFrame({'x': [1, 2, 3],
+                         'y': [2, 4, 6],
+                         'u': [np.nan, 0.01, 0.01]})
+    data_ = pd.DataFrame({'x': [1, 2, 3],
+                         'y': [2, 4, 6],
+                         'u': [0.01 * 1e-3, 0.01, 0.01]})
+    coef, coef_cov = polyfit(1, data)
+    coef_, coef_cov_ = polyfit(1, data_)
+    np.testing.assert_almost_equal(coef, coef_)
+    np.testing.assert_almost_equal(coef_cov, coef_cov_)
 
 def test_get_fit_R2():
     y = [1, 2, 3, 4, 5, 6, 7]

@@ -10,7 +10,7 @@ import warnings
 
 from .utils import ratio_v_u, _make_df, integral_v_u, product_v_u, sum_v_u, get_fit_R2, smoothing
 from .defaults import *
-from .calculated import EffectiveDelayedParams
+from .classes import EffectiveDelayedParams
 
 __all__ = [
     "ReactionRate",
@@ -365,16 +365,16 @@ class ReactionRate:
         ----------
         t_left : float, optional
             tolerance to find the beginning of the asymptotic
-            exponential counts. Default is 3e-2
+            exponential counts. Default is 3e-2.
         t_right : float, optional
             tolerance to find the end of the asymptotic
-            exponential counts. Default is 1e-2
+            exponential counts. Default is 1e-2.
         smooth_kwargs: dict, optional
             arguments to pass to `self.smooth`.
-            Default is None
+            Default is None.
         dtc_kwargs : dict, optional
             arguments to pass to `self.dead_time_corrected`.
-            Default is None
+            Default is None.
             
         Returns
         -------
@@ -396,8 +396,20 @@ class ReactionRate:
                 warnings.warn("Dead time corection already applied, ignoring kwargs.")
         log_double_derivative = np.log(data.value).diff().diff()
         max_ = data.value.idxmax()
-        last = data.loc[:max_].loc[log_double_derivative.loc[:max_].abs() < t_right].iloc[-1].name
-        first = data.loc[:last].loc[log_double_derivative.loc[:last].abs() > t_left].iloc[-1].name
+        ## Right discrimination
+        last = data.loc[:max_].loc[log_double_derivative.loc[:max_].abs() < t_right]
+        if last.shape[0] == 0:
+            warnings.warn(f"Right bound not found with t_right = {t_right}. Using end point.")
+            last = data.loc[max_].to_frame().T.iloc[-1].name
+        else:
+            last = last.iloc[-1].name
+        ## Left discrimination
+        first = data.loc[:last].loc[log_double_derivative.loc[:last].abs() > t_left]
+        if first.shape[0] == 0:
+            warnings.warn(f"Left bound not found with t_left = {t_left}. Using start point.")
+            first = data.loc[0].to_frame().T.iloc[-1].name
+        else:
+            first = first.iloc[-1].name
         return self.__class__(self.data[first:last],
                               start_time=self.start_time,
                               campaign_id=self.campaign_id,

@@ -1,9 +1,12 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Callable
+from functools import partial
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 import warnings
 
-__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df', 'get_fit_R2', 'smoothing']
+__all__ = ['integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df',
+           'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -158,7 +161,21 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
                            index=['value'] * len(v))
     return out
 
-def get_fit_R2(y: Iterable[float], fvec: Iterable[float], weight: Iterable[float]=None):
+def polynomial(order: int, c: Iterable[float], x: float):
+    if len(c) != order + 1:
+            raise ValueError(f"Expected {order + 1} coefficients, got {len(c)}")
+        # returns the polynomial value @x
+    return sum([c[i] * x **(order - i) for i in range(order + 1)])
+
+def fitting_polynomial(order: int) -> float:
+    def poly(x, *c):
+        if len(c) != order + 1:
+            raise ValueError(f"Expected {order + 1} coefficients, got {len(c)}")
+        # returns the polynomial value @x
+        return sum([c[i] * x **(order - i) for i in range(order + 1)])
+    return poly
+
+def get_fit_R2(y: Iterable[float], fvec: Iterable[float], weight: Iterable[float]=None) -> float:
     """
     Calculates the R2 of a fit from the fitted points and the fitting line residuals.
 
@@ -171,6 +188,11 @@ def get_fit_R2(y: Iterable[float], fvec: Iterable[float], weight: Iterable[float
     weight : Iterable[float], optional
         the weights for R2 weighting. Degaults to None, meaning w = 1
 
+    Returns:
+    --------
+    r2 : float
+        the fit R^2.
+
     Notes
     -----
     assumes y and fvec share x.
@@ -182,6 +204,48 @@ def get_fit_R2(y: Iterable[float], fvec: Iterable[float], weight: Iterable[float
     weighted_mean_y = np.average(y, weights=w)
     r2 = 1 - (np.array(fvec) ** 2).sum() / np.sum((y - weighted_mean_y) ** 2 * w)
     return r2
+
+def polyfit(order: int, data: pd.DataFrame) -> tuple[np.array, np.array, Callable]:
+    """
+    Fits the data with a polynomial of chosen order.
+
+    Parameters:
+    -----------
+    order : int
+        fitting polynomial order.
+    data : pd.DataFrame
+        Dataframe with data to fit. Columns should be:
+            - x, abscissa
+            - y, ordinate
+            - u, y-uncertainty
+
+    Returns:
+    --------
+    coef : np.array
+        fit coefficients
+    coef_cov : np.array
+        fit coefficients covariance matrix
+    
+    Notes:
+    ------
+    Replaces NaN and negative or zero uncertianties with
+    non-zero small values to allow fitting.
+    """
+    data_ = data.copy()
+    zero_u = data_.query("u > 0").u.min() * 1e-3  # Replacing meaningless uncertainties with this
+    data_.u = data_.u.fillna(zero_u)
+    data_.loc[data_.u <= 0, 'u'] = zero_u
+    coef, coef_cov, out, _, _ = curve_fit(fitting_polynomial(order),
+                                          data_.x,
+                                          data_.y,
+                                          sigma=data_.u,
+                                          absolute_sigma=True,
+                                          full_output=True,
+                                          p0=[1] * (order + 1)  ## needed to set number of fit params
+                                          )
+    r2 = get_fit_R2(data_.y, out["fvec"], weight=1 / data_.u **2)
+    warnings.warn(f"CR reactivity curve fit R^2 = {r2}")
+    return coef, coef_cov
 
 def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) -> pd.DataFrame:
     """

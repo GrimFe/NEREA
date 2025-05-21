@@ -10,8 +10,7 @@ from .constants import ATOMIC_MASS
 
 __all__ = ['_Calculated',
            'CalculatedSpectralIndex',
-           'CalculatedTraverse',
-           'EffectiveDelayedParams']
+           'CalculatedTraverse']
 
 @dataclass(slots=True)
 class _Calculated:
@@ -178,30 +177,3 @@ class CalculatedTraverse(_Calculated):
             v, u = ratio_v_u(num, den)
             out.append(_make_df(v, u).assign(traverse=d))
         return pd.concat(out, ignore_index=True)
-
-@dataclass(slots=True)
-class EffectiveDelayedParams:
-    lambda_i: pd.DataFrame
-    beta_i: pd.DataFrame
-
-    @classmethod
-    def from_sts(cls, file: str) -> Self:
-        """
-        Creates an instance using data extracted from a Serpent res.m.
-
-        Parameters
-        ----------
-        file : str
-            The file path from which data will be read.
-
-        Returns
-        -------
-        EffectiveDelayedParams
-            An instance of the `EffectiveDelayedParams` class created from
-            the specified file.
-        """
-        bi = sts.read(file).resdata['adjIfpImpBetaEff'].reshape(-1, 2)[1:, :]
-        li = sts.read(file).resdata['adjIfpImpLambda'].reshape(-1, 2)[1:, :]
-        bi = _make_df(bi[:, 0], bi[:, 1] * bi[:, 0])
-        li = _make_df(li[:, 0], li[:, 1] * li[:, 0])
-        return cls(li, bi)

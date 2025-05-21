@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from nerea.reaction_rate import ReactionRate
-from nerea.calculated import EffectiveDelayedParams
+from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
 @pytest.fixture

@@ -1,3 +1,5 @@
+from .classes import EffectiveDelayedParams
+
 from .fission_fragment_spectrum import *
 from .effective_mass import *
 from .reaction_rate import *

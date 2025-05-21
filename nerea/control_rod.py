@@ -1,15 +1,85 @@
 from dataclasses import dataclass
 from collections.abc import Iterable
-import logging
+import warnings
 
 import numpy as np
 import pandas as pd
 
 from .reaction_rate import ReactionRate
-from .utils import _make_df, get_fit_R2
+from .utils import _make_df, polyfit, polynomial
 from .defaults import *
+from .classes import EffectiveDelayedParams
 
-__all__ = ["ControlRodCalibration"]
+__all__ = ["ControlRodCalibration",
+           "DifferentialNoCompensation",
+           "IntegralNoCompensation",
+           "DifferentialCompensation",
+           "IntegralCompensation",
+           "evaluate_integral_differential_cr",
+           "evaluate_integral_integral_cr"]
+
+def evaluate_integral_differential_cr(x: float,
+                                      order: int,
+                                      coef: Iterable[float],
+                                      coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
+    """
+    Integrates a polynomial.
+
+    Parameters:
+    -----------
+    x : float
+        The point whereto evaluate the integral.
+    order : int
+        Polynomial order to integrate
+    coef : Iterable[float]
+        Polynomial coefficients.
+    coef_cov : Iterable[Iterable[float]]
+        Polynomial coefficients covariance matrix.
+    
+    Returns:
+    --------
+        pd.DataFrame
+    
+    Notes:
+    ------
+    Used for differential control rods.
+    """
+    v = sum([c / (order + 1 - i) * x **(order + 1 - i) for i, c in enumerate(coef)])
+    sens = np.array([x **(order + 1 - i) / (order + 1 - i) for i in range(order + 1)])
+    u = np.sqrt(sens @ coef_cov @ sens)
+    return _make_df(v, u)
+
+def evaluate_integral_integral_cr(x: float,
+                                  order: int,
+                                  coef: Iterable[float],
+                                  coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
+    """
+    Evaluates a olynomial.
+
+    Parameters:
+    -----------
+    x : float
+        The point whereto evaluate the integral.
+    order : int
+        Polynomial order to integrate
+    coef : Iterable[float]
+        Polynomial coefficients.
+    coef_cov : Iterable[Iterable[float]]
+        Polynomial coefficients covariance matrix.
+    
+    Returns:
+    --------
+        pd.DataFrame
+
+    Notes:
+    ------
+    Used for integral control rods.
+    """
+    v = polynomial(order, coef, x)
+    sens = np.array([x **(order - i) for i in range(order + 1)])
+    u = np.sqrt(sens @ coef_cov @ sens)
+    return _make_df(v, u)
+
 
 @dataclass(slots=True)
 class ControlRodCalibration:
@@ -17,16 +87,18 @@ class ControlRodCalibration:
     critical_height: float
     name: int
 
-    def _get_rhos(self, delayed_data_file: str, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
+    def _get_rhos(self,
+                  delayed_data: EffectiveDelayedParams,
+                  dtc_kwargs: dict=None,
+                  ac_kwargs: dict=None) -> pd.DataFrame:
         """"
         Computes the reactivity associated with each reaction rate
         in self.reaction_rates.
 
         Parameters
         ---------
-        delayed_data_file : str
-            path to the Serpent `res.m` output file to read effective delayed
-            neutron data from.
+        delayed_data : EffectiveDelayedParams
+            effective delayed  neutron data for control rod calibration.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
             Default is None.
@@ -44,18 +116,49 @@ class ControlRodCalibration:
         for h, r in self.reaction_rates.items():
             dtc = r.dead_time_corrected(**dtc_kw)
             ac = dtc.get_asymptotic_counts(**ac_kw)
-            rho = ac.get_reactivity(delayed_data_file)
+            rho = ac.get_reactivity(delayed_data)
             rhos.append(rho.assign(h=h))
         rhos = pd.concat(rhos)
         return rhos.fillna(0)
 
-    def differential_curve_no_compensation(self, delayed_data_file: str, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
+    def get_reactivity_curve(self):
+        # placeholder for methods of inheriting classes
+        pass
+
+    def _evaluate_integral(self):
+        # placeholder for methods of inheriting classes
+        pass
+
+    def get_reactivity_worth(self,
+                             x0: float,
+                             x1: float,
+                             delayed_data: EffectiveDelayedParams,
+                             order: int,
+                             dtc_kwargs: dict=None,
+                             ac_kwargs: dict=None) -> pd.DataFrame:
+            rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
+            rho.columns = ['x', 'y', 'u']
+            coef, coef_cov = polyfit(order, rho)
+            i0 = self._evaluate_integral(x0, order, coef, coef_cov)
+            i1 = self._evaluate_integral(x1, order, coef, coef_cov)
+            return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)
+                            ).assign(VAR_FRAC_X1=i1.uncertainty **2,
+                                     VAR_FRAC_X0=i0.uncertainty **2)
+
+
+@dataclass(slots=True)
+class DifferentialNoCompensation(ControlRodCalibration):
+
+    def get_reactivity_curve(self,
+                             delayed_data: EffectiveDelayedParams,
+                             dtc_kwargs: dict=None,
+                             ac_kwargs: dict=None) -> pd.DataFrame:
         """"
         Computes the differential reacitivty curve dr/dh for measurements without compensation.
 
         Parameters
         ---------
-        delayed_data_file : str
+        delayed_data : EffectiveDelayedParams
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
@@ -69,7 +172,7 @@ class ControlRodCalibration:
         -------
         pd.DataFrame
         """
-        rho = self._get_rhos(delayed_data_file, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         drho_v = (rho["value"].diff() / rho["h"].diff()).fillna(0).values
 
         VAR_FRAC_T = rho["VAR_FRAC_T"].rolling(2).sum() / rho["h"].diff() **2
@@ -80,15 +183,29 @@ class ControlRodCalibration:
                                                                                      VAR_FRAC_L=VAR_FRAC_L,
                                                                                      h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
                                                                                      )
-        return out.dropna().reset_index(drop=True)  # dropping the first NaN of diff()
+        return out.dropna()  # dropping the first NaN of diff()
 
-    def integral_curve_no_compensation(self, delayed_data_file: str, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
+    @staticmethod
+    def _evaluate_integral(x: float,
+                           order: int,
+                           coef: Iterable[float],
+                           coef_cov: Iterable[Iterable[float]]):
+        return evaluate_integral_differential_cr(x, order, coef, coef_cov)
+
+
+@dataclass(slots=True)
+class IntegralNoCompensation(ControlRodCalibration):
+
+    def get_reactivity_curve(self,
+                             delayed_data: EffectiveDelayedParams,
+                             dtc_kwargs: dict=None,
+                             ac_kwargs: dict=None) -> pd.DataFrame:
         """"
         Computes the integral reacitivty curve dr/dh for measurement without compensation.
 
         Parameters
         ---------
-        delayed_data_file : str
+        delayed_data: EffectiveDelayedParams
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
@@ -106,16 +223,30 @@ class ControlRodCalibration:
         ----
         alias for self._get_rhos
         """
-        rho = self._get_rhos(delayed_data_file, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         return rho
+    
+    @staticmethod
+    def _evaluate_integral(x: float,
+                           order: int,
+                           coef: Iterable[float],
+                           coef_cov: Iterable[Iterable[float]]):
+        return evaluate_integral_integral_cr(x, order, coef, coef_cov)
 
-    def differential_curve_compensation(self, delayed_data_file: str, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
+
+@dataclass(slots=True)
+class DifferentialCompensation(ControlRodCalibration):
+
+    def get_reactivity_curve(self,
+                             delayed_data: EffectiveDelayedParams,
+                             dtc_kwargs: dict=None,
+                             ac_kwargs: dict=None) -> pd.DataFrame:
         """"
         Computes the differential reacitivty curve dr/dh for measurements with compensation.
 
         Parameters
         ---------
-        delayed_data_file : str
+        delayed_data: EffectiveDelayedParams
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
@@ -129,7 +260,7 @@ class ControlRodCalibration:
         -------
         pd.DataFrame
         """
-        rho = self._get_rhos(delayed_data_file, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         # no need to differenciate rho as with compensation the measured reactivity
         # is already related with a differential movement of the control rod
         drho_v = rho.value / rho["h"].diff()
@@ -142,15 +273,29 @@ class ControlRodCalibration:
                                                                                      VAR_FRAC_L=VAR_FRAC_L,
                                                                                      h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
                                                                                      )
-        return out.dropna().reset_index(drop=True)  # dropping the first NaN of diff()
+        return out.dropna()  # dropping the first NaN of diff()
 
-    def integral_curve_compensation(self, delayed_data_file: str, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
+    @staticmethod
+    def _evaluate_integral(x: float,
+                           order: int,
+                           coef: Iterable[float],
+                           coef_cov: Iterable[Iterable[float]]):
+        return evaluate_integral_differential_cr(x, order, coef, coef_cov)
+
+
+@dataclass(slots=True)
+class IntegralCompensation(ControlRodCalibration):
+
+    def get_reactivity_curve(self,
+                             delayed_data: EffectiveDelayedParams,
+                             dtc_kwargs: dict=None,
+                             ac_kwargs: dict=None) -> pd.DataFrame:
         """"
         Computes the integral reacitivty curve dr/dh for measurement with compensation.
 
         Parameters
         ---------
-        delayed_data_file : str
+        delayed_data: EffectiveDelayedParams
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
@@ -168,47 +313,12 @@ class ControlRodCalibration:
         ----
         alias for self._get_rhos
         """
-        rho = self._get_rhos(delayed_data_file, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         return rho.loc[:, rho.columns != 'h'].cumsum().assign(h=rho['h'])
 
-    def get_reactivity_curve(self, differential: bool, compensation: bool, delayed_data_file: str, dtc_kwargs: dict=None,
-                ac_kwargs: dict=None) -> pd.DataFrame:
-        if differential:
-            if compensation: rho = self.differential_curve_compensation(delayed_data_file, dtc_kwargs, ac_kwargs)
-            else: rho = self.differential_curve_no_compensation(delayed_data_file, dtc_kwargs, ac_kwargs)
-
-        if not differential:
-            if compensation: rho = self.integral_curve_compensation(delayed_data_file, dtc_kwargs, ac_kwargs)
-            else: rho = self.integral_curve_no_compensation(delayed_data_file, dtc_kwargs, ac_kwargs)
-        return rho
-
-    def get_reactivity_worth(self, differential: bool, compensation: bool, x0: float, x1: float, delayed_data_file: str,
-                             diff_fit_order: int=2, dtc_kwargs: dict=None, ac_kwargs: dict=None) -> pd.DataFrame:
-        from scipy.optimize import curve_fit
-        order = diff_fit_order if differential else diff_fit_order + 1
-        def poly(c: Iterable[float], x: float):
-            # returns the polynomial value @x
-            return sum([c[i] * x **(order - i) for i in range(order + 1)])
-
-        rho = self.get_rho(self, differential, compensation, delayed_data_file, dtc_kwargs, ac_kwargs)
-        coef, coef_cov, out, _, _ = curve_fit(poly, rho.h, rho.value, sigma=rho.uncertainty, absolute_sigma=True, full_output=True)
-
-        r2 = get_fit_R2(rho.value, out["fvec"], weight=1 / rho.uncertainty **2)
-        logging.info("CR reactivity curve fit R^2 = %s", r2)  # probably not functioning
-
-        # integral of fitted function
-        def evaluate_integral(x: float):
-            if differential:
-                v = sum([c / (order + 1 - i) * x **(order + 1 - i) for i, c in enumerate(coef)])
-                sens = np.array([x **(order + 1 - i) / (order + 1 - i) for i in range(order + 1)])
-                u = np.sqrt(sens @ coef_cov @ sens)
-            else:
-                v = poly(x)
-                sens = np.array([x **(order - i) for i in range(order + 1)])
-                u = np.sqrt(sens @ coef_cov @ sens)
-            return _make_df(v, u)
-        i0 = evaluate_integral(x0)
-        i1 = evaluate_integral(x1)
-
-        return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)).assign(VAR_FRAC_X1=i1.uncertainty **2,
-                                                                                                      VAR_FRAC_X0=i0.uncertainty **2)
+    @staticmethod
+    def _evaluate_integral(x: float,
+                           order: int,
+                           coef: Iterable[float],
+                           coef_cov: Iterable[Iterable[float]]):
+        return evaluate_integral_integral_cr(x, order, coef, coef_cov)
