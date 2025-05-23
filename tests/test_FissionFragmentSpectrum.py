@@ -4,7 +4,17 @@ import pandas as pd
 import numpy as np
 from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
 from nerea.reaction_rate import ReactionRate
-from nerea.constants import KNBS, XS_FAST
+from nerea.constants import KNBS
+
+XS_FAST = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.95, 1264.48,
+                                   1971.88, 2132.61, 1308.2, np.nan, 1115.87, 1321.81,
+                                   1024.24]) * 1e-27,   ## fast xs JEFF-3.1.1 [mb] then converted to cm^2
+                         "uncertainty": [0., 0., 0., 0., 0., 0.,
+                                   0., 0., 0., 0., 0., 0.,
+                                   0.]   ## to be computed [b]
+                         }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
+                                   "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
+                                   "Am243"])
 
 @pytest.fixture
 def sample_spectrum_data():
@@ -97,8 +107,16 @@ def test_integrate(sample_spectrum):
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.86439366,
-                                                    1.86439366, 1.97955774]})
+                                                    1.86439366, 1.97955774],
+                                'R': [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}), check_exact=False, atol=0.00001)
+    # testing integer llds
+    expected_df = pd.DataFrame({'channel':  [1., 2.],
+                                'value': [2876.9, 2876.9],
+                                'uncertainty': [53.63674114, 53.63674114],
+                                'uncertainty [%]': [1.86439366, 1.86439366],
+                                'R': [np.nan, np.nan]})
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}, llds=[1., 2.]), check_exact=False, atol=0.00001)
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
@@ -116,7 +134,8 @@ def test_calibrate(sample_spectrum):
                                 'uncertainty': [45.328774766486085, 44.19313472096307, 42.48966619235774, 42.48966619235774, 40.21835702157304,
                                                 40.21835702157304, 37.37918673739926, 33.972120356027794, 33.972120356027794, 29.99709489018778],
                                 'uncertainty [%]': [10.323397405623822, 10.326591589331588, 10.331705068361337, 10.331705068361337, 10.339201432619625,
-                                                    10.339201432619625, 10.349862370764024, 10.365026587880601, 10.365026587880601, 10.3871115885355]},
+                                                    10.339201432619625, 10.349862370764024, 10.365026587880601, 10.365026587880601, 10.3871115885355],
+                                "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]},
                                 index=['value'] * 10)
 
     # fractional composition

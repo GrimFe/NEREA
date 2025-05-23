@@ -66,12 +66,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             raise Exception('Inconsitent experiments among FissionFragmentSpectrum and ReactionRate')
         if not self._check_ch_equality():
             ch = self.fission_fragment_spectrum.get_R(bin_kwargs={'bins': self.effective_mass.bins}).channel
-            warnings.warn(f"""The channel values differ more than 1%; at spectrum half maximum they worth:
-                          measurement: {ch}
-                          calibration: {self.effective_mass.R_channel}
-                          relative difference (C-M)/C: {(ch
-                                                        - self.effective_mass.R_channel)
-                                                        / self.effective_mass.R_channel * 100} %""")
+            msg = f"R channel difference: {((ch - self.effective_mass.R_channel) / self.effective_mass.R_channel * 100).iloc[0]} %"
+            warnings.warn(msg)
 
     def _check_ch_equality(self, tolerance:float =0.01) -> bool:
         """
@@ -194,8 +190,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         v, u = ratio_v_u(_make_df(1, 0), pm)
         return _make_df(v, u)
 
-    def _get_long_output(self, plateau: pd.DataFrame, time: pd.DataFrame, power: pd.DataFrame,
-                         bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def _get_long_output(self,
+                         plateau: pd.DataFrame,
+                         time: pd.DataFrame,
+                         power: pd.DataFrame,
+                         **kwargs) -> pd.DataFrame:
         """
         The information to be included in the long output: component
         variances.
@@ -208,27 +207,28 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             output of self._time_normalization
         power : pd.DataFrame
             output of self._power_normalization
-        bin_kwargs : dict, optional
-            - bins : int (enforced to be same as EM.bins)
-            - smooth : bool
-        max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
-            - fst_ch : int
+        **kwargs
+        Parameters for self.ffs.integrate()
+            - bin_kwargs : dict, optional
+                - bins : int (enforced to be same as EM.bins)
+                - smooth : bool
+            - max_kwargs : dict, optional
+                kwargs for self.fission_fragment_spectrum.max().
+                - fst_ch : int
+            - llds : Iterable[int|float]
 
         Returns
         -------
         pd.DataFrame
             (1 x N) DataFrame with the information.
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
         # I always want to integrate over the same channels and binning as EM
-        bin_kw['bins'] = self.effective_mass.bins
+        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
 
         ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
-        ffs = self.fission_fragment_spectrum.integrate(bin_kwargs=bin_kw,
-                                                       max_kwargs=max_kw
-                                                       ).query("channel==@ch_ffs")
+        ffs = self.fission_fragment_spectrum.integrate(**kwargs).query("channel==@ch_ffs")
         em = self.effective_mass.integral.query("channel==@ch_em")
 
         val_ffs, var_ffs = ffs.value.iloc[0], ffs.uncertainty.iloc[0] **2
@@ -240,114 +240,179 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                            'PM': val_pm, 'VAR_PM': var_pm,
                            't': val_t, 'VAR_t': var_t}, index=['value'])
         return df
-
-    def per_unit_mass(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    
+    def _per_unit_mass_R(self, ffsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
         """
         The tabulated ratio of FFS.integrate() / EM.integral, integrated from
-        10 discrimination levels computed as a function of the R channel.
+        discrimination levels computed as a function of the R channel.
 
         Parameters
         ----------
-        bin_kwargs : dict, optional
-            - bins : int (enforced to be same as EM.bins)
-            - smooth : bool
-        max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
-            - fst_ch : int
+        ffsi : pd.DataFrame
+            Output of self.ffs.integrate().
+        emi : pd.DataFrame
+            Output of self.em.integral.
 
         Returns
         -------
         pd.DataFrame
             DataFrame with the information of the mass-normalized spectrum.
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
-        # I always want to integrate over the same channels and binning as EM
-        bin_kw['bins'] = self.effective_mass.bins
-
-        ffs = self.fission_fragment_spectrum.integrate(bin_kw, max_kw)
-        em = self.effective_mass.integral
         data = []
-        for i in range(ffs.shape[0]):
-            ffs_, em_ = ffs.iloc[i], em.iloc[i]
+        channels = sorted(set(emi.R).intersection(set(ffsi.R)))
+        if len(channels) < len(emi.R): warnings.warn("Neglecting calibration channels.")
+        if len(channels) < len(ffsi.R): warnings.warn("Neglecting integration channels.")
+        for r in channels:
+            ffs_, em_ = ffsi.query("R==@r").iloc[0], emi.query("R==@r").iloc[0]
             v, u = ratio_v_u(ffs_, em_)
             data.append(_make_df(v, u).assign(
                                     VAR_FRAC_FFS = (ffs_.uncertainty / em_.value) **2,
-                                    VAR_FRAC_EM = (ffs_ / em_**2 * em_.uncertainty) **2,
+                                    VAR_FRAC_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
                                     CH_FFS = ffs_.channel,
-                                    CH_EM = em_.channel))
-        data = pd.concat(data, ignore_index=True)
+                                    CH_EM = em_.channel,
+                                    R=r))
+        return pd.concat(data, ignore_index=True)
+
+    def _per_unit_mass_ch(self, ffsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
+        """
+        The tabulated ratio of FFS.integrate() / EM.integral, integrated from
+        discrimination levels defined as absolute channels.
+
+        Parameters
+        ----------
+        ffsi : pd.DataFrame
+            Output of self.ffs.integrate().
+        emi : pd.DataFrame
+            Output of self.em.integral.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the mass-normalized spectrum.
+        """
+        data = []
+        channels = sorted(set(emi.channel).intersection(set(ffsi.channel)))
+        if len(channels) < len(emi.channel): warnings.warn("Neglecting calibration channels.")
+        if len(channels) < len(ffsi.channel): warnings.warn("Neglecting integration channels.")
+        for ch in channels:
+            ffs_, em_ = ffsi.query("channel==@ch").iloc[0], emi.query("channel==@ch").iloc[0]
+            v, u = ratio_v_u(ffs_, em_)
+            data.append(_make_df(v, u).assign(
+                                    VAR_FRAC_FFS = (ffs_.uncertainty / em_.value) **2,
+                                    VAR_FRAC_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
+                                    CH_FFS = ch,
+                                    CH_EM = ch,
+                                    R=np.nan))
+        return pd.concat(data, ignore_index=True)
+
+    def per_unit_mass(self, **kwargs) -> pd.DataFrame:
+        """
+        Normalizes the pulse height spectrum in self.ffs to the
+        effective mass in self.em based on the effective mass
+        discrimination levels.
+
+        Parameters
+        ----------
+        **kwargs for self.ffs.integrate.
+            - bin_kwargs : dict, optional
+                - bins : int (enforced to be same as EM.bins)
+                - smooth : bool
+            - max_kwargs : dict, optional
+                kwargs for self.fission_fragment_spectrum.max().
+                - fst_ch : int
+            - llds : Iterable[int|float]
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the mass-normalized spectrum.
+        """
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        # I always want to integrate over the same channels and binning as EM
+        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+
+        ffs = self.fission_fragment_spectrum.integrate(**kwargs)
+        em = self.effective_mass.integral
+        if np.isnan(em.R).all() and np.isnan(ffs.R).all():
+            data = self._per_unit_mass_ch(ffs, em)
+        elif not(np.isnan(em.R).all() and np.isnan(ffs.R).all()):
+            data = self._per_unit_mass_R(ffs, em)
+            warnings.warn("-------------- IN R --------------")
+        else:
+            raise Exception("Inconsistent integration and integration methodologies: can not process discrimination levels.",
+                            ValueError)
         return data
 
-    def per_unit_mass_and_time(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def per_unit_mass_and_time(self, **kwargs) -> pd.DataFrame:
         """
         The integrated FFS normalized per unit mass and time.
 
         Parameters
         ----------
-        bin_kwargs : dict, optional
+        **kwargs
+        Paramters for self.per_unit_mass
+        - bin_kwargs : dict, optional
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
-        max_kwargs : dict, optional
+        - max_kwargs : dict, optional
             kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
+        - llds : Iterable[int|float]
 
         Returns
         -------
         pd.DataFrame
             DataFrame with the information of the mass- and time- normalized spectrum.
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
         # I always want to integrate over the same channels and binning as EM
-        bin_kw['bins'] = self.effective_mass.bins
+        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
 
-        ffs, em = self.fission_fragment_spectrum, self.effective_mass
         data = pd.concat([_make_df(x[0], x[1]) for x in
                           [product_v_u([self._time_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass(bin_kw, max_kw).loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass(bin_kw, max_kw).index]],
-                         ignore_index=True).assign(A=ffs.integrate(bin_kw, max_kw).channel,
-                                                   B=em.integral.channel)
-        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
+                                        self.per_unit_mass(**kwargs).loc[i].to_frame().T]) for i in
+                                        self.per_unit_mass(**kwargs).index]],
+                         ignore_index=True).assign(CH_FFS=self.per_unit_mass(**kwargs).CH_FFS,
+                                                   CH_EM=self.per_unit_mass(**kwargs).CH_EM)
         return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    def per_unit_mass_and_power(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def per_unit_mass_and_power(self, **kwargs) -> pd.DataFrame:
         """
         The integrated FFS normalized per unit mass and power.
 
         Parameters
         ----------
-        bin_kwargs : dict, optional
+        **kwargs for self.per_unit_mass
+        - bin_kwargs : dict, optional
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
-        max_kwargs : dict, optional
+        - max_kwargs : dict, optional
             kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
+        - llds : Iterable[int|float]
 
         Returns
         -------
         pd.DataFrame
             DataFrame with the information of the mass- and power- normalized spectrum.
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
         # I always want to integrate over the same channels and binning as EM
-        bin_kw['bins'] = self.effective_mass.bins
+        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
 
         ffs, em = self.fission_fragment_spectrum, self.effective_mass
         data = pd.concat([_make_df(x[0], x[1]) for x in
                           [product_v_u([self._power_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass(bin_kw, max_kw).loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass(bin_kw, max_kw).index]],
-                         ignore_index=True).assign(A=ffs.integrate(bin_kw, max_kw).channel,
-                                                   B=em.integral.channel)
-        data = data.rename({'A': 'CH_FFS', 'B': 'CH_EM'}, axis=1)
-        return data[['CH_FFS', 'CH_EM',
-                    'value', 'uncertainty', 'uncertainty [%]']]
+                                        self.per_unit_mass(**kwargs).loc[i].to_frame().T]) for i in
+                                        self.per_unit_mass(**kwargs).index]],
+                         ignore_index=True).assign(CH_FFS=self.per_unit_mass(**kwargs).CH_FFS,
+                                                   CH_EM=self.per_unit_mass(**kwargs).CH_EM)
+        return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
-    def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01,
-                bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate per unit mass.
 
@@ -357,12 +422,15 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             Tolerance for the integration check, by default 0.01.
         ch_tolerance : float, optional
             Tolerance for the channel check, by default 0.01.
-        bin_kwargs : dict, optional
-            - bins : int
-            - smooth : bool
-        max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
-            - fst_ch : int
+        **kwargs:
+            Paramters for self.per_unit_mass
+            - bin_kwargs : dict, optional
+                - bins : int
+                - smooth : bool
+            - max_kwargs : dict, optional
+                kwargs for self.fission_fragment_spectrum.max().
+                - fst_ch : int
+            - llds : Iterable[int|float]
 
         Returns
         -------
@@ -374,10 +442,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ValueError
             If the channel values differ beyond the specified tolerance.
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
 
-        data = self.per_unit_mass(bin_kwargs=bin_kw, max_kwargs=max_kw)
+        data = self.per_unit_mass(**kwargs)
         # check where the values in the mass-normalized count rate converge withing tolerance
         close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
         if close_values.shape[0] == 0:
@@ -395,8 +463,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         out.index = ['value']
         return out
 
-    def process(self, long_output: bool=False, bin_kwargs: dict=None, max_kwargs: dict=None,
-                *args, **kwargs) -> pd.DataFrame:
+    def process(self, long_output: bool=False, *args, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate.
 
@@ -405,17 +472,19 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         long_output : bool, optional
             Flag to turn on/off the full ouptup information, whcih includes
             values and variances of all the processing elements, False by default.
-        bin_kwargs : dict, optional
-            - bins : int (enforced to be same as EM.bins)
-            - smooth : bool
-        max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
-            - fst_ch : int
         *args : Any
             Positional arguments to be passed to the `self.plateau()` method.
         **kwargs : dict
             Keyword arguments to be passed to the `self.plateau()` method.
-            Also fst_ch : int optional arguments for nerea.FissionFragmentSpecturm.get_max()
+            - bin_kwargs : dict, optional
+                - bins : int (enforced to be same as EM.bins)
+                - smooth : bool
+            - max_kwargs : dict, optional
+                kwargs for self.fission_fragment_spectrum.max().
+                - fst_ch : int
+            - int_tolerance: float
+            - ch_tolerance: float
+            - llds : Iterable[int|float]
 
         Returns
         -------
@@ -434,10 +503,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             value  uncertainty
         0  35.6    2.449490
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
         # I always want to integrate over the same channels and binning as EM
-        bin_kw['bins'] = self.effective_mass.bins
+        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
 
         plateau = self.plateau(*args, **kwargs) # FFS / EM @plateau and relative variance fractions
         power = self._power_normalization       # this is 1/PM
@@ -451,8 +520,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                    VAR_FRAC_PM=(S_PM * power.uncertainty) **2,
                                    VAR_FRAC_t=(S_T * time.uncertainty) **2)
         return df if not long_output else pd.concat([df,
-                                                     self._get_long_output(plateau, time, power,
-                                                                           bin_kwargs=bin_kw, max_kwargs=max_kw)
+                                                     self._get_long_output(plateau,
+                                                                           time,
+                                                                           power,
+                                                                           **kwargs)
                                                     ], axis=1)
 
 
@@ -554,7 +625,7 @@ class SpectralIndex(_Experimental):
         relative = True if imp_v.shape[0] != 0 else False
         return _make_df(correction, np.sqrt(correction_variance), relative=relative)
 
-    def _get_long_output(self, num, den, k, **max_kwargs) -> pd.DataFrame:
+    def _get_long_output(self, num, den, k) -> pd.DataFrame:
         """
         The information to be included in the long output:
         variances of numerator and denominator if those were
@@ -569,9 +640,6 @@ class SpectralIndex(_Experimental):
             output of self.denominator.process
         k : pd.DataFrame
             impurity correction
-        max_kwargs : dict, optional
-            kwargs for nerea.FissionFragmentSpectrum.get_max().
-            - fst_ch : int
 
         Returns
         -------
@@ -681,7 +749,7 @@ class SpectralIndex(_Experimental):
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
                                     VAR_FRAC_1GXS=k.uncertainty **2 if k is not None else 0.
                                     )
-        return pd.concat([df, self._get_long_output(num, den, k, fst_ch=kwargs.get("fst_ch"))], axis=1)
+        return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
@@ -747,103 +815,3 @@ class Traverse(_Experimental):
             v, u = ratio_v_u(v, normalized[norm_k])
             out.append(_make_df(v, u).assign(traverse=k))
         return pd.concat(out, ignore_index=True)
-
-
-# @dataclass
-# class AverageNormalizedFissionFragmentSpectrum:
-#     fission_fragment_spectra: FissionFragmentSpectra
-#     effective_mass: EffectiveMass
-#     power_monitor: ReactionRate
-
-#     @property
-#     def campaign_id(self):
-#         """
-#         The campaign ID associated with the last fission fragment spectrum.
-
-#         Returns
-#         -------
-#         str
-#             The campaign ID attribute of the associated `FissionFragmentSpectrum`.
-
-#         """
-#         return self.fission_fragment_spectra[-1].campaign_id
-    
-#     @property
-#     def experiment_id(self) -> str:
-#         """
-#         The experiment ID associated with the last fission fragment spectrum.
-
-#         Returns
-#         -------
-#         str
-#             The experiment ID attribute of the associated `FissionFragmentSpectrum`.
-
-#         """
-#         return self.fission_fragment_spectra[-1].experiment_id
-    
-#     @property
-#     def location_id(self) -> str:
-#         """
-#         The location ID associated with the last fission fragment spectrum.
-
-#         Returns
-#         -------
-#         str
-#             The location ID attribute of the associated `FissionFragmentSpectrum`.
-
-#         """
-#         return self.fission_fragment_spectra[-1].location_id
-
-#     @property
-#     def deposit_id(self):
-#         """
-#         The deposit ID associated with the last fission fragment spectrum.
-
-#         Returns
-#         -------
-#         str
-#             The deposit ID attribute of the associated `FissionFragmentSpectrum`.
-
-#         """
-#         return self.fission_fragment_spectra[-1].deposit_id
-
-#     def process(self, *args, **kwargs):
-#         """
-#         Computes the average of multiple reaction rates.
-
-#         Returns
-#         -------
-#         pd.DataFrame
-#             DataFrame containing the average reaction rate.
-
-#         Examples
-#         --------
-#         >>> ffs1 = FissionFragmentSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
-#         ...                                detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-#         >>> em1 = EffectiveMass(data=pd.DataFrame({'value': [0.5, 0.6, 0.7], 'uncertainty': [0.05, 0.06, 0.07]}),
-#         ...                     detector_id='D1', deposit_id='Dep1')
-#         >>> pm1 = ReactionRate(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
-#         >>> rr1 = NormalizedFissionFragmentSpectrum(fission_fragment_spectrum=ffs1, effective_mass=em1, power_monitor=pm1)
-
-#         >>> ffs2 = FissionFragmentSpectrum(data=pd.DataFrame({'value': [2.0, 4.0, 6.0], 'uncertainty': [0.2, 0.4, 0.6]}),
-#         ...                                detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
-#         >>> em2 = EffectiveMass(data=pd.DataFrame({'value': [0.4, 0.5, 0.6], 'uncertainty': [0.04, 0.05, 0.06]}),
-#         ...                     detector_id='D1', deposit_id='Dep1')
-#         >>> pm2 = ReactionRate(data=pd.DataFrame({'value': [15, 25, 35], 'uncertainty': [1.5, 2.5, 3.5]}), experiment_id='Exp1')
-#         >>> rr2 = NormalizedFissionFragmentSpectrum(fission_fragment_spectrum=ffs2, effective_mass=em2, power_monitor=pm2)
-
-#         >>> arr = AverageNormalizedFissionFragmentSpectrum(reaction_rates=[rr1, rr2])
-#         >>> arr.process()
-#             value  uncertainty
-#         0  43.366667  3.162278
-#         """
-#         data = []
-#         for ffs in self.fission_fragment_spectra.spectra:
-#             data.append(NormalizedFissionFragmentSpectrum(ffs,
-#                                      self.effective_mass,
-#                                      self.power_monitor
-#                                      ).process(*args, **kwargs
-#                                                ).assign(measurement=ffs.measurement_id))
-#         data = pd.concat(data)
-#         v, u = average_v_u(data)
-#         return _make_df(v, u)

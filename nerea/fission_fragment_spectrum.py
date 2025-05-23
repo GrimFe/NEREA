@@ -195,7 +195,8 @@ class FissionFragmentSpectrum:
         data = reb.query("channel > @self.get_max(bin_kwargs=@bin_kw, **max_kw).channel[0]")
         return data[data.counts <= self.get_max(bin_kwargs=bin_kw, **max_kw).counts[0] / 2].iloc[0].to_frame().T[["channel", "counts"]]
 
-    def integrate(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def integrate(self, bin_kwargs: dict=None, max_kwargs: dict=None,
+                  llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]) -> pd.DataFrame:
         """
         Calculates the integral of data based on specified channels (as a function of R)
         and returns a DataFrame with channel, value, and uncertainty columns.
@@ -208,11 +209,20 @@ class FissionFragmentSpectrum:
         max_kwargs : dict, optional
             kwargs for self.get_max().
             - fst_ch : int
+        llds : Iterable[int|float], optional
+            low level discriminations to integrate from.
+            If integer -> interpreted as channel.
+            If fractional -> interpreted as fractions of self.get_R().channel.
+            Defaults to 10 llds between [0.15, 0.6].
 
         Returns
         -------
         pd.DataFrame
             DataFrame with 'channel', 'value', and 'uncertainty' columns.
+
+        Notes
+        -----
+        max_kwargs is used only with float llds to search for R.
 
         Examples
         --------
@@ -225,14 +235,61 @@ class FissionFragmentSpectrum:
 
         out = []
         reb = self.rebin(**bin_kw)
-        for ch in np.array(range(15, 65, 5)) / 100:
-            ch_ = np.floor(ch * self.get_R(bin_kwargs=bin_kw, max_kwargs=max_kwargs).channel.iloc[0])
+        for ch in llds:
+            channel_discri = isinstance(ch, int) or ch.is_integer()
+            ch_ = ch if channel_discri else np.floor(ch * self.get_R(bin_kwargs=bin_kw, max_kwargs=max_kwargs).channel.iloc[0])
             v, u = integral_v_u(reb.query("channel >= @ch_").counts)
-            out.append(_make_df(v, u).assign(channel=ch_))
-        return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]']]
+            out.append(_make_df(v, u).assign(channel=ch_, R=np.nan if channel_discri else ch))
+        return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
 
-    def calibrate(self, k: pd.DataFrame, composition: dict[str, float], monitor: ReactionRate,
-                  one_group_xs: dict[str, float], bin_kwargs: dict=None, max_kwargs: dict=None) -> EffectiveMass:
+    @staticmethod
+    def _get_calibration_coefficient(one_group_xs: dict[str, float], composition: dict[str, float] | pd.DataFrame):
+        """
+        Calculates the fission chamber calibration coefficient.
+
+        Paramters
+        ---------
+        one_group_xs : dict[str, float]
+            the one group cross sections of the fission
+            chamber components. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its one group cross section.
+            Has columns for its value and uncertainty.
+        composition : dict[str, float] | pd.DataFrame
+            the fission chamber composition relative to
+            the deposit main nuclide. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its atomic abundance relative to the main one.
+            Has columns for its value and uncertainty.
+        """
+        xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
+        match composition.value.max():
+            case 1:
+                pass
+            case 100:
+                composition.value /= 100
+                composition.uncertainty /= 100
+            case _:
+                raise ValueError("`composition` should be relative to the main isotope," +
+                                 "which should be reported in it.")
+
+        ## calculation of the sum over nuclides in the deposit (n * xs)
+        main = composition.query("value == 1").index.values[0]
+        xs_ = xs.loc[composition.index]
+        a = _make_df(ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[0],
+                     ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[1])
+        c_v = a['value'].value * composition.value @ xs_.value
+        c_u = np.sqrt((a['value'].value * composition.value @ xs_.uncertainty) **2 +
+                      (a['value'].value * composition.uncertainty @ xs_.value) **2 +
+                      (a['uncertainty'].value * composition.value @ xs_.value) **2)
+        return _make_df(c_v / 1e6, c_u / 1e6)  # EM in ug
+
+    def calibrate(self,
+                  k: pd.DataFrame,
+                  composition: dict[str, float] | pd.DataFrame,
+                  monitor: ReactionRate,
+                  one_group_xs: dict[str, float],
+                  **kwargs) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
         fragment spectrum.
@@ -245,7 +302,7 @@ class FissionFragmentSpectrum:
             pulse mode: interlaboratory comparison at
             the SCK•CEN BR1 and CEA CALIBAN reactors".
             Has columns for its value and uncertainty.
-        composition : dict[str, float]
+        composition : dict[str, float] | pd.DataFrame
             the fission chamber composition relative to
             the deposit main nuclide. `key` is the nuclide
             string identifier (e.g., `'U235'`), and `value`
@@ -260,61 +317,42 @@ class FissionFragmentSpectrum:
         monitor : nerea.ReactionRate
             the counts of the monitor fission chamber used
             during calibration.
-        bin_kwargs : dict, optional
-            - bins : int
-            - smooth : bool
-        max_kwargs : dict, optional
-            kwargs for self.max().
-            - fst_ch : int
+        **kwargs:
+            arguments for self.integrate()
+            bin_kwargs : dict, optional
+                - bins : int
+                - smooth : bool
+            max_kwargs : dict, optional
+                - fst_ch : int
+            llds : Iterable[int|float]
     
         Examples
         --------
         >>> spectrum = pass
         >>> em = FFS.from_TKA(file).calibrate(spectrum)
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
-        if bin_kw.get('bins') is None: bin_kw['bins'] = self.data.channel.max()
+        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        if kwargs['bin_kwargs'].get('bins') is None: kwargs['bin_kwargs']['bins'] = self.data.channel.max()
 
-        xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
         composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']).T if not isinstance(composition, pd.DataFrame) else composition.copy()
-        match composition_.value.max():
-            case 1:
-                pass
-            case 100:
-                composition_.value /= 100
-                composition_.uncertainty /= 100
-            case _:
-                raise ValueError("`composition` should be relative to the main isotope," +
-                                 "which should be reported in it.")
+        c = self._get_calibration_coefficient(one_group_xs, composition_)
 
-        ## calculation of the sum over nuclides in the deposit (n * xs)
-        main = composition_.query("value == 1").index.values[0]
-        xs_ = xs.loc[composition_.index]
-        a = _make_df(ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[0],
-                     ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[1])
-        c_v = a['value'].value * composition_.value @ xs_.value
-        c_u = np.sqrt((a['value'].value * composition_.value @ xs_.uncertainty) **2 +
-                      (a['value'].value * composition_.uncertainty @ xs_.value) **2 +
-                      (a['uncertainty'].value * composition_.value @ xs_.value) **2)
-        c = _make_df(c_v / 1e6, c_u / 1e6)  # I am not sure why I am dividing by 1e6
-
-        ## calculation of the actual effective mass
         pm = monitor.average(self.start_time, self.real_time)
         kmc = _make_df(product_v_u([k, pm, c])[0], product_v_u([k, pm, c])[1])
         integral = []
-        for _, row in self.integrate(bin_kwargs=bin_kw, max_kwargs=max_kw).iterrows():
+        for _, row in self.integrate(**kwargs).iterrows():
             v, u = ratio_v_u(row, _make_df(self.life_time, self.life_time_uncertainty))
-            integral.append(_make_df(v, u).assign(channel=row.channel))
+            integral.append(_make_df(v, u).assign(channel=row.channel, R=row.R))
         integral = pd.concat(integral)
 
         data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
                                                          ratio_v_u(integral, kmc)[1])]
-                                                         ).assign(channel=integral.channel)
-
-        return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]"]],
+                                                         ).assign(channel=integral.channel,
+                                                                  R=integral.R)
+        return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]],
                              composition=composition_, detector_id=self.detector_id, deposit_id=self.deposit_id,
-                             bins=bin_kw.get('bins'))
+                             bins=kwargs['bin_kwargs']['bins'])
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):
