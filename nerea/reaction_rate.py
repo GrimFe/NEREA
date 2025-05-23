@@ -457,7 +457,7 @@ class ReactionRate:
                   experiment_id=experiment_id,
                   detector_id=f"Det {detector}",
                   deposit_id=deposit_id,
-                  timebase=(read['Time'][1] - read['Time'][0]).seconds)
+                  timebase=(read['Time'][1] - read['Time'][0]).total_seconds())
         return out
 
 
