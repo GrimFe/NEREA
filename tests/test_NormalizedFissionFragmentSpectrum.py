@@ -22,7 +22,8 @@ def sample_integral_data():
     data = {
         "channel": [ 6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         "value":   [60,  80,  88,  87,  87,  88,  86,  85,  82,  78],
-        "uncertainty": [.1, .2, .3, .4, .5, .6, .7, .8, .9, .1]
+        "uncertainty": [.1, .2, .3, .4, .5, .6, .7, .8, .9, .1],
+        "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]
     }
     return pd.DataFrame(data)
 
@@ -91,7 +92,7 @@ def test_get_long_output(nffs):
                                                          nffs._time_normalization,
                                                          nffs._power_normalization))
 
-def test_per_unit_mass(nffs):
+def test_per_unit_mass_R(nffs):
     expected_df = pd.DataFrame({
         'value': [14.77333333, 11.08 , 10.07272727, 10.15287356, 10.1045977,
                   9.92954545, 10.09767442, 10.05529412,  9.97195122,  9.93974359],
@@ -104,10 +105,47 @@ def test_per_unit_mass(nffs):
         'VAR_FRAC_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
         'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.]})
+        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass(),
-                                   check_exact=False, atol=0.00001)
+                                  nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(),
+                                                        nffs.effective_mass.integral),
+                                  check_exact=False, atol=0.00001)
+
+def test_per_unit_mass_ch(nffs):
+    expected_df = pd.DataFrame({
+        'value': [14.77333333, 11.08 , 10.07272727, 10.15287356, 10.1045977,
+                  9.92954545, 10.09767442, 10.05529412,  9.97195122,  9.93974359],
+        'uncertainty': [0.49681835, 0.37318533, 0.34006171, 0.34478792, 0.3457126,
+                        0.34266489, 0.35237775, 0.3567267 , 0.36549703, 0.35720442],
+        'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
+                            3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858],
+        'VAR_FRAC_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
+                    0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
+        'VAR_FRAC_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
+                   0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
+        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        "R": [np.nan] * 10})
+    nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
+    # No need to set llds as the R channels already allign absolute channels as well in this case
+    pd.testing.assert_frame_equal(expected_df,
+                                  nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(),
+                                                         nffs.effective_mass.integral),
+                                  check_exact=False, atol=0.00001)
+
+def test_per_unit_mass(nffs):
+    # R calibration
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(),
+                                                        nffs.effective_mass.integral),
+                                  nffs.per_unit_mass(),
+                                  check_exact=False, atol=0.00001)
+    # channel calibration
+    nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(),
+                                                         nffs.effective_mass.integral),
+                                  nffs.per_unit_mass(llds=nffs.effective_mass.integral.channel),
+                                  check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_time(nffs):
     expected_df = pd.DataFrame({
@@ -144,7 +182,8 @@ def test_plateau(nffs):
                              'VAR_FRAC_FFS': 0.1161448,
                              'VAR_FRAC_EM': 0.0033724,
                              'CH_FFS': 14.000000,
-                             'CH_EM': 14.000000}, name=4).to_frame().T
+                             'CH_EM': 14.000000,
+                             'R': 0.35}, name=4).to_frame().T
     expected_df.index = ['value']
     pd.testing.assert_frame_equal(expected_df, nffs.plateau())
     # check that sum(VAR_FRAC) == uncertainty **2
