@@ -185,7 +185,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             with normalization value and uncertainty
         """
         start_time = self.fission_fragment_spectrum.start_time
-        duration = int(self.fission_fragment_spectrum.real_time)
+        duration = self.fission_fragment_spectrum.real_time
         pm = self.power_monitor.average(start_time, duration)
         v, u = ratio_v_u(_make_df(1, 0), pm)
         return _make_df(v, u)
