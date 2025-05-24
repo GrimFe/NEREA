@@ -42,17 +42,17 @@ def _frame_comparison(num: pd.DataFrame, den: pd.DataFrame,
     S_num, S_den = 1 / den.value, num.value / den.value **2
     factor = 100 if _minus_one_percent else 1
     # variances
-    var_cols_num = [c for c in num.columns if c.startswith("VAR_FRAC")]
+    var_cols_num = [c for c in num.columns if c.startswith("VAR_PORT")]
     var_num = (num[var_cols_num] * (S_num.value * factor) **2).replace({np.nan: None})
-    var_cols_den = [c for c in den.columns if c.startswith("VAR_FRAC")]
+    var_cols_den = [c for c in den.columns if c.startswith("VAR_PORT")]
     var_den = den[var_cols_den] * (S_den.value * factor) **2
     # Handling C where all variances are None
-    if 'VAR_FRAC_C_n' in var_cols_num and all([num[i].value is None for i in var_cols_num]):
-        var_num['VAR_FRAC_C'] = (num["uncertainty"].value * S_num.value * factor) **2
-    if 'VAR_FRAC_C_n' in var_cols_den and all([den[i].value is None for i in var_cols_den]):
-        var_den['VAR_FRAC_C'] = (den["uncertainty"].value * S_den.value * factor) **2
+    if 'VAR_PORT_C_n' in var_cols_num and all([num[i].value is None for i in var_cols_num]):
+        var_num['VAR_PORT_C'] = (num["uncertainty"].value * S_num.value * factor) **2
+    if 'VAR_PORT_C_n' in var_cols_den and all([den[i].value is None for i in var_cols_den]):
+        var_den['VAR_PORT_C'] = (den["uncertainty"].value * S_den.value * factor) **2
     # Disambiguation of the numerator and denominator column names if C/C
-    if 'VAR_FRAC_C_n' in num.columns and 'VAR_FRAC_C_n' in den.columns:  # if C/C
+    if 'VAR_PORT_C_n' in num.columns and 'VAR_PORT_C_n' in den.columns:  # if C/C
         var_num.columns = [f'{c}_n' for c in var_num.columns]
         var_den.columns = [f'{c}_d' for c in var_den.columns]
         var_den = var_den.replace({np.nan: None})

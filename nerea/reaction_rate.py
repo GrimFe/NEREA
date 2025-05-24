@@ -356,13 +356,13 @@ class ReactionRate:
         rho = np.sum(bi.value / (1 + li.value * T.value))
 
         # variance portions
-        VAR_FRAC_T = np.sum((-bi.value * li.value / (1 + li.value * T.value)**2 * T.uncertainty) **2)
-        VAR_FRAC_B = np.sum((1 / (1 + li.value * T.value) * bi.uncertainty) **2)
-        VAR_FRAC_L = np.sum((-bi.value * T.value / (1 + li.value * T.value)**2 * li.uncertainty) **2)
+        VAR_PORT_T = np.sum((-bi.value * li.value / (1 + li.value * T.value)**2 * T.uncertainty) **2)
+        VAR_PORT_B = np.sum((1 / (1 + li.value * T.value) * bi.uncertainty) **2)
+        VAR_PORT_L = np.sum((-bi.value * T.value / (1 + li.value * T.value)**2 * li.uncertainty) **2)
         
-        return _make_df(rho, np.sqrt(VAR_FRAC_T + VAR_FRAC_B + VAR_FRAC_L)).assign(VAR_FRAC_T=VAR_FRAC_T,
-                                                                                   VAR_FRAC_B=VAR_FRAC_B,
-                                                                                   VAR_FRAC_L=VAR_FRAC_L)
+        return _make_df(rho, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
+                                                                                   VAR_PORT_B=VAR_PORT_B,
+                                                                                   VAR_PORT_L=VAR_PORT_L)
 
     def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2, smooth_kwargs: dict=None, dtc_kwargs: dict=None) -> Self:
         """

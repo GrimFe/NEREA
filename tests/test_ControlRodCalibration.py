@@ -85,31 +85,31 @@ def test_get_rhos(cr, edd, rrs):
     rhos = cr._get_rhos(edd,
                         ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(rhos.iloc[0].to_frame().T, pd.DataFrame({"value": 0., "uncertainty": 0., "uncertainty [%]": 0.,
-                                                                           "h": 0., "VAR_FRAC_T": 0., "VAR_FRAC_B": 0.,
-                                                                           "VAR_FRAC_L": 0.}, index=['value']))
+                                                                           "h": 0., "VAR_PORT_T": 0., "VAR_PORT_B": 0.,
+                                                                           "VAR_PORT_L": 0.}, index=['value']))
     ## Testing formatting: reactivity is tested in test_ReactionRate
     ref = rrs[60].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=60.)
     pd.testing.assert_frame_equal(rhos.iloc[1].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
-                                                                  "VAR_FRAC_T", "VAR_FRAC_B", "VAR_FRAC_L"]])
+                                                                  "VAR_PORT_T", "VAR_PORT_B", "VAR_PORT_L"]])
     ref = rrs[200].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=200.)
     pd.testing.assert_frame_equal(rhos.iloc[2].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
-                                                                   "VAR_FRAC_T", "VAR_FRAC_B", "VAR_FRAC_L"]])
+                                                                   "VAR_PORT_T", "VAR_PORT_B", "VAR_PORT_L"]])
     ref = rrs[250].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=250.)
     pd.testing.assert_frame_equal(rhos.iloc[3].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
-                                                                   "VAR_FRAC_T", "VAR_FRAC_B", "VAR_FRAC_L"]])
+                                                                   "VAR_PORT_T", "VAR_PORT_B", "VAR_PORT_L"]])
     warnings.filterwarnings("always")
     assert rhos.shape == (4 ,7)
 
 def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
     import warnings
     warnings.filterwarnings("ignore")
-    cols = ['value', 'uncertainty', 'VAR_FRAC_T', 'VAR_FRAC_B', 'VAR_FRAC_L', 'h']
+    cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = dnc.get_reactivity_curve(edd_low_uncertainty,
                                      ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
@@ -117,9 +117,9 @@ def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
                                   pd.DataFrame({'value': 4.15633386e-05,
                                                 'uncertainty': 6.85597030e-07,
                                                 'uncertainty [%]': 1.64952348e+00,
-                                                'VAR_FRAC_T': 1.25401603e-13,
-                                                'VAR_FRAC_B': 1.72751112e-13,
-                                                'VAR_FRAC_L': 1.71890573e-13,
+                                                'VAR_PORT_T': 1.25401603e-13,
+                                                'VAR_PORT_B': 1.72751112e-13,
+                                                'VAR_PORT_L': 1.71890573e-13,
                                                 'h': 3.000000e+01}, index=['value'])[cols])
     warnings.filterwarnings("always")
     assert curve.shape == (3, 7)
@@ -137,7 +137,7 @@ def test_integral_curve_no_compensation(inc, edd_low_uncertainty):
 def test_differential_curve_compensation(dc, edd_low_uncertainty):
     import warnings
     warnings.filterwarnings("ignore")
-    cols = ['value', 'uncertainty', 'VAR_FRAC_T', 'VAR_FRAC_B', 'VAR_FRAC_L', 'h']
+    cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = dc.get_reactivity_curve(edd_low_uncertainty,
                                     ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
@@ -145,17 +145,17 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
                                   pd.DataFrame({'value': 4.15633386e-05,
                                                 'uncertainty': 6.85597030e-07,
                                                 'uncertainty [%]': 1.64952348e+00,
-                                                'VAR_FRAC_T': 1.25401603e-13,
-                                                'VAR_FRAC_B': 1.72751112e-13,
-                                                'VAR_FRAC_L': 1.71890573e-13,
+                                                'VAR_PORT_T': 1.25401603e-13,
+                                                'VAR_PORT_B': 1.72751112e-13,
+                                                'VAR_PORT_L': 1.71890573e-13,
                                                 'h': 3.000000e+01}, index=['value'])[cols])
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.37329788e-05,
                                                 'uncertainty': 3.67662065e-07,
                                                 'uncertainty [%]': 1.54916105e+00,
-                                                'VAR_FRAC_T': 2.28982109e-14,
-                                                'VAR_FRAC_B': 5.63254285e-14,
-                                                'VAR_FRAC_L': 5.59517547e-14,
+                                                'VAR_PORT_T': 2.28982109e-14,
+                                                'VAR_PORT_B': 5.63254285e-14,
+                                                'VAR_PORT_L': 5.59517547e-14,
                                                 'h': 1.300000e+02}, index=['value'])[cols])
     warnings.filterwarnings("always")
     assert curve.shape == (3, 7)
@@ -163,32 +163,32 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
 def test_integral_curve_compensation(ic, edd_low_uncertainty):
     import warnings
     warnings.filterwarnings("ignore")
-    cols = ['value', 'uncertainty', 'VAR_FRAC_T', 'VAR_FRAC_B', 'VAR_FRAC_L', 'h']
+    cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = ic.get_reactivity_curve(edd_low_uncertainty,
                                     ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T,
-                                  pd.DataFrame({'value': 0., 'uncertainty': 0., 'uncertainty [%]': 0., 'VAR_FRAC_T': 0., 'VAR_FRAC_B': 0.,
-                                                'VAR_FRAC_L': 0., 'h': 0.}, index=['value']))
+                                  pd.DataFrame({'value': 0., 'uncertainty': 0., 'uncertainty [%]': 0., 'VAR_PORT_T': 0., 'VAR_PORT_B': 0.,
+                                                'VAR_PORT_L': 0., 'h': 0.}, index=['value']))
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.49380032e-03,
                                                 'uncertainty': 4.11358218e-05,
                                                 'uncertainty [%]': 1.64952348e+00,
-                                                'VAR_FRAC_T': 4.51445772e-10,
-                                                'VAR_FRAC_B': 6.21904003e-10,
-                                                'VAR_FRAC_L': 6.18806062e-10,
+                                                'VAR_PORT_T': 4.51445772e-10,
+                                                'VAR_PORT_B': 6.21904003e-10,
+                                                'VAR_PORT_L': 6.18806062e-10,
                                                 'h': 6.000000e+01}, index=['value'])[cols])
     warnings.filterwarnings("always")
     assert curve.shape == (4, 7)
 
 def test_get_reactivity_worth(inc, edd_low_uncertainty):
-    cols = ['value', 'uncertainty', 'VAR_FRAC_X1', 'VAR_FRAC_X0']
+    cols = ['value', 'uncertainty', 'VAR_PORT_X1', 'VAR_PORT_X0']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     target = pd.DataFrame({'value': 2.49450213e-03,
                            'uncertainty': 3.55392057e-05,
                            'uncertainty [%]': 1.42470136e+00,
-                           'VAR_FRAC_X1': 1.15874710e-09,
-                           'VAR_FRAC_X0': 1.04288039e-10},
+                           'VAR_PORT_X1': 1.15874710e-09,
+                           'VAR_PORT_X0': 1.04288039e-10},
                            index=['value'])
     rw = inc.get_reactivity_worth(60, 200, edd_low_uncertainty, order=1)
     pd.testing.assert_frame_equal(rw[cols], target[cols], atol=1e-6)

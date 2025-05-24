@@ -266,8 +266,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             ffs_, em_ = ffsi.query("R==@r").iloc[0], emi.query("R==@r").iloc[0]
             v, u = ratio_v_u(ffs_, em_)
             data.append(_make_df(v, u).assign(
-                                    VAR_FRAC_FFS = (ffs_.uncertainty / em_.value) **2,
-                                    VAR_FRAC_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
+                                    VAR_PORT_FFS = (ffs_.uncertainty / em_.value) **2,
+                                    VAR_PORT_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
                                     CH_FFS = ffs_.channel,
                                     CH_EM = em_.channel,
                                     R=r))
@@ -298,8 +298,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             ffs_, em_ = ffsi.query("channel==@ch").iloc[0], emi.query("channel==@ch").iloc[0]
             v, u = ratio_v_u(ffs_, em_)
             data.append(_make_df(v, u).assign(
-                                    VAR_FRAC_FFS = (ffs_.uncertainty / em_.value) **2,
-                                    VAR_FRAC_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
+                                    VAR_PORT_FFS = (ffs_.uncertainty / em_.value) **2,
+                                    VAR_PORT_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
                                     CH_FFS = ch,
                                     CH_EM = ch,
                                     R=np.nan))
@@ -515,10 +515,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         # compute variance fractions
         S_PLAT, S_PM, S_T = power.value * time.value, plateau.value * time.value, plateau.value * power.value
-        df = _make_df(v, u).assign(VAR_FRAC_FFS=plateau["VAR_FRAC_FFS"] * S_PLAT **2,
-                                   VAR_FRAC_EM=plateau["VAR_FRAC_EM"] * S_PLAT **2,
-                                   VAR_FRAC_PM=(S_PM * power.uncertainty) **2,
-                                   VAR_FRAC_t=(S_T * time.uncertainty) **2)
+        df = _make_df(v, u).assign(VAR_PORT_FFS=plateau["VAR_PORT_FFS"] * S_PLAT **2,
+                                   VAR_PORT_EM=plateau["VAR_PORT_EM"] * S_PLAT **2,
+                                   VAR_PORT_PM=(S_PM * power.uncertainty) **2,
+                                   VAR_PORT_t=(S_T * time.uncertainty) **2)
         return df if not long_output else pd.concat([df,
                                                      self._get_long_output(plateau,
                                                                            time,
@@ -737,7 +737,7 @@ class SpectralIndex(_Experimental):
         df = _make_df(v, u)
 
         # compute fraction of variance
-        var_cols = [c for c in num.columns if c.startswith("VAR_FRAC")]
+        var_cols = [c for c in num.columns if c.startswith("VAR_PORT")]
         
         var_num = num[var_cols] / den['value'].value **2
         var_num.columns = [f"{c}_n" for c in var_cols]
@@ -747,7 +747,7 @@ class SpectralIndex(_Experimental):
 
         # concatenate variances to `df`
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
-                                    VAR_FRAC_1GXS=k.uncertainty **2 if k is not None else 0.
+                                    VAR_PORT_1GXS=k.uncertainty **2 if k is not None else 0.
                                     )
         return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
 
