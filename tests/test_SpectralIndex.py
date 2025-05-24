@@ -123,18 +123,18 @@ def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 0.06588712284729072,
                                 'uncertainty [%]': 6.5887122847290716,
-                                'VAR_FRAC_FFS_n': 0.001138,
-                                'VAR_FRAC_EM_n': 0.000033,
-                                'VAR_FRAC_PM_n': 0.001000,
-                                'VAR_FRAC_t_n': 0.,
-                                'VAR_FRAC_FFS_d': 0.001138,
-                                'VAR_FRAC_EM_d': 0.000033,
-                                'VAR_FRAC_PM_d': 0.001000,
-                                'VAR_FRAC_t_d': 0.,
-                                'VAR_FRAC_1GXS': 0.}, index= ['value'])
+                                'VAR_PORT_FFS_n': 0.001138,
+                                'VAR_PORT_EM_n': 0.000033,
+                                'VAR_PORT_PM_n': 0.001000,
+                                'VAR_PORT_t_n': 0.,
+                                'VAR_PORT_FFS_d': 0.001138,
+                                'VAR_PORT_EM_d': 0.000033,
+                                'VAR_PORT_PM_d': 0.001000,
+                                'VAR_PORT_t_d': 0.,
+                                'VAR_PORT_1GXS': 0.}, index= ['value'])
     pd.testing.assert_frame_equal(expected_df, si.process(), check_exact=False, atol=0.00001)
-    # check that sum(VAR_FRAC) == uncertainty **2
-    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+    # check that sum(VAR_PORT) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_compute_correction(si, synthetic_one_g_xs_data):

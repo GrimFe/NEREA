@@ -148,15 +148,15 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
     u = np.sqrt(np.sum([(x['uncertainty [%]']/100)**2 for x in factors])) * v
     return v, u
 
-def _make_df(v, u, relative=True) -> pd.DataFrame:
+def _make_df(v: Iterable | float, u: Iterable | float, relative=True) -> pd.DataFrame:
     """
     Create a pandas DataFrame with the given value and uncertainty.
 
     Parameters
     ----------
-    v : float
+    v : Iterable | float
         The value to store in the DataFrame.
-    u : float
+    u : Iterable | float
         The uncertainty to store in the DataFrame.
     relative : bool, optional
         flag to enable calulation of the relative uncertainty too.
@@ -180,9 +180,10 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
         out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
                            index=['value'])
     else:
-        rel = u / v * 100 if relative else [np.nan] * len(v)
-        out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
-                           index=['value'] * len(v))
+        v_, u_ = np.array(v), np.array(u)
+        rel = u_ / v_ * 100 if relative else [np.nan] * len(v_)
+        out = pd.DataFrame({'value': v_, 'uncertainty': u_, 'uncertainty [%]': rel},
+                           index=['value'] * len(v_))
     return out
 
 def polynomial(order: int, c: Iterable[float], x: float):

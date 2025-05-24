@@ -384,7 +384,7 @@ class FissionFragmentSpectrum:
         data.channel += 1
         # GENIE overwrites the first two counts with time indications
         # Here two zeros are added at the beginning of the data
-        data = pd.concat([pd.DataFrame({'channel': [-2, -1], 'counts': [0, 0]}),
+        data = pd.concat([pd.DataFrame({'channel': [-1, -0], 'counts': [0, 0]}),
                           data], ignore_index=True)
         data['channel'] += 2
         kwargs['data'] = data

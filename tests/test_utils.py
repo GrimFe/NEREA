@@ -66,6 +66,9 @@ def test_make_df_iterable():
                            'uncertainty [%]': [1., 0.5]},
                            index=['value', 'value'])
     pd.testing.assert_frame_equal(it, target)
+    # now with list input
+    it = _make_df([1, 2], [0.01, 0.01], relative=True)
+    pd.testing.assert_frame_equal(it, target)
 
 def test_polynomial():
     assert polynomial(2, [1, 2, 3], 1) == 6.

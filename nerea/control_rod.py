@@ -142,8 +142,8 @@ class ControlRodCalibration:
             i0 = self._evaluate_integral(x0, order, coef, coef_cov)
             i1 = self._evaluate_integral(x1, order, coef, coef_cov)
             return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)
-                            ).assign(VAR_FRAC_X1=i1.uncertainty **2,
-                                     VAR_FRAC_X0=i0.uncertainty **2)
+                            ).assign(VAR_PORT_X1=i1.uncertainty **2,
+                                     VAR_PORT_X0=i0.uncertainty **2)
 
 
 @dataclass(slots=True)
@@ -175,12 +175,12 @@ class DifferentialNoCompensation(ControlRodCalibration):
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         drho_v = (rho["value"].diff() / rho["h"].diff()).fillna(0).values
 
-        VAR_FRAC_T = rho["VAR_FRAC_T"].rolling(2).sum() / rho["h"].diff() **2
-        VAR_FRAC_B = rho["VAR_FRAC_B"].rolling(2).sum() / rho["h"].diff() **2
-        VAR_FRAC_L = rho["VAR_FRAC_L"].rolling(2).sum() / rho["h"].diff() **2
-        out = _make_df(drho_v, np.sqrt(VAR_FRAC_T + VAR_FRAC_B + VAR_FRAC_L)).assign(VAR_FRAC_T=VAR_FRAC_T,
-                                                                                     VAR_FRAC_B=VAR_FRAC_B,
-                                                                                     VAR_FRAC_L=VAR_FRAC_L,
+        VAR_PORT_T = rho["VAR_PORT_T"].rolling(2).sum() / rho["h"].diff() **2
+        VAR_PORT_B = rho["VAR_PORT_B"].rolling(2).sum() / rho["h"].diff() **2
+        VAR_PORT_L = rho["VAR_PORT_L"].rolling(2).sum() / rho["h"].diff() **2
+        out = _make_df(drho_v, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
+                                                                                     VAR_PORT_B=VAR_PORT_B,
+                                                                                     VAR_PORT_L=VAR_PORT_L,
                                                                                      h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
                                                                                      )
         return out.dropna()  # dropping the first NaN of diff()
@@ -265,12 +265,12 @@ class DifferentialCompensation(ControlRodCalibration):
         # is already related with a differential movement of the control rod
         drho_v = rho.value / rho["h"].diff()
         
-        VAR_FRAC_T = rho["VAR_FRAC_T"] / rho["h"].diff() **2
-        VAR_FRAC_B = rho["VAR_FRAC_B"] / rho["h"].diff() **2
-        VAR_FRAC_L = rho["VAR_FRAC_L"] / rho["h"].diff() **2
-        out = _make_df(drho_v, np.sqrt(VAR_FRAC_T + VAR_FRAC_B + VAR_FRAC_L)).assign(VAR_FRAC_T=VAR_FRAC_T,
-                                                                                     VAR_FRAC_B=VAR_FRAC_B,
-                                                                                     VAR_FRAC_L=VAR_FRAC_L,
+        VAR_PORT_T = rho["VAR_PORT_T"] / rho["h"].diff() **2
+        VAR_PORT_B = rho["VAR_PORT_B"] / rho["h"].diff() **2
+        VAR_PORT_L = rho["VAR_PORT_L"] / rho["h"].diff() **2
+        out = _make_df(drho_v, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
+                                                                                     VAR_PORT_B=VAR_PORT_B,
+                                                                                     VAR_PORT_L=VAR_PORT_L,
                                                                                      h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
                                                                                      )
         return out.dropna()  # dropping the first NaN of diff()

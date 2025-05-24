@@ -100,9 +100,9 @@ def test_per_unit_mass_R(nffs):
                         0.34266489, 0.35237775, 0.3567267 , 0.36549703, 0.35720442],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858],
-        'VAR_FRAC_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
+        'VAR_PORT_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
-        'VAR_FRAC_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
+        'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
         'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
@@ -120,9 +120,9 @@ def test_per_unit_mass_ch(nffs):
                         0.34266489, 0.35237775, 0.3567267 , 0.36549703, 0.35720442],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858],
-        'VAR_FRAC_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
+        'VAR_PORT_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
-        'VAR_FRAC_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
+        'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
         'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
@@ -179,26 +179,26 @@ def test_plateau(nffs):
     expected_df = pd.Series({'value': 10.104598,
                              'uncertainty': 0.345713,
                              'uncertainty [%]': 3.421340,
-                             'VAR_FRAC_FFS': 0.1161448,
-                             'VAR_FRAC_EM': 0.0033724,
+                             'VAR_PORT_FFS': 0.1161448,
+                             'VAR_PORT_EM': 0.0033724,
                              'CH_FFS': 14.000000,
                              'CH_EM': 14.000000,
                              'R': 0.35}, name=4).to_frame().T
     expected_df.index = ['value']
     pd.testing.assert_frame_equal(expected_df, nffs.plateau())
-    # check that sum(VAR_FRAC) == uncertainty **2
-    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+    # check that sum(VAR_PORT) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
 def test_process(nffs):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,
                                 'uncertainty': 0.0004707654400802892,
                                 'uncertainty [%]': 4.658923135819038,
-                                'VAR_FRAC_FFS':  1.161448e-7,
-                                'VAR_FRAC_EM': 0.0033724e-7,
-                                'VAR_FRAC_PM': 1.0210289470207425e-07,
-                                'VAR_FRAC_t': 0.}, index=['value'])
+                                'VAR_PORT_FFS':  1.161448e-7,
+                                'VAR_PORT_EM': 0.0033724e-7,
+                                'VAR_PORT_PM': 1.0210289470207425e-07,
+                                'VAR_PORT_t': 0.}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, nffs.process(), check_exact=False, atol=0.00001)
-    # check that sum(VAR_FRAC) == uncertainty **2
-    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_FRAC")]].sum(axis=1).iloc[0],
+    # check that sum(VAR_PORT) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)

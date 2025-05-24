@@ -311,7 +311,7 @@ def test_get_reactivity(exponential_monitor):
     target = pd.DataFrame({"value": [10 / (1 + T) + 20 / (1 + 2 * T)],
                            "uncertainty": [np.sqrt(a + b + c + d + e)],
                            "uncertainty [%]": [np.sqrt(a + b + c + d + e) / (10 / (1 + T) + 20 / (1 + 2 * T)) * 100],
-                           "VAR_FRAC_T": [e],
-                           "VAR_FRAC_B": [a + b],
-                           "VAR_FRAC_L": [c + d]}, index=["value"])
+                           "VAR_PORT_T": [e],
+                           "VAR_PORT_B": [a + b],
+                           "VAR_PORT_L": [c + d]}, index=["value"])
     pd.testing.assert_frame_equal(data, target)
