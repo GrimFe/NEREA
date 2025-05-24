@@ -1,4 +1,4 @@
-![here](https://github.com/GrimFe/NEREA/blob/v0.1/assets/logo.png)
+![here](https://github.com/GrimFe/NEREA/blob/codefix/assets/logo.png)
 
 # NEREA 
 
