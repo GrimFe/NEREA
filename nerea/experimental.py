@@ -338,7 +338,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             data = self._per_unit_mass_ch(ffs, em)
         elif not(np.isnan(em.R).all() and np.isnan(ffs.R).all()):
             data = self._per_unit_mass_R(ffs, em)
-            warnings.warn("-------------- IN R --------------")
         else:
             raise Exception("Inconsistent integration and integration methodologies: can not process discrimination levels.",
                             ValueError)

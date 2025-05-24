@@ -559,12 +559,14 @@ class ReactionRates:
         >>> pms._check_curve_consistency(10, 1)
         """
         ref = list(self.detectors.values())[0].data.groupby(
-                                                    pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
+                                                    pd.Grouper(key="Time", freq=f'{timebase}s', closed='right'),
+                                                    observed=False
                                                     ).agg('sum').reset_index()
         ref['uncertainty'] = np.sqrt(ref['value'])  # absolute
         ref['value'] = ref['value'] / timebase  
         for monitor in list(self.detectors.values())[1:]:
-            compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right')
+            compute = monitor.data.groupby(pd.Grouper(key="Time", freq=f'{timebase}s', closed='right'),
+                                           observed=False
                                             ).agg('sum').reset_index()
             compute['uncertainty'] = np.sqrt(compute['value'])  # absolute
             compute['value'] = compute['value'] / timebase
