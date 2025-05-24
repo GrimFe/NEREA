@@ -21,6 +21,20 @@ def power_monitor(sample_data):
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
+def sample_data_02s():
+    data = pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i / 5) for i in range(35)],
+        ## data report the count rate so it's just increased multiplicity
+        'value': [0] * 5 + [10] * 5 + [15] * 5 + [10] * 5 + [20] * 5 + [15] * 5 + [10] * 5
+    })
+    return data
+
+@pytest.fixture
+def power_monitor_02s(sample_data_02s):
+    return ReactionRate(data=sample_data_02s, campaign_id="C1", experiment_id="E1",
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=0.2)
+
+@pytest.fixture
 def sample_data_uncertain_time_binning():
     data = pd.DataFrame({
         'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in [0, 0.999, 2.001, 3, 4, 5, 5.999]],
@@ -176,20 +190,24 @@ def exponential_monitor():
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
-def test_average(power_monitor, power_monitor_uncertain_time_binning):
+def test_average(power_monitor, power_monitor_uncertain_time_binning, power_monitor_02s):
     expected_df = pd.DataFrame({'value': 8.75,
                                 'uncertainty': 1.479019945774904,
                                 'uncertainty [%]': 16.903085094570333},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
                                                                      4), check_exact=False, atol=0.00001)
+    # now with timebase < 1s
+    pd.testing.assert_frame_equal(expected_df, power_monitor_02s.average(
+                                                                    power_monitor_02s.start_time,
+                                                                    4), check_exact=False, atol=0.00001)
     # now with uncertain time binning
     expected_df = pd.DataFrame({'value': 8.751249999999999,
                                 'uncertainty': 1.4791255862840045,
                                 'uncertainty [%]': 16.90187786069424},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df, power_monitor_uncertain_time_binning.average(
-                                                                                power_monitor.start_time, 4),
+                                                            power_monitor_uncertain_time_binning.start_time, 4),
                                                                             check_exact=False, atol=0.00001)
 
 def test_integrate(power_monitor):

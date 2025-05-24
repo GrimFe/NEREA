@@ -73,7 +73,7 @@ class ReactionRate:
                                           absolute_sigma=True)
         return y, popt, pcov, out
 
-    def average(self, start_time: datetime, duration: int) -> pd.DataFrame:
+    def average(self, start_time: datetime, duration: float) -> pd.DataFrame:
         """
         Calculate the average value and uncertainty of a time series data within a specified duration.
 
@@ -81,7 +81,7 @@ class ReactionRate:
         ----------
         start_time : datetime
             The starting time for the data to be analyzed.
-        duration : int
+        duration : float
             The length of time in seconds for which the average is calculated.
 
         Returns
