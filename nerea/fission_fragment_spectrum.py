@@ -403,21 +403,20 @@ class FissionFragmentSpectrum:
                              composition=composition_, detector_id=self.detector_id, deposit_id=self.deposit_id,
                              bins=kwargs['bin_kwargs']['bins'])
 
-    def plot(self, phs_kwargs: dict={}, **kwargs) -> tuple[plt.Figure, plt.Axes]:
+    def plot(self, phs_kwargs: dict={}, ax: plt.Axes=None) ->plt.Axes:
         """
         Plots the pulse height spectrum data.
 
         Parameters
         ----------
-        phs : nerea.FissionFragmentSpectrum
-            The data to plot.
         phs_kwargs: dict
             Parameters to process the spectrum before plotting.
             - bin_kwargs
             - max_kwargs
             - llds
-        **kwargs
-            Parameters for plt.subplots()
+            - r
+        ax : plt.Axes, optional
+            Axes wehere to plot. Default is None.
 
         Returns
         -------
@@ -426,20 +425,19 @@ class FissionFragmentSpectrum:
         bin_kw = phs_kwargs['bin_kwargs'] if phs_kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
         max_kw = phs_kwargs['max_kwargs'] if phs_kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
 
-        fig, ax = plt.subplots(**kwargs)
-        self.rebin(**bin_kw).plot(x='channel', y='counts', ax=ax, kind='scatter', s=10, color='k')
+        ax_ = self.rebin(**bin_kw).plot(x='channel', y='counts', ax=ax, kind='scatter', s=10, color='k')
 
         m = self.get_max(**max_kw)
-        ax.scatter(x=m.channel.iloc[0], y=m.counts.iloc[0], color='green', s=20, label="MAX")
+        ax_.scatter(x=m.channel.iloc[0], y=m.counts.iloc[0], color='green', s=20, label="MAX")
         r = self.get_R(bin_kw, max_kw)
-        ax.scatter(x=r.channel.iloc[0], y=r.counts.iloc[0], color='red', s=20, label="R")
+        ax_.scatter(x=r.channel.iloc[0], y=r.counts.iloc[0], color='red', s=20, label="R")
 
         for i in self.discriminators(**phs_kwargs):
-            ax.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
-        ax.legend()
-        ax.set_xlim([0, self.rebin(**bin_kw).query("counts >= 1").channel.iloc[-1]])
-        ax.set_ylim([0, m.counts.iloc[0] * 1.1])
-        return fig, ax
+            ax_.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
+        ax_.legend()
+        ax_.set_xlim([0, self.rebin(**bin_kw).query("counts >= 1").channel.iloc[-1]])
+        ax_.set_ylim([0, m.counts.iloc[0] * 1.1])
+        return ax_
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):

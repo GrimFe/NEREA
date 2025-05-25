@@ -1,6 +1,7 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
+
 from .fission_fragment_spectrum import FissionFragmentSpectrum
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate, ReactionRates
@@ -11,6 +12,8 @@ from . defaults import *
 import pandas as pd
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
+import datetime
 
 __all__ = ['_Experimental',
            'NormalizedFissionFragmentSpectrum',
@@ -467,7 +470,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         out.index = ['value']
         return out
 
-    def process(self, long_output: bool=False, *args, **kwargs) -> pd.DataFrame:
+    def process(self, long_output: bool=False, visual: bool=False,
+                savefig: str='', *args, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate.
 
@@ -476,6 +480,12 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         long_output : bool, optional
             Flag to turn on/off the full ouptup information, whcih includes
             values and variances of all the processing elements, False by default.
+        visual : bool, optional
+            Flag to display the processed data.
+            Default is False.
+        savefig : str, optional
+            Filename to save the figure to.
+            Default is '' not saving.
         *args : Any
             Positional arguments to be passed to the `self.plateau()` method.
         **kwargs : dict
@@ -524,12 +534,99 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                    VAR_PORT_EM=plateau["VAR_PORT_EM"] * S_PLAT **2,
                                    VAR_PORT_PM=(S_PM * power.uncertainty) **2,
                                    VAR_PORT_t=(S_T * time.uncertainty) **2)
+        if visual or savefig:
+            fig, _ = self.plot(plateau['CH_FFS'].value, kwargs)
+            if savefig:
+                fig.savefig(savefig)
         return df if not long_output else pd.concat([df,
                                                      self._get_long_output(plateau,
                                                                            time,
                                                                            power,
                                                                            **kwargs)
                                                     ], axis=1)
+    
+    def plot(self, discri: int=None, phs_kwargs: dict={}) -> tuple[plt.Figure, Iterable[plt.Axes]]:
+        """
+        Default plotting method of PHS and monitor considered.
+        It also reports tabulated effective mass values.
+
+        Paramters
+        ---------
+        discri: int, optional
+            The discrimination level to highilight in the plots.
+            It is in units of channel of self.fission_fragment_spectrum.
+            Default is None.
+        phs_kwargs: dict
+            Parameters to process the spectrum before plotting.
+            - bin_kwargs
+            - max_kwargs
+            - llds
+            - r
+
+        Returns
+        -------
+        tuple[plt.Figure, Iterable[plt.Axes]]
+        """
+        discri_ = self.fission_fragment_spectrum.integrate(**phs_kwargs
+                                                           ).query("channel == @discri").index[0]
+
+        fig, axs = plt.subplots(2, 2, figsize=(15, 12),
+                                height_ratios=[1, 1], width_ratios=[1, 1],
+                                gridspec_kw={'wspace': 0.4})
+
+        ## plot Effective Mass
+        self.effective_mass.data.plot(x='channel',  y='value', ax=axs[0][0], kind='scatter', c='k')
+        cell_text = [['{:.0f}'.format(r.channel),
+                      '{:.2f}'.format(r.value)
+                      ] for _, r in self.effective_mass.data.iterrows()]
+        tab = axs[0][0].table(cellText=cell_text, colLabels=['ch', 'm [ug]'],
+                              bbox=[1.01, 0, 0.275, 1])
+        tab.auto_set_font_size(False)
+        tab.set_fontsize(12)
+        axs[0][0].scatter(x=self.effective_mass.data.loc[discri_].channel,
+                          y=self.effective_mass.data.loc[discri_].value,
+                          c='b', marker='s')
+        axs[0][0].set_ylabel("Effective mass [ug]")
+
+        ## plot Power Monitor
+        self.power_monitor.data.plot(x="Time", y='value', ax=axs[0][1], color='k')
+        axs[0][1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        axs[0][1].axvspan(self.power_monitor.start_time,
+                          self.fission_fragment_spectrum.start_time,
+                          alpha=0.5, color='gray')
+        axs[0][1].axvspan(self.fission_fragment_spectrum.start_time + datetime.timedelta(seconds=self.fission_fragment_spectrum.real_time),
+                          self.power_monitor.data.Time.max(),
+                          alpha=0.5, color='gray')
+        axs[0][1].set_ylabel("Power monitor count rate [1/s]")
+        axs[0][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
+        axs[0][1].yaxis.set_label_position("right")
+        t = axs[0][1].yaxis.get_offset_text()
+        t.set_x(1.01)
+
+        ## plot PHS
+        self.fission_fragment_spectrum.plot(ax=axs[1][0], phs_kwargs=phs_kwargs)
+        axs[1][0].axvline(discri, c='b')
+        axs[1][0].set_ylabel("Counts [-]")
+
+    	## plot fission rate per unit mass
+        pum = self.per_unit_mass(**phs_kwargs)
+        pum.plot(x='CH_FFS', y='value', ax=axs[1][1], kind='scatter', c='k')
+        axs[1][1].set_xticks(pum['CH_FFS'])
+        axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_FFS']])
+        axs[1][1].set_ylabel("Fission rate per unit mass [1/s/ug]")
+
+        ax_top = axs[1][1].twiny()
+        ax_top.set_xlim(axs[1][1].get_xlim())
+        ax_top.set_xticks(axs[1][1].get_xticks())
+        ax_top.set_xticklabels([f"{x:.0f}" for x in pum['CH_EM']])
+        axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0], c='b', marker='s')
+        axs[1][1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        axs[1][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
+        axs[1][1].yaxis.set_label_position("right")
+        t = axs[1][1].yaxis.get_offset_text()
+        t.set_x(1.01)
+        axs[1][1].grid()
+        return fig, axs
 
 
 @dataclass
