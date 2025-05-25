@@ -116,7 +116,7 @@ def test_integrate(sample_spectrum):
                                 'uncertainty': [53.63674114, 53.63674114],
                                 'uncertainty [%]': [1.86439366, 1.86439366],
                                 'R': [np.nan, np.nan]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}, llds=[1., 2.]), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}, llds=[1., 2.], r=False), check_exact=False, atol=0.00001)
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100

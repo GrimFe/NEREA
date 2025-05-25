@@ -4,6 +4,8 @@ from typing import Self
 import pandas as pd
 import numpy as np
 import warnings
+import matplotlib.pyplot as plt
+import numpy as np
 
 from datetime import datetime, timedelta
 from scipy.signal import savgol_filter
@@ -131,7 +133,7 @@ class FissionFragmentSpectrum:
                                                             ).assign(channel=range(1, bins_+1))
         return df[['channel', 'counts']]
 
-    def get_max(self, fst_ch: int=None, bin_kwargs: dict=None) -> pd.DataFrame:
+    def get_max(self, fst_ch: int=None, bin_kwargs: dict={}) -> pd.DataFrame:
         """
         Finds the channel with the maximum count value in a DataFrame.
 
@@ -144,6 +146,7 @@ class FissionFragmentSpectrum:
         bin_kwargs : dict, optional
             - bins : int
             - smooth : bool
+            Defailt is empty, rading from nerea.defaults.
 
         Returns
         -------
@@ -155,7 +158,7 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> max_data = ffs.get_max(...)
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
+        bin_kw = bin_kwargs if bin_kwargs else DEFAULT_BIN_KWARGS
 
         reb = self.rebin(**bin_kw)
         if fst_ch is None:
@@ -164,7 +167,7 @@ class FissionFragmentSpectrum:
         df = reb[reb.channel > fst_ch]
         return pd.DataFrame({"channel": [df.counts.idxmax() + 1], "counts": [df.counts.max()]})
 
-    def get_R(self, bin_kwargs: dict=None, max_kwargs: dict=None) -> pd.DataFrame:
+    def get_R(self, bin_kwargs: dict={}, max_kwargs: dict={}) -> pd.DataFrame:
         """
         Filters data in channels above the channel of the spectrum maximum
         and returns the first row with counts <= than the maximum.
@@ -174,9 +177,11 @@ class FissionFragmentSpectrum:
         bin_kwargs : dict, optional
             - bins : int
             - smooth : bool
+            Defailt is empty, rading from nerea.defaults.
         max_kwargs : dict, optional
-            Other kwargs for self.get_max()
+            Paramters for self.get_max()
             - fst_ch : int
+            Defailt is empty, rading from nerea.defaults.
 
         Returns
         -------
@@ -188,32 +193,75 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> r_data = ffs.get_R(...)
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        bin_kw = bin_kwargs if bin_kwargs else DEFAULT_BIN_KWARGS
+        max_kw = max_kwargs if max_kwargs else DEFAULT_MAX_KWARGS
 
         reb = self.rebin(**bin_kw)
         data = reb.query("channel > @self.get_max(bin_kwargs=@bin_kw, **max_kw).channel[0]")
         return data[data.counts <= self.get_max(bin_kwargs=bin_kw, **max_kw).counts[0] / 2].iloc[0].to_frame().T[["channel", "counts"]]
 
-    def integrate(self, bin_kwargs: dict=None, max_kwargs: dict=None,
-                  llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]) -> pd.DataFrame:
+    def discriminators(self,
+                       llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
+                       bin_kwargs: dict={},
+                       max_kwargs: dict={}) -> np.array:
+        """
+        Calculates the discrimination levels to process.
+
+        Parameters
+        ----------
+        llds : Iterable[int | float], optional
+            Low level discriminators to consider.
+            Iteger -> interpreted as absolute channel
+            Float -> interpreted as fractiosn of R
+            Default is 10 uniformly spaced from 0.15 to 0.65.
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
+            Defailt is empty, rading from nerea.defaults.
+        max_kwargs : dict, optional
+            Paramters for self.get_max()
+            - fst_ch : int
+            Defailt is empty, rading from nerea.defaults.
+
+        Returns
+        -------
+        np.array
+        """
+        bin_kw = bin_kwargs if bin_kwargs else DEFAULT_BIN_KWARGS
+        max_kw = max_kwargs if max_kwargs else DEFAULT_MAX_KWARGS
+
+        out = []
+        for ch in llds:
+            channel_discri = isinstance(ch, int) or ch.is_integer()
+            out.append(ch if channel_discri else np.floor(ch * self.get_R(bin_kwargs=bin_kw, max_kwargs=max_kw).channel.iloc[0]))
+        return np.array(out)
+
+    def integrate(self,
+                  bin_kwargs: dict={},
+                  max_kwargs: dict={},
+                  llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
+                  r: bool=True) -> pd.DataFrame:
         """
         Calculates the integral of data based on specified channels (as a function of R)
         and returns a DataFrame with channel, value, and uncertainty columns.
-    
+
         Parameters
         ----------
         bin_kwargs : dict, optional
             - bins : int
             - smooth : bool
+            Defailt is empty, rading from nerea.defaults.
         max_kwargs : dict, optional
-            kwargs for self.get_max().
+            Paramters for self.get_max().
             - fst_ch : int
+            Defailt is empty, rading from nerea.defaults.
         llds : Iterable[int|float], optional
             low level discriminations to integrate from.
-            If integer -> interpreted as channel.
-            If fractional -> interpreted as fractions of self.get_R().channel.
             Defaults to 10 llds between [0.15, 0.6].
+        r : bool, optional
+            Defines whether the discriminators are absolute or
+            fractions of the R channel.
+            Default is True.
 
         Returns
         -------
@@ -229,18 +277,19 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> integral_data = ffs.integrate()
         """
-        bin_kw = DEFAULT_BIN_KWARGS if bin_kwargs is None else bin_kwargs
-        max_kw = DEFAULT_MAX_KWARGS if max_kwargs is None else max_kwargs
+        bin_kw = bin_kwargs if bin_kwargs else DEFAULT_BIN_KWARGS
+        max_kw = max_kwargs if max_kwargs else DEFAULT_MAX_KWARGS
         if bin_kw.get('bins') is None: bin_kw['bins'] = self.data.channel.max()
 
         out = []
         reb = self.rebin(**bin_kw)
-        for ch in llds:
-            channel_discri = isinstance(ch, int) or ch.is_integer()
-            ch_ = ch if channel_discri else np.floor(ch * self.get_R(bin_kwargs=bin_kw, max_kwargs=max_kwargs).channel.iloc[0])
-            v, u = integral_v_u(reb.query("channel >= @ch_").counts)
-            out.append(_make_df(v, u).assign(channel=ch_, R=np.nan if channel_discri else ch))
-        return pd.concat(out, ignore_index=True)[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
+        discri = self.discriminators(llds, bin_kw, max_kw)
+        for ch in discri:
+            v, u = integral_v_u(reb.query("channel >= @ch").counts)
+            out.append(_make_df(v, u))
+        return pd.concat(out, ignore_index=True
+                         ).assign(channel=discri, R=llds if r else [np.nan] * len(llds)
+                                  )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
 
     @staticmethod
     def _get_calibration_coefficient(one_group_xs: dict[str, float], composition: dict[str, float] | pd.DataFrame):
@@ -353,6 +402,44 @@ class FissionFragmentSpectrum:
         return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]],
                              composition=composition_, detector_id=self.detector_id, deposit_id=self.deposit_id,
                              bins=kwargs['bin_kwargs']['bins'])
+
+    def plot(self, phs_kwargs: dict={}, **kwargs) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plots the pulse height spectrum data.
+
+        Parameters
+        ----------
+        phs : nerea.FissionFragmentSpectrum
+            The data to plot.
+        phs_kwargs: dict
+            Parameters to process the spectrum before plotting.
+            - bin_kwargs
+            - max_kwargs
+            - llds
+        **kwargs
+            Parameters for plt.subplots()
+
+        Returns
+        -------
+        tuple[plt.Figure, plt.Axes]
+        """
+        bin_kw = phs_kwargs['bin_kwargs'] if phs_kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
+        max_kw = phs_kwargs['max_kwargs'] if phs_kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+
+        fig, ax = plt.subplots(**kwargs)
+        self.rebin(**bin_kw).plot(x='channel', y='counts', ax=ax, kind='scatter', s=10, color='k')
+
+        m = self.get_max(**max_kw)
+        ax.scatter(x=m.channel.iloc[0], y=m.counts.iloc[0], color='green', s=20, label="MAX")
+        r = self.get_R(bin_kw, max_kw)
+        ax.scatter(x=r.channel.iloc[0], y=r.counts.iloc[0], color='red', s=20, label="R")
+
+        for i in self.discriminators(**phs_kwargs):
+            ax.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
+        ax.legend()
+        ax.set_xlim([0, self.rebin(**bin_kw).query("counts >= 1").channel.iloc[-1]])
+        ax.set_ylim([0, m.counts.iloc[0] * 1.1])
+        return fig, ax
 
     @classmethod
     def from_TKA(cls, file: str, **kwargs):

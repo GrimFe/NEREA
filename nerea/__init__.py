@@ -12,4 +12,6 @@ from .comparisons import *
 
 from .control_rod import *
 
+from .plots import *
+
 __version__ = '0.1.0'

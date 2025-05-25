@@ -7,6 +7,7 @@ from scipy.optimize import curve_fit
 __all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u',
            '_make_df', 'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
 
+
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
     Compute the integral (sum) of a series and its associated uncertainty.

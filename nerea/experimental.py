@@ -216,6 +216,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 kwargs for self.fission_fragment_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
+            - r : bool
 
         Returns
         -------
@@ -321,6 +322,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 kwargs for self.fission_fragment_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
+            - r : bool
 
         Returns
         -------
@@ -358,6 +360,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
         - llds : Iterable[int|float]
+        - r : bool
 
         Returns
         -------
@@ -391,6 +394,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             kwargs for self.fission_fragment_spectrum.max().
             - fst_ch : int
         - llds : Iterable[int|float]
+        - r : bool
 
         Returns
         -------
@@ -430,6 +434,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 kwargs for self.fission_fragment_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
+            - r : bool
 
         Returns
         -------
@@ -484,6 +489,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - int_tolerance: float
             - ch_tolerance: float
             - llds : Iterable[int|float]
+            - r : bool
 
         Returns
         -------
