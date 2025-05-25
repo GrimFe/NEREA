@@ -538,6 +538,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             fig, _ = self.plot(plateau['CH_FFS'].value, kwargs)
             if savefig:
                 fig.savefig(savefig)
+                plt.close()
         return df if not long_output else pd.concat([df,
                                                      self._get_long_output(plateau,
                                                                            time,
@@ -814,7 +815,14 @@ class SpectralIndex(_Experimental):
             value  uncertainty
         0  0.95   0.034139
         """
-        num, den = self.numerator.process(*args, **kwargs), self.denominator.process(*args, **kwargs)
+        if kwargs.get('savefig'):
+            path, ext = tuple(kwargs['savefig'].split('.'))
+            kwargs['savefig'] = path + '_num.' + ext
+            num = self.numerator.process(*args, **kwargs)
+            kwargs['savefig'] = path + '_den.' + ext
+            den = self.denominator.process(*args, **kwargs)
+        else:
+            num, den = self.numerator.process(*args, **kwargs), self.denominator.process(*args, **kwargs)
         v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
