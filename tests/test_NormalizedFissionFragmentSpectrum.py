@@ -142,9 +142,11 @@ def test_per_unit_mass(nffs):
                                   check_exact=False, atol=0.00001)
     # channel calibration
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
-    pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(),
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(
+                                                                        llds=nffs.effective_mass.integral.channel,
+                                                                        r=False),
                                                          nffs.effective_mass.integral),
-                                  nffs.per_unit_mass(llds=nffs.effective_mass.integral.channel),
+                                  nffs.per_unit_mass(llds=nffs.effective_mass.integral.channel, r=False),
                                   check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_time(nffs):
