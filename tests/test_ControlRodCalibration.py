@@ -83,22 +83,22 @@ def test_get_rhos(cr, edd, rrs):
     warnings.filterwarnings("ignore")
 
     rhos = cr._get_rhos(edd,
-                        ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
+                        ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(rhos.iloc[0].to_frame().T, pd.DataFrame({"value": 0., "uncertainty": 0., "uncertainty [%]": 0.,
                                                                            "h": 0., "VAR_PORT_T": 0., "VAR_PORT_B": 0.,
                                                                            "VAR_PORT_L": 0.}, index=['value']))
     ## Testing formatting: reactivity is tested in test_ReactionRate
-    ref = rrs[60].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
+    ref = rrs[60].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'smoothing_method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=60.)
     pd.testing.assert_frame_equal(rhos.iloc[1].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
                                                                   "VAR_PORT_T", "VAR_PORT_B", "VAR_PORT_L"]])
-    ref = rrs[200].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
+    ref = rrs[200].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'smoothing_method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=200.)
     pd.testing.assert_frame_equal(rhos.iloc[2].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
                                                                    "VAR_PORT_T", "VAR_PORT_B", "VAR_PORT_L"]])
-    ref = rrs[250].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'method': 'savgol_filter',
+    ref = rrs[250].dead_time_corrected().get_asymptotic_counts(smooth_kwargs={'smoothing_method': 'savgol_filter',
                                                                              'polyorder': 3, 'window_length': 10}
                                                                              ).get_reactivity(edd).assign(h=250.)
     pd.testing.assert_frame_equal(rhos.iloc[3].to_frame().T, ref[["value", "uncertainty", "uncertainty [%]", "h",
@@ -112,7 +112,7 @@ def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
     cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = dnc.get_reactivity_curve(edd_low_uncertainty,
-                                     ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
+                                     ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T[cols],
                                   pd.DataFrame({'value': 4.15633386e-05,
                                                 'uncertainty': 6.85597030e-07,
@@ -128,10 +128,10 @@ def test_integral_curve_no_compensation(inc, edd_low_uncertainty):
     import warnings
     warnings.filterwarnings("ignore")
     curve = inc.get_reactivity_curve(edd_low_uncertainty,
-                                     ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
+                                     ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve,
                                   inc._get_rhos(edd_low_uncertainty,
-                                               ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}}))
+                                               ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}}))
     warnings.filterwarnings("always")
 
 def test_differential_curve_compensation(dc, edd_low_uncertainty):
@@ -140,7 +140,7 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
     cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = dc.get_reactivity_curve(edd_low_uncertainty,
-                                    ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
+                                    ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T[cols],
                                   pd.DataFrame({'value': 4.15633386e-05,
                                                 'uncertainty': 6.85597030e-07,
@@ -166,7 +166,7 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
     cols = ['value', 'uncertainty', 'VAR_PORT_T', 'VAR_PORT_B', 'VAR_PORT_L', 'h']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
     curve = ic.get_reactivity_curve(edd_low_uncertainty,
-                                    ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
+                                    ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T,
                                   pd.DataFrame({'value': 0., 'uncertainty': 0., 'uncertainty [%]': 0., 'VAR_PORT_T': 0., 'VAR_PORT_B': 0.,
                                                 'VAR_PORT_L': 0., 'h': 0.}, index=['value']))
@@ -194,7 +194,7 @@ def test_get_reactivity_worth(inc, edd_low_uncertainty):
     pd.testing.assert_frame_equal(rw[cols], target[cols], atol=1e-6)
     ## With fitting I get the theoretical value within 1 pcm
     target_rw = inc.get_reactivity_curve(edd_low_uncertainty,
-                                         ac_kwargs={'smooth_kwargs': {'method': 'savgol_filter',
+                                         ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter',
                                                                       'polyorder': 3,
                                                                       'window_length': 10}}
                                         ).iloc[1,0]

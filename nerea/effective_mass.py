@@ -24,9 +24,9 @@ class EffectiveMass:
             absolute uncertainty.
         """
         data = pd.DataFrame({'nuclide': [self.deposit_id],
-                             'share': [1],
-                             'uncertainty': [0]})
-        return data if self.composition is None else self.composition
+                             'value': [1],
+                             'uncertainty': [0]}).set_index('nuclide')
+        return data if self.composition is None else self.composition.reset_index().set_index('nuclide')[['value', 'uncertainty']]
 
     @property
     def R_channel(self) -> int:

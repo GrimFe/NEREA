@@ -91,6 +91,10 @@ def test_get_long_output(nffs):
                                    nffs._get_long_output(nffs.plateau(),
                                                          nffs._time_normalization,
                                                          nffs._power_normalization))
+    pd.testing.assert_frame_equal(expected_df,
+                                   nffs._get_long_output(nffs.plateau(),
+                                                         nffs._time_normalization,
+                                                         nffs._power_normalization, bins=2))
 
 def test_per_unit_mass_R(nffs):
     expected_df = pd.DataFrame({

@@ -137,13 +137,10 @@ class ReactionRate:
             - "moving average"
             - "savgol_filter"
         """
-        w = False
-        if kwargs.get("method") == 'moving_average':
-            w = kwargs.get("window")
-        elif kwargs.get("method") == 'savgol_filter':
-            w = kwargs.get("window_length")
-        if w and w < self.timebase:  ## if nor window nor window_length are passed w is False
-            raise ValueError("Moving average window length should be larger than the Reaction Rate timebase.")
+        if kwargs.get('window') or kwargs.get('window_lenght'):
+            w = kwargs['window'] if kwargs['smoothing_method'] == 'moving_average' else kwargs['window_length']
+            if w < self.timebase:  ## if nor window nor window_length are passed w is False
+                raise ValueError("Smoothing window length should be larger than the Reaction Rate timebase.")
         else:
             out = pd.DataFrame({"Time": self.data["Time"],
                                 "value": smoothing(self.data["value"], **kwargs)})

@@ -4,8 +4,10 @@ import pandas as pd
 import warnings
 from scipy.optimize import curve_fit
 
-__all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u',
-           '_make_df', 'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
+from inspect import signature
+
+__all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df',
+           'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
 
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
@@ -273,7 +275,7 @@ def polyfit(order: int, data: pd.DataFrame) -> tuple[np.array, np.array, Callabl
     warnings.warn(f"CR reactivity curve fit R^2 = {r2}")
     return coef, coef_cov
 
-def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) -> pd.DataFrame:
+def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs) -> pd.DataFrame:
     """
     Calculates the sum of 'counts' and the minimum value of 'channel' for each
     group based on the integer division of 'channel' by 10.
@@ -283,7 +285,7 @@ def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) ->
     ----------
     data : ps.Series
         the data to smooth
-    method : str, optional
+    smoothing_method : str, optional
         the method to use. Allowed options are:
             - moving_average
                 (requires window)
@@ -291,8 +293,6 @@ def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) ->
                 (requires window_length
                         polyorder)
         Defailt is "moving_average"
-    * args :
-        arguments for the chosen method
     **kwargs :
         arguments for the chosen method
 
@@ -300,17 +300,19 @@ def smoothing(data: pd.Series, method: str="moving_average", *args, **kwargs) ->
     -------
     pd.DataFrame
     """
+    kwargs = {'window': 10, 'window_length': 10} | kwargs
     s = data.copy()
-    match method:
+    match smoothing_method:
         case "moving_average":
-            if kwargs.get("window") is None: kwargs["window"] = 10
-            s = s.rolling(*args, **kwargs).mean().fillna(0)
+            kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.Series.rolling).parameters)}
+            s = s.rolling(**kwargs).mean().fillna(0)
         case "savgol_filter":
             from scipy.signal import savgol_filter
-            s = savgol_filter(s, *args, **kwargs)
+            kwargs = {k: v for k, v in kwargs.items() if k in set(signature(savgol_filter).parameters)}
+            s = savgol_filter(s, **kwargs)
             if any(s < 0):
                 warnings.warn("Using Savgol Filter smoothing, negative values appear.")
             s = pd.Series(s, index=data.index)
         case _:
-            raise Exception(f"The chosen method {method} is not allowed")
+            raise Exception(f"The chosen method {smoothing_method} is not allowed.")
     return s
