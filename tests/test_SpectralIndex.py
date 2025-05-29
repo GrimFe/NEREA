@@ -51,13 +51,13 @@ def sample_spectrum_2(sample_spectrum_data):
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
     data = pd.DataFrame({'U236': [0.1, 0.01], 'U234': [0.2, 0.02], 'U238': [0.7, 0.07]}).T.reset_index()
-    data.columns = ['nuclide', 'share', 'uncertainty']
+    data.columns = ['nuclide', 'value', 'uncertainty']
     return EffectiveMass(deposit_id="U238", detector_id="C1", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
     data = pd.DataFrame({'U234': [0.15, 0.015], 'U238': [0.25, 0.025], 'U235': [0.6, 0.06]}).T.reset_index()
-    data.columns = ['nuclide', 'share', 'uncertainty']
+    data.columns = ['nuclide', 'value', 'uncertainty']
     return EffectiveMass(deposit_id="U235", detector_id="C2", data=sample_integral_data, bins=42, composition=data)
 
 @pytest.fixture

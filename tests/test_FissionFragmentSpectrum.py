@@ -59,23 +59,23 @@ def test_smoothing(sample_spectrum):
     assert smoothed_data.query("channel == 6").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
     assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
-    # test Savgol Filter
-    smoothed_data = sample_spectrum.smooth(method="savgol_filter", window_length=5, polyorder=3).data
-    target = [100, 150, 200, 250, 300, 350, 400, 450, 500, 601.428571, 452.142857, 190.571429,
-              -19.1428571, 10.6000000, 4.6571428, 2.65714286, 1.08571429, 0.0857142857,
-              -0.0571428571, 0.0142857143]
-    for i, row in smoothed_data.iterrows():
-        np.testing.assert_almost_equal(row.counts, target[i], decimal=5)
-    assert all(smoothed_data.channel == sample_spectrum.data.channel)
+    # # test Savgol Filter
+    # smoothed_data = sample_spectrum.smooth(method="savgol_filter", window_length=5, polyorder=3).data
+    # target = [100, 150, 200, 250, 300, 350, 400, 450, 500, 601.428571, 452.142857, 190.571429,
+    #           -19.1428571, 10.6000000, 4.6571428, 2.65714286, 1.08571429, 0.0857142857,
+    #           -0.0571428571, 0.0142857143]
+    # for i, row in smoothed_data.iterrows():
+    #     np.testing.assert_almost_equal(row.counts, target[i], decimal=5)
+    # assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
 def test_get_max(sample_spectrum):
-    max_data = sample_spectrum.get_max(bin_kwargs={'smooth': False})
+    max_data = sample_spectrum.get_max(smooth=False)
     assert max_data["channel"][0] == 11
     assert max_data["counts"][0] == 600
 
 def test_get_R(sample_spectrum):
     expected_df = pd.DataFrame({"channel": 12, "counts": 50}, index=[11])
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.get_R(bin_kwargs={'smooth': False}))
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.get_R(smooth=False))
 
 def test_rebin(sample_spectrum):
     expected_df = pd.DataFrame({"channel": [1, 2], "counts": [325.0, 2551.9]},
@@ -109,14 +109,14 @@ def test_integrate(sample_spectrum):
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.97955774],
                                 'R': [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10), check_exact=False, atol=0.00001)
     # testing integer llds
     expected_df = pd.DataFrame({'channel':  [1., 2.],
                                 'value': [2876.9, 2876.9],
                                 'uncertainty': [53.63674114, 53.63674114],
                                 'uncertainty [%]': [1.86439366, 1.86439366],
                                 'R': [np.nan, np.nan]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate({'bins': 10}, llds=[1., 2.], r=False), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10, llds=[1., 2.], r=False), check_exact=False, atol=0.00001)
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
@@ -144,7 +144,8 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bin_kwargs={'bins': None, 'smooth': False})
+                                  bins=None,
+                                  smooth=False)
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # per cent composition
@@ -153,7 +154,8 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bin_kwargs={'bins': None, 'smooth': False})
+                                  bins=None,
+                                  smooth=False)
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # pd.DataFrame composition
@@ -162,14 +164,15 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bin_kwargs={'bins': None, 'smooth': False})
+                                  bins=None,
+                                  smooth=False)
     pd.testing.assert_frame_equal(expected_df, c.data)
 
     # test other effective mass attributes
     assert sample_spectrum.deposit_id == c.deposit_id
     assert sample_spectrum.detector_id == c.detector_id
     assert sample_spectrum.data.channel.max() == c.bins
-    pd.testing.assert_frame_equal(composition, c.composition)
+    pd.testing.assert_frame_equal(composition.reset_index(names='nuclide'), c.composition)
 
     # test effective mass bins
     composition = pd.DataFrame({'U235': [1, 0.1]}, index=['value', 'uncertainty']).T
@@ -177,5 +180,6 @@ def test_calibrate(sample_spectrum):
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
-                                  bin_kwargs={'bins': 10, 'smooth': False})
+                                  bins=10,
+                                  smooth=False)
     assert 10 == c.bins

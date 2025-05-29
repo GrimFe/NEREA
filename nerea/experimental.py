@@ -225,11 +225,14 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             (1 x N) DataFrame with the information.
+
+        Note
+        ----
+        `bins` for PHS rebinning are set to `self.effective_mass.bins`
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
-        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+        kwargs['bins'] = self.effective_mass.bins
 
         ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
         ffs = self.fission_fragment_spectrum.integrate(**kwargs).query("channel==@ch_ffs")
@@ -331,11 +334,14 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             DataFrame with the information of the mass-normalized spectrum.
+
+        Note
+        ----
+        `bins` for PHS rebinning are set to `self.effective_mass.bins`
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
-        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+        kwargs['bins'] = self.effective_mass.bins
 
         ffs = self.fission_fragment_spectrum.integrate(**kwargs)
         em = self.effective_mass.integral
@@ -369,11 +375,14 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             DataFrame with the information of the mass- and time- normalized spectrum.
+
+        Note
+        ----
+        `bins` for PHS rebinning are set to `self.effective_mass.bins`
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
-        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+        kwargs['bins'] = self.effective_mass.bins
 
         data = pd.concat([_make_df(x[0], x[1]) for x in
                           [product_v_u([self._time_normalization.set_index(pd.Index([i])),
@@ -403,11 +412,14 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             DataFrame with the information of the mass- and power- normalized spectrum.
+
+        Note
+        ----
+        `bins` for PHS rebinning are set to `self.effective_mass.bins`
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
-        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+        kwargs['bins'] = self.effective_mass.bins
 
         ffs, em = self.fission_fragment_spectrum, self.effective_mass
         data = pd.concat([_make_df(x[0], x[1]) for x in
@@ -449,9 +461,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ValueError
             If the channel values differ beyond the specified tolerance.
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
-
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
+        
         data = self.per_unit_mass(**kwargs)
         # check where the values in the mass-normalized count rate converge withing tolerance
         close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
@@ -471,7 +482,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         return out
 
     def process(self, long_output: bool=False, visual: bool=False,
-                savefig: str='', *args, **kwargs) -> pd.DataFrame:
+                savefig: str='', **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate.
 
@@ -505,6 +516,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         pd.DataFrame
             DataFrame containing the reaction rate.
+        
+        Note
+        ----
+        `bins` for PHS rebinning are set to `self.effective_mass.bins`
 
         Examples
         --------
@@ -518,12 +533,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             value  uncertainty
         0  35.6    2.449490
         """
-        kwargs['bin_kwargs'] = kwargs['bin_kwargs'] if kwargs.get('bin_kwargs') else DEFAULT_BIN_KWARGS
-        kwargs['max_kwargs'] = kwargs['max_kwargs'] if kwargs.get('max_kwargs') else DEFAULT_MAX_KWARGS
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
-        kwargs['bin_kwargs']['bins'] = self.effective_mass.bins
+        kwargs['bins'] = self.effective_mass.bins
 
-        plateau = self.plateau(*args, **kwargs) # FFS / EM @plateau and relative variance fractions
+        plateau = self.plateau(**kwargs)        # FFS / EM @plateau and relative variance fractions
         power = self._power_normalization       # this is 1/PM
         time = self._time_normalization         # this is 1/t
         v, u = product_v_u([plateau, power, time])
@@ -535,7 +549,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                    VAR_PORT_PM=(S_PM * power.uncertainty) **2,
                                    VAR_PORT_t=(S_T * time.uncertainty) **2)
         if visual or savefig:
-            fig, _ = self.plot(plateau['CH_FFS'].value, kwargs)
+            fig, _ = self.plot(plateau['CH_FFS'].value, **kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -545,8 +559,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                                                            power,
                                                                            **kwargs)
                                                     ], axis=1)
-    
-    def plot(self, discri: int=None, phs_kwargs: dict={}) -> tuple[plt.Figure, Iterable[plt.Axes]]:
+
+    def plot(self, discri: int=None, **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
         Default plotting method of PHS and monitor considered.
         It also reports tabulated effective mass values.
@@ -568,8 +582,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         tuple[plt.Figure, Iterable[plt.Axes]]
         """
-        discri_ = self.fission_fragment_spectrum.integrate(**phs_kwargs
-                                                           ).query("channel == @discri").index[0]
+        discri_r = self.fission_fragment_spectrum.integrate(
+                            **kwargs).query("channel == @discri").R.iloc[0]
 
         fig, axs = plt.subplots(2, 2, figsize=(15, 12),
                                 height_ratios=[1, 1], width_ratios=[1, 1],
@@ -577,16 +591,16 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         ## plot Effective Mass
         self.effective_mass.data.plot(x='channel',  y='value', ax=axs[0][0], kind='scatter', c='k')
+        axs[0][0].set_xlabel("Calibration channel")
         cell_text = [['{:.0f}'.format(r.channel),
                       '{:.2f}'.format(r.value)
                       ] for _, r in self.effective_mass.data.iterrows()]
         tab = axs[0][0].table(cellText=cell_text, colLabels=['ch', 'm [ug]'],
                               bbox=[1.01, 0, 0.275, 1])
         tab.auto_set_font_size(False)
-        tab.set_fontsize(12)
-        axs[0][0].scatter(x=self.effective_mass.data.loc[discri_].channel,
-                          y=self.effective_mass.data.loc[discri_].value,
-                          c='b', marker='s')
+        axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].value,
+                          y=self.effective_mass.data.query("R == @discri_r")['value'].value,
+                          c='b', marker='s', label="Discriminator")
         axs[0][0].set_ylabel("Effective mass [ug]")
 
         ## plot Power Monitor
@@ -597,7 +611,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                           alpha=0.5, color='gray')
         axs[0][1].axvspan(self.fission_fragment_spectrum.start_time + datetime.timedelta(seconds=self.fission_fragment_spectrum.real_time),
                           self.power_monitor.data.Time.max(),
-                          alpha=0.5, color='gray')
+                          alpha=0.5, color='gray', label='Ingored')
         axs[0][1].set_ylabel("Power monitor count rate [1/s]")
         axs[0][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
         axs[0][1].yaxis.set_label_position("right")
@@ -605,12 +619,13 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         t.set_x(1.01)
 
         ## plot PHS
-        self.fission_fragment_spectrum.plot(ax=axs[1][0], phs_kwargs=phs_kwargs)
-        axs[1][0].axvline(discri, c='b')
+        self.fission_fragment_spectrum.plot(ax=axs[1][0], **kwargs)
+        axs[1][0].axvline(discri, c='b', label='Discriminator')
+        axs[1][0].set_xlabel("Measurement channel")
         axs[1][0].set_ylabel("Counts [-]")
 
     	## plot fission rate per unit mass
-        pum = self.per_unit_mass(**phs_kwargs)
+        pum = self.per_unit_mass(**kwargs)
         pum.plot(x='CH_FFS', y='value', ax=axs[1][1], kind='scatter', c='k')
         axs[1][1].set_xticks(pum['CH_FFS'])
         axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_FFS']])
@@ -620,10 +635,13 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ax_top.set_xlim(axs[1][1].get_xlim())
         ax_top.set_xticks(axs[1][1].get_xticks())
         ax_top.set_xticklabels([f"{x:.0f}" for x in pum['CH_EM']])
-        axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0], c='b', marker='s')
+        ax_top.set_xlabel("Calibration channel")
+        axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0],
+                          c='b', marker='s', label='Discriminator')
         axs[1][1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         axs[1][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
         axs[1][1].yaxis.set_label_position("right")
+        axs[1][1].set_xlabel("Measurement channel")
         t = axs[1][1].yaxis.get_offset_text()
         t.set_x(1.01)
         axs[1][1].grid()
@@ -697,7 +715,7 @@ class SpectralIndex(_Experimental):
         UserWarning
             If xs is not given for all impurities.
         """
-        imp = self.numerator.effective_mass.composition_.set_index('nuclide')
+        imp = self.numerator.effective_mass.composition_
         imp.columns = ['value', 'uncertainty']
 
         # normalize Serpent output per unit mass
@@ -779,7 +797,8 @@ class SpectralIndex(_Experimental):
 
     def process(self, one_g_xs: pd.DataFrame = None,
                 one_g_xs_file: dict[str, tuple[str, str]] = None,
-                *args, **kwargs) -> pd.DataFrame:
+                numerator_kwargs: dict={},
+                denominator_kwargs: dict={}) -> pd.DataFrame:
         """
         Computes the ratio of two reaction rates.
 
@@ -793,9 +812,6 @@ class SpectralIndex(_Experimental):
             the Serpent detector file `value[1]` to read each one group xs
             `value[0]` from for each nuclide `key`. Alternative to `one_g_xs`.
             Defaults to None for no file.
-        *args : Any
-            Positional arguments to be passed to the
-            `NormalizedFissionFragmentSpectrum.process()` method.
         **kwargs : Any
             Keyword arguments to be passed to the
             `NormalizedFissionFragmentSpectrum.process()` method.
@@ -815,14 +831,8 @@ class SpectralIndex(_Experimental):
             value  uncertainty
         0  0.95   0.034139
         """
-        if kwargs.get('savefig'):
-            path, ext = tuple(kwargs['savefig'].split('.'))
-            kwargs['savefig'] = path + '_num.' + ext
-            num = self.numerator.process(*args, **kwargs)
-            kwargs['savefig'] = path + '_den.' + ext
-            den = self.denominator.process(*args, **kwargs)
-        else:
-            num, den = self.numerator.process(*args, **kwargs), self.denominator.process(*args, **kwargs)
+        num = self.numerator.process(**numerator_kwargs)
+        den = self.denominator.process(**denominator_kwargs)
         v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):

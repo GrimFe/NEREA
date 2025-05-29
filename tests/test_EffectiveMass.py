@@ -15,7 +15,7 @@ def sample_effective_mass():
 def sample_effective_mass_composition():
     deposit_id = "deposit_1"
     detector_id = "detector_1"
-    composition = pd.DataFrame({'nuclide': ['A', 'B'], 'share': [0.8, .2], 'uncertainty': [.01, .02]})
+    composition = pd.DataFrame({'nuclide': ['A', 'B'], 'value': [0.8, .2], 'uncertainty': [.01, .02]})
     integral = pd.DataFrame({'channel': [15, 20, 30], 'value': [10, 20, 30], 'uncertainty': [1, 2, 3]})
     bins = 4096
     return EffectiveMass(deposit_id, detector_id, integral, bins, composition=composition)
@@ -36,8 +36,8 @@ def test_EffectiveMass_properties(sample_effective_mass):
     assert sample_effective_mass.bins == 4096
     pd.testing.assert_frame_equal(sample_effective_mass.composition_,
                                   pd.DataFrame({'nuclide': ['deposit_1'],
-                                                'share': [1],
-                                                'uncertainty': [0]}))
+                                                'value': [1],
+                                                'uncertainty': [0]}).set_index('nuclide'))
 
 def test_EffectiveMass_R_channel_property(sample_effective_mass):
     assert isinstance(sample_effective_mass.R_channel, int)
@@ -46,8 +46,8 @@ def test_EffectiveMass_R_channel_property(sample_effective_mass):
 def test_EffectiveMass_Composition(sample_effective_mass_composition):
     pd.testing.assert_frame_equal(sample_effective_mass_composition.composition_,
                                   pd.DataFrame({'nuclide': ['A', 'B'],
-                                                'share': [0.8, .2],
-                                                'uncertainty': [.01, .02]}))
+                                                'value': [0.8, .2],
+                                                'uncertainty': [.01, .02]}).set_index('nuclide'))
 
 # def test_EffectiveMass_from_xls_classmethod():
 #     file_path = r"tests/Deposit_Detector.xlsx"
