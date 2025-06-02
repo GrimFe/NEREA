@@ -134,3 +134,17 @@ def test_smoothing():
     pd.testing.assert_series_equal(ma, pd.Series([0.] * 9 + [5.5, 6.5, 7.5, 8.5]))
     sf = smoothing(data, smoothing_method='savgol_filter', window_length=2, polyorder=1)
     pd.testing.assert_series_equal(sf, pd.Series([1.] + list(np.arange(2, 13) + 0.5) + [13.]), atol=1e-5)
+    ewm = smoothing(data, 'ewm', span=2)
+    pd.testing.assert_series_equal(ewm, pd.Series([1.0649573834741848,
+                                                   1.8636754210798234,
+                                                   2.785273156778637,
+                                                   3.7805987113333557,
+                                                   4.814311477358505,
+                                                   5.866042730400385,
+                                                   6.9256331946335825,
+                                                   7.988479104572819,
+                                                   9.052624733235037,
+                                                   10.117275497527087,
+                                                   11.182118655723848,
+                                                   12.247033956860777,
+                                                   13.311975977021957]), atol=1e-5)
