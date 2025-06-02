@@ -301,11 +301,17 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
     pd.DataFrame
     """
     kwargs = {'window': 10, 'window_length': 10} | kwargs
+    if not np.any([k in kwargs.keys() for k in ["com", "span", "halflife", "alpha"]]):
+        kwargs['span'] = 10
     s = data.copy()
     match smoothing_method:
         case "moving_average":
             kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.Series.rolling).parameters)}
             s = s.rolling(**kwargs).mean().fillna(0)
+        case "ewm": # exponentially weighted mean
+            kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.Series.ewm).parameters)}
+            s = s.ewm(**kwargs).mean()
+            s *= (data.sum() / s.sum())
         case "savgol_filter":
             from scipy.signal import savgol_filter
             kwargs = {k: v for k, v in kwargs.items() if k in set(signature(savgol_filter).parameters)}
