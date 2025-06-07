@@ -6,7 +6,7 @@ from .fission_fragment_spectrum import FissionFragmentSpectrum
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate, ReactionRates
 from .utils import ratio_v_u, product_v_u, _make_df
-from .constants import ATOMIC_MASS
+from .functions import impurity_correction
 from . defaults import *
 
 import pandas as pd
@@ -647,7 +647,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         axs[1][1].grid()
         return fig, axs
 
-
 @dataclass
 class SpectralIndex(_Experimental):
     numerator: NormalizedFissionFragmentSpectrum
@@ -717,34 +716,10 @@ class SpectralIndex(_Experimental):
         """
         imp = self.numerator.effective_mass.composition_
         imp.columns = ['value', 'uncertainty']
-
-        # normalize Serpent output per unit mass
-        v = one_g_xs['value'] / ATOMIC_MASS.T['value']
-        u = one_g_xs['uncertainty'] / ATOMIC_MASS.T['value']
-        xs = pd.concat([v.dropna(), u.dropna()], axis=1)
-        xs.columns = ["value", "uncertainty"]
-
-        # normalize impurities and one group xs to the numerator deposit
-        imp_v, imp_u = ratio_v_u(imp,
-                                 imp.loc[self.numerator.deposit_id])
-        xs_v, xs_u = ratio_v_u(xs,
-                               xs.loc[self.denominator.deposit_id])
-        
-        # remove information on the main isotope
-        # will sum over all impurities != self.numerator.deposit_id
-        imp_v = imp_v.drop(self.numerator.deposit_id)
-        imp_u = imp_u.drop(self.numerator.deposit_id)
-        xs_v = xs_v.drop(self.numerator.deposit_id)
-        xs_u = xs_u.drop(self.numerator.deposit_id)
-        
-        # compute correction and its uncertainty
-        if not all([i in xs_v.index] for i in imp_v.index):
-            warnings.warn("Not all impurities were provided with a cross section.")
-        correction = sum((imp_v * xs_v).dropna())
-        correction_variance = sum(((xs_v * imp_u) **2 +
-                                    (imp_v * xs_u) **2).dropna())
-        relative = True if imp_v.shape[0] != 0 else False
-        return _make_df(correction, np.sqrt(correction_variance), relative=relative)
+        return impurity_correction(imp,
+                                   one_g_xs,
+                                   self.numerator.deposit_id,
+                                   self.denominator.deposit_id)
 
     def _get_long_output(self, num, den, k) -> pd.DataFrame:
         """

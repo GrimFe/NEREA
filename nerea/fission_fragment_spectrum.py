@@ -10,7 +10,8 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
-from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u, smoothing
+from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
+from .functions import smoothing
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate

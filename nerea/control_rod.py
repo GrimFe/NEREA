@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from .reaction_rate import ReactionRate
-from .utils import _make_df, polyfit, polynomial
+from .utils import _make_df
+from .functions import polyfit, polynomial
 from .defaults import *
 from .classes import EffectiveDelayedParams
 

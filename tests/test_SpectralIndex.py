@@ -140,7 +140,7 @@ def test_process(si):
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
     x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234., .002 / 234., .6 / 235.043923, .004 / 235.043923
-    v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
+    v = (w1 / wd * x1 / xd) + (w2 / wd * x2 / xd)
 
     W1, X1 = w1 / wd, x1 / xd
     vW1, vX1 = (uw1 / wd) **2 + (w1 / wd **2 * uwd) **2, (ux1 / xd) **2 + (x1 / xd **2 * uxd) **2 
