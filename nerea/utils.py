@@ -289,9 +289,13 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
         the method to use. Allowed options are:
             - moving_average
                 (requires window)
+            - ewm
             - savgol_filter
                 (requires window_length
                         polyorder)
+            - fit
+                (requires ch_before_max,
+                        order)
         Defailt is "moving_average"
     **kwargs :
         arguments for the chosen method
@@ -300,7 +304,8 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
     -------
     pd.DataFrame
     """
-    kwargs = {'window': 10, 'window_length': 10} | kwargs
+    kwargs = {'window': 10, 'window_length': 10,
+              'ch_before_max': 10, 'order': 3} | kwargs
     if not np.any([k in kwargs.keys() for k in ["com", "span", "halflife", "alpha"]]):
         kwargs['span'] = 10
     s = data.copy()
@@ -319,6 +324,20 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
             if any(s < 0):
                 warnings.warn("Using Savgol Filter smoothing, negative values appear.")
             s = pd.Series(s, index=data.index)
+        case "fit":
+            start = s.idxmax() - kwargs['ch_before_max']
+            start_ = start if start > 0 else 0
+            order = kwargs['order']
+            kwargs = {k: v for k, v in kwargs.items() if k in set(signature(curve_fit).parameters)}
+            s = s.loc[start_:]
+            coef, _ = curve_fit(fitting_polynomial(order),
+                                s.index,
+                                s.values,
+                                p0=[1] * (order + 1),
+                                **kwargs
+                                )
+            s = pd.Series(fitting_polynomial(order)(s.index, *coef), index=data.index[start_:])
+            s = pd.concat([data.loc[:start_ - 1], s.loc[start_:]])
         case _:
             raise Exception(f"The chosen method {smoothing_method} is not allowed.")
     return s
