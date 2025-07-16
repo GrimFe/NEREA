@@ -88,13 +88,18 @@ def test_get_long_output(nffs):
                                 'PM': 1 / .01, 'VAR_PM': 0.00031622776601683794 **2 / .01 **4,
                                 't': 1 / .1, 'VAR_t': 0.}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs._get_long_output(nffs.plateau(),
-                                                         nffs._time_normalization,
-                                                         nffs._power_normalization))
+                                  nffs._get_long_output(nffs.plateau(raw_integral=False, renormalize=False),
+                                                        nffs._time_normalization,
+                                                        nffs._power_normalization,
+                                                        raw_integral=False,
+                                                        renormalize=False))
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs._get_long_output(nffs.plateau(),
-                                                         nffs._time_normalization,
-                                                         nffs._power_normalization, bins=2))
+                                  nffs._get_long_output(nffs.plateau(raw_integral=False, renormalize=False),
+                                                        nffs._time_normalization,
+                                                        nffs._power_normalization,
+                                                        bins=2,
+                                                        raw_integral=False,
+                                                        renormalize=False))
 
 def test_per_unit_mass_R(nffs):
     expected_df = pd.DataFrame({
@@ -112,7 +117,9 @@ def test_per_unit_mass_R(nffs):
         'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
         "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
     pd.testing.assert_frame_equal(expected_df,
-                                  nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(),
+                                  nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(
+                                                                raw_integral=False,
+                                                                renormalize=False),
                                                         nffs.effective_mass.integral),
                                   check_exact=False, atol=0.00001)
 
@@ -134,23 +141,32 @@ def test_per_unit_mass_ch(nffs):
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     # No need to set llds as the R channels already allign absolute channels as well in this case
     pd.testing.assert_frame_equal(expected_df,
-                                  nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(),
+                                  nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(
+                                                                    raw_integral=False,
+                                                                    renormalize=False),
                                                          nffs.effective_mass.integral),
                                   check_exact=False, atol=0.00001)
 
 def test_per_unit_mass(nffs):
     # R calibration
-    pd.testing.assert_frame_equal(nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(),
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(
+                                                                    raw_integral=False,
+                                                                    renormalize=False),
                                                         nffs.effective_mass.integral),
-                                  nffs.per_unit_mass(),
+                                  nffs.per_unit_mass(raw_integral=False, renormalize=False),
                                   check_exact=False, atol=0.00001)
     # channel calibration
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(
                                                                         llds=nffs.effective_mass.integral.channel,
-                                                                        r=False),
+                                                                        r=False,
+                                                                        raw_integral=False,
+                                                                        renormalize=False),
                                                          nffs.effective_mass.integral),
-                                  nffs.per_unit_mass(llds=nffs.effective_mass.integral.channel, r=False),
+                                  nffs.per_unit_mass(llds=nffs.effective_mass.integral.channel,
+                                                     r=False,
+                                                     raw_integral=False,
+                                                     renormalize=False),
                                   check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_time(nffs):
@@ -164,7 +180,7 @@ def test_per_unit_mass_and_time(nffs):
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass_and_time(),
+                                   nffs.per_unit_mass_and_time(raw_integral=False, renormalize=False),
                                    check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_power(nffs):
@@ -178,7 +194,7 @@ def test_per_unit_mass_and_power(nffs):
         'uncertainty [%]': [4.61620691, 4.61996628, 4.62577642, 4.64032008, 4.65892314,
                             4.68072029, 4.70934719, 4.75245461, 4.84087431, 4.78692694]})
     pd.testing.assert_frame_equal(expected_df,
-                                   nffs.per_unit_mass_and_power(),
+                                   nffs.per_unit_mass_and_power(raw_integral=False, renormalize=False),
                                    check_exact=False, atol=0.00001)
 
 def test_plateau(nffs):
@@ -191,7 +207,7 @@ def test_plateau(nffs):
                              'CH_EM': 14.000000,
                              'R': 0.35}, name=4).to_frame().T
     expected_df.index = ['value']
-    pd.testing.assert_frame_equal(expected_df, nffs.plateau())
+    pd.testing.assert_frame_equal(expected_df, nffs.plateau(raw_integral=False, renormalize=False))
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
@@ -204,7 +220,10 @@ def test_process(nffs):
                                 'VAR_PORT_EM': 0.0033724e-7,
                                 'VAR_PORT_PM': 1.0210289470207425e-07,
                                 'VAR_PORT_t': 0.}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, nffs.process(), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df,
+                                  nffs.process(raw_integral=False,
+                                               renormalize=False),
+                                  check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)

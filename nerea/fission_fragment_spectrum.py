@@ -218,6 +218,7 @@ class FissionFragmentSpectrum:
     def integrate(self,
                   llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
                   r: bool=True,
+                  raw_integral: bool=True,
                   **kwargs) -> pd.DataFrame:
         """
         Calculates the integral of data based on specified channels (as a function of R)
@@ -240,6 +241,10 @@ class FissionFragmentSpectrum:
             Defines whether the discriminators are absolute or
             fractions of the R channel.
             Default is True.
+        raw_integral : bool, optional
+            Defines whether to integrate the raw data or the
+            smoothed ones.
+            Default is False.
 
         Returns
         -------
@@ -258,10 +263,11 @@ class FissionFragmentSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds}
 
         out = []
-        reb = self.rebin(**kwargs)
+        data = self.data if raw_integral else self.rebin(**kwargs)
+        data.counts = data.counts.astype('float64')
         discri = self.discriminators(**kwargs)
         for ch in discri:
-            v, u = integral_v_u(reb.query("channel >= @ch").counts)
+            v, u = integral_v_u(data.query("channel >= @ch").counts)
             out.append(_make_df(v, u))
         return pd.concat(out, ignore_index=True
                          ).assign(channel=discri, R=llds if r else [np.nan] * len(llds)

@@ -59,15 +59,6 @@ def test_smoothing(sample_spectrum):
     assert smoothed_data.query("channel == 6").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
     assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
-    # # test Savgol Filter
-    # smoothed_data = sample_spectrum.smooth(method="savgol_filter", window_length=5, polyorder=3).data
-    # target = [100, 150, 200, 250, 300, 350, 400, 450, 500, 601.428571, 452.142857, 190.571429,
-    #           -19.1428571, 10.6000000, 4.6571428, 2.65714286, 1.08571429, 0.0857142857,
-    #           -0.0571428571, 0.0142857143]
-    # for i, row in smoothed_data.iterrows():
-    #     np.testing.assert_almost_equal(row.counts, target[i], decimal=5)
-    # assert all(smoothed_data.channel == sample_spectrum.data.channel)
-
 def test_get_max(sample_spectrum):
     max_data = sample_spectrum.get_max(smooth=False)
     assert max_data["channel"][0] == 11
@@ -109,14 +100,38 @@ def test_integrate(sample_spectrum):
                                                     1.86439366, 1.86439366,
                                                     1.86439366, 1.97955774],
                                 'R': [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            raw_integral=False,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
     # testing integer llds
     expected_df = pd.DataFrame({'channel':  [1., 2.],
                                 'value': [2876.9, 2876.9],
                                 'uncertainty': [53.63674114, 53.63674114],
                                 'uncertainty [%]': [1.86439366, 1.86439366],
                                 'R': [np.nan, np.nan]})
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.integrate(bins=10, llds=[1., 2.], r=False), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            llds=[1., 2.],
+                                                            r=False,
+                                                            raw_integral=False,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
+    # testing integration of raw data
+    expected_df = pd.DataFrame({'channel':  [1., 2.],
+                                'value': [3944., 3844.],
+                                'uncertainty': [62.80127387243033, 62.],
+                                'uncertainty [%]': [1.592324388246205, 1.6129032258064515],
+                                'R': [np.nan, np.nan]})
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            llds=[1., 2.],
+                                                            r=False,
+                                                            raw_integral=True,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
+
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
