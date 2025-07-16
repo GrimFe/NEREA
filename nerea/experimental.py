@@ -511,6 +511,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - ch_tolerance: float
             - llds : Iterable[int|float]
             - r : bool
+            - raw_integral : bool
 
         Returns
         -------
@@ -784,7 +785,7 @@ class SpectralIndex(_Experimental):
                                           ).iloc[:, start_col:]
             empty = False
         else:
-            den = pd.DataFrame()
+            den_ = pd.DataFrame()
 
         if not empty:
             k_ = pd.DataFrame({'1GXS': 0 if k is None else k['value'].iloc[0],

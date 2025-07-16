@@ -87,6 +87,8 @@ def test_deposit_ids(si):
     assert si.deposit_ids == ['U238', 'U235']
 
 def test_get_long_output(si):
+    n_proc = si.numerator.process(raw_integral=False, renormalize=False, long_output=True)
+    d_proc = si.denominator.process(raw_integral=False, renormalize=False, long_output=True)
     expected_df = pd.DataFrame({'FFS_n': 8.79100000e+02,
                                 'VAR_FFS_n': 8.79100000e+02,
                                 'EM_n': 87,
@@ -105,19 +107,21 @@ def test_get_long_output(si):
                                 'VAR_t_d': 0.,
                                 '1GXS': 0,
                                 'VAR_1GXS': None}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, si._get_long_output(si.numerator.process(long_output=True),
-                                                                   si.denominator.process(long_output=True),
-                                                                   None))
+    pd.testing.assert_frame_equal(expected_df, si._get_long_output(n_proc, d_proc, None))
     # check that the variances are unchanged when relate to numerator and denominator
-    assert si.numerator.process(long_output=True)["VAR_FFS"].value == expected_df["VAR_FFS_n"].value
-    assert si.denominator.process(long_output=True)["VAR_FFS"].value == expected_df["VAR_FFS_d"].value
-    assert si.numerator.process(long_output=True)["VAR_EM"].value == expected_df["VAR_EM_n"].value
-    assert si.denominator.process(long_output=True)["VAR_EM"].value == expected_df["VAR_EM_d"].value
-    assert si.numerator.process(long_output=True)["VAR_PM"].value == expected_df["VAR_PM_n"].value
-    assert si.denominator.process(long_output=True)["VAR_PM"].value == expected_df["VAR_PM_d"].value
-    assert si.numerator.process(long_output=True)["VAR_t"].value == expected_df["VAR_t_n"].value
-    assert si.denominator.process(long_output=True)["VAR_t"].value == expected_df["VAR_t_d"].value
+    assert n_proc["VAR_FFS"].value == expected_df["VAR_FFS_n"].value
+    assert d_proc["VAR_FFS"].value == expected_df["VAR_FFS_d"].value
+    assert n_proc["VAR_EM"].value == expected_df["VAR_EM_n"].value
+    assert d_proc["VAR_EM"].value == expected_df["VAR_EM_d"].value
+    assert n_proc["VAR_PM"].value == expected_df["VAR_PM_n"].value
+    assert d_proc["VAR_PM"].value == expected_df["VAR_PM_d"].value
+    assert n_proc["VAR_t"].value == expected_df["VAR_t_n"].value
+    assert d_proc["VAR_t"].value == expected_df["VAR_t_d"].value
 
+    ## test empty is returned if no long output was passed to the num and den processing
+    n_proc = si.numerator.process(raw_integral=False, renormalize=False)
+    d_proc = si.denominator.process(raw_integral=False, renormalize=False)
+    pd.testing.assert_frame_equal(pd.DataFrame(), si._get_long_output(n_proc, d_proc, None))
 
 def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
@@ -132,7 +136,10 @@ def test_process(si):
                                 'VAR_PORT_PM_d': 0.001000,
                                 'VAR_PORT_t_d': 0.,
                                 'VAR_PORT_1GXS': 0.}, index= ['value'])
-    pd.testing.assert_frame_equal(expected_df, si.process(), check_exact=False, atol=0.00001)
+    pd.testing.assert_frame_equal(expected_df,
+                                  si.process(numerator_kwargs={'raw_integral': False, 'renormalize': False},
+                                             denominator_kwargs={'raw_integral': False, 'renormalize': False}),
+                                  check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
@@ -173,7 +180,9 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
 
-    nerea_ = si.process(synthetic_one_g_xs_data)
+    nerea_ = si.process(synthetic_one_g_xs_data,
+                        numerator_kwargs={'raw_integral': False, 'renormalize': False},
+                        denominator_kwargs={'raw_integral': False, 'renormalize': False})
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_[['value', 'uncertainty', 'uncertainty [%]']].columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=4)

@@ -275,7 +275,10 @@ def polyfit(order: int, data: pd.DataFrame) -> tuple[np.array, np.array, Callabl
     warnings.warn(f"CR reactivity curve fit R^2 = {r2}")
     return coef, coef_cov
 
-def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs) -> pd.DataFrame:
+def smoothing(data: pd.Series,
+              smoothing_method: str="moving_average",
+              renormalize: bool=False,
+              **kwargs) -> pd.DataFrame:
     """
     Calculates the sum of 'counts' and the minimum value of 'channel' for each
     group based on the integer division of 'channel' by 10.
@@ -297,6 +300,9 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
                 (requires ch_before_max,
                         order)
         Defailt is "moving_average"
+    renormalize : bool, optional
+        defines whether the smoothed data shall be
+        renormalized to the data integral.
     **kwargs :
         arguments for the chosen method
 
@@ -309,6 +315,7 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
     if not np.any([k in kwargs.keys() for k in ["com", "span", "halflife", "alpha"]]):
         kwargs['span'] = 10
     s = data.copy()
+    s.astype('float64')
     match smoothing_method:
         case "moving_average":
             kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.Series.rolling).parameters)}
@@ -316,7 +323,6 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
         case "ewm": # exponentially weighted mean
             kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.Series.ewm).parameters)}
             s = s.ewm(**kwargs).mean()
-            s *= (data.sum() / s.sum())
         case "savgol_filter":
             from scipy.signal import savgol_filter
             kwargs = {k: v for k, v in kwargs.items() if k in set(signature(savgol_filter).parameters)}
@@ -350,4 +356,6 @@ def smoothing(data: pd.Series, smoothing_method: str="moving_average", **kwargs)
             s = pd.concat([data.loc[:start_ - 1], s.loc[start_:lst_ch], zeros])
         case _:
             raise Exception(f"The chosen method {smoothing_method} is not allowed.")
+    if renormalize:
+        s *= (data.sum() / s.sum())
     return s
