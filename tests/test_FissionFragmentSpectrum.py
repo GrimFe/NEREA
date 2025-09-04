@@ -131,9 +131,46 @@ def test_integrate(sample_spectrum):
                                                             raw_integral=True,
                                                             renormalize=False),
                                   check_exact=False, atol=0.00001)
-
+    # testing single-lld integration
+    expected_df = pd.DataFrame({'channel':  np.int32([2]),
+                                'value': [3844.],
+                                'uncertainty': [62.],
+                                'uncertainty [%]': [1.6129032258064515],
+                                'R': [np.nan]})
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            llds=[2.],
+                                                            r=False,
+                                                            raw_integral=True,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
+    expected_df = pd.DataFrame({'channel':  np.int32([2]),
+                                'value': [3844.],
+                                'uncertainty': [62.],
+                                'uncertainty [%]': [1.6129032258064515],
+                                'R': [np.nan]})
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            llds=2.,
+                                                            r=False,
+                                                            raw_integral=True,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
+    expected_df = pd.DataFrame({'channel':  np.int32([2]),
+                                'value': [3844.],
+                                'uncertainty': [62.],
+                                'uncertainty [%]': [1.6129032258064515],
+                                'R': [np.nan]})
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=10,
+                                                            llds=2,
+                                                            r=False,
+                                                            raw_integral=True,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
 
 def test_calibrate(sample_spectrum):
+
     avg, duration = 27000, 100
     sample_monitor = ReactionRate(data = pd.DataFrame({"Time": [sample_spectrum.start_time + datetime.timedelta(seconds=i) for i in range(duration)],
                                                   "value": [avg] * duration}),

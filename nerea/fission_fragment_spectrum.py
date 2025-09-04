@@ -233,8 +233,8 @@ class FissionFragmentSpectrum:
             Paramters for self.get_max().
             - fst_ch : int
             Defailt is empty, rading from nerea.defaults.
-        llds : Iterable[int|float], optional
-            low level discriminations to integrate from.
+        llds : Iterable[int|float] | int, optional
+            low level discriminator(s) to integrate from.
             Defaults to 10 llds between [0.15, 0.6].
         r : bool, optional
             Defines whether the discriminators are absolute or
@@ -259,7 +259,8 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> integral_data = ffs.integrate()
         """
-        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds, 'r': r}
+        llds_ = llds if isinstance(llds, Iterable) else [llds]
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds_, 'r': r}
 
         out = []
         data = self.data if raw_integral else self.rebin(**kwargs)
@@ -268,7 +269,7 @@ class FissionFragmentSpectrum:
         for ch in discri:
             out.append(_make_df(*integral_v_u(data.query("channel >= @ch").counts)))
         return pd.concat(out, ignore_index=True
-                         ).assign(channel=discri, R=llds if r else [np.nan] * len(llds)
+                         ).assign(channel=discri, R=llds_ if r else [np.nan] * len(llds_)
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
 
     @staticmethod
