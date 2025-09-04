@@ -208,11 +208,10 @@ class FissionFragmentSpectrum:
         np.array
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
-
+        r = kwargs.get('r')
         out = []
         for ch in llds:
-            channel_discri = isinstance(ch, int) or ch.is_integer()
-            out.append(ch if channel_discri else np.floor(ch * self.get_R(**kwargs).channel.iloc[0]))
+            out.append(int(np.floor(ch * self.get_R(**kwargs).channel.iloc[0])) if r else int(np.round(ch)))
         return np.array(out)
 
     def integrate(self,
@@ -260,15 +259,14 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> integral_data = ffs.integrate()
         """
-        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds}
+        kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds, 'r': r}
 
         out = []
         data = self.data if raw_integral else self.rebin(**kwargs)
         data.counts = data.counts.astype('float64')
         discri = self.discriminators(**kwargs)
         for ch in discri:
-            v, u = integral_v_u(data.query("channel >= @ch").counts)
-            out.append(_make_df(v, u))
+            out.append(_make_df(*integral_v_u(data.query("channel >= @ch").counts)))
         return pd.concat(out, ignore_index=True
                          ).assign(channel=discri, R=llds if r else [np.nan] * len(llds)
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]

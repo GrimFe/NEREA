@@ -135,8 +135,8 @@ def test_per_unit_mass_ch(nffs):
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
         'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
-        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "R": [np.nan] * 10})
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     # No need to set llds as the R channels already allign absolute channels as well in this case

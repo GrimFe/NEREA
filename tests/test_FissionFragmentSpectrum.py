@@ -86,7 +86,7 @@ def test_rebin(sample_spectrum):
                                   sample_spectrum.rebin(bins=None, smooth=True))
 
 def test_integrate(sample_spectrum):
-    expected_df = pd.DataFrame({'channel':  [1., 2., 2., 3., 3., 4., 4., 5., 5., 6.],
+    expected_df = pd.DataFrame({'channel':  np.int32([1, 2, 2, 3, 3, 4, 4, 5, 5, 6]),
                                 'value': [2876.9, 2876.9, 2876.9, 2876.9, 2876.9,
                                             2876.9, 2876.9, 2876.9, 2876.9, 2551.9],
                                 'uncertainty': [53.63674114, 53.63674114,
@@ -106,7 +106,7 @@ def test_integrate(sample_spectrum):
                                                             renormalize=False),
                                   check_exact=False, atol=0.00001)
     # testing integer llds
-    expected_df = pd.DataFrame({'channel':  [1., 2.],
+    expected_df = pd.DataFrame({'channel':  np.int32([1, 2]),
                                 'value': [2876.9, 2876.9],
                                 'uncertainty': [53.63674114, 53.63674114],
                                 'uncertainty [%]': [1.86439366, 1.86439366],
@@ -119,7 +119,7 @@ def test_integrate(sample_spectrum):
                                                             renormalize=False),
                                   check_exact=False, atol=0.00001)
     # testing integration of raw data
-    expected_df = pd.DataFrame({'channel':  [1., 2.],
+    expected_df = pd.DataFrame({'channel':  np.int32([1, 2]),
                                 'value': [3944., 3844.],
                                 'uncertainty': [62.80127387243033, 62.],
                                 'uncertainty [%]': [1.592324388246205, 1.6129032258064515],
