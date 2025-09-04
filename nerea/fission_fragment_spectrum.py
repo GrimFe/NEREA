@@ -208,7 +208,7 @@ class FissionFragmentSpectrum:
         np.array
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
-        r = kwargs.get('r')
+        r = kwargs.get('r', True)
         out = []
         for ch in llds:
             out.append(int(np.floor(ch * self.get_R(**kwargs).channel.iloc[0])) if r else int(np.round(ch)))
