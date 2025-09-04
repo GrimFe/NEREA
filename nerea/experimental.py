@@ -630,7 +630,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pum.plot(x='CH_FFS', y='value', ax=axs[1][1], kind='scatter', c='k')
         axs[1][1].set_xticks(pum['CH_FFS'])
         axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_FFS']])
-        axs[1][1].set_ylabel("Fission rate per unit mass [1/s/ug]")
+        axs[1][1].set_ylabel("Fission rate per unit mass [1/ug]")
 
         ax_top = axs[1][1].twiny()
         ax_top.set_xlim(axs[1][1].get_xlim())
