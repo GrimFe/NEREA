@@ -973,7 +973,7 @@ class Traverse(_Experimental):
         tuple[plt.Figure, Iterable[plt.Axes]]
         """
         fig, axs = plt.subplots(len(self.reaction_rates), 2,
-                              figsize=(30 / len(self.reaction_rates), 15))
+                              figsize=(15, 30 / len(self.reaction_rates)))
         j = 0
         for i, (k, rr) in enumerate(self.reaction_rates.items()):
             c = plt.get_cmap(palette)(j)
@@ -981,10 +981,10 @@ class Traverse(_Experimental):
             dur = (plat.Time.max() - plat.Time.min()).total_seconds()
             # plot data
             rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0], c=c)
-            axs[i][0].plot([], [], c=c, label=k)
+            axs[i][0].plot([], [], c=c, label=f"Traverse count rate {k}")
             # plot monitor
             axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1], c=c)
-            axs[i][1].plot([], [], c=c, label=k)
+            axs[i][1].plot([], [], c=c, label=f"Monitor count rate {k}")
 
             h, l = axs[i][0].get_legend_handles_labels()
             axs[i][0].legend(h[1:], l[1:])
