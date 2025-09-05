@@ -583,9 +583,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         -------
         tuple[plt.Figure, Iterable[plt.Axes]]
         """
-        discri_r = self.fission_fragment_spectrum.integrate(
-                            **kwargs).query("channel == @discri").R.iloc[0]
-
         fig, axs = plt.subplots(2, 2, figsize=(15, 12),
                                 height_ratios=[1, 1], width_ratios=[1, 1],
                                 gridspec_kw={'wspace': 0.4})
@@ -599,29 +596,15 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         tab = axs[0][0].table(cellText=cell_text, colLabels=['ch', 'm [ug]'],
                               bbox=[1.01, 0, 0.275, 1])
         tab.auto_set_font_size(False)
-        axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].value,
-                          y=self.effective_mass.data.query("R == @discri_r")['value'].value,
-                          c='b', marker='s', label="Discriminator")
         axs[0][0].set_ylabel("Effective mass [ug]")
 
         ## plot Power Monitor
-        self.power_monitor.data.plot(x="Time", y='value', ax=axs[0][1], color='k')
-        axs[0][1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
-        axs[0][1].axvspan(self.power_monitor.start_time,
-                          self.fission_fragment_spectrum.start_time,
-                          alpha=0.5, color='gray')
-        axs[0][1].axvspan(self.fission_fragment_spectrum.start_time + datetime.timedelta(seconds=self.fission_fragment_spectrum.real_time),
-                          self.power_monitor.data.Time.max(),
-                          alpha=0.5, color='gray', label='Ingored')
-        axs[0][1].set_ylabel("Power monitor count rate [1/s]")
-        axs[0][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
-        axs[0][1].yaxis.set_label_position("right")
-        t = axs[0][1].yaxis.get_offset_text()
-        t.set_x(1.01)
+        self.power_monitor.plot(ax=axs[0][1],
+                                start_time=self.fission_fragment_spectrum.start_time,
+                                duration=self.fission_fragment_spectrum.real_time)
 
         ## plot PHS
         self.fission_fragment_spectrum.plot(ax=axs[1][0], **kwargs)
-        axs[1][0].axvline(discri, c='b', label='Discriminator')
         axs[1][0].set_xlabel("Measurement channel")
         axs[1][0].set_ylabel("Counts [-]")
 
@@ -637,8 +620,6 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ax_top.set_xticks(axs[1][1].get_xticks())
         ax_top.set_xticklabels([f"{x:.0f}" for x in pum['CH_EM']])
         ax_top.set_xlabel("Calibration channel")
-        axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0],
-                          c='b', marker='s', label='Discriminator')
         axs[1][1].ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         axs[1][1].tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
         axs[1][1].yaxis.set_label_position("right")
@@ -646,6 +627,17 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         t = axs[1][1].yaxis.get_offset_text()
         t.set_x(1.01)
         axs[1][1].grid()
+
+        # highlight discrimination level if passed
+        if discri is not None:
+            discri_r = self.fission_fragment_spectrum.integrate(
+                    **kwargs).query("channel == @discri").R.iloc[0]
+            axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].value,
+                              y=self.effective_mass.data.query("R == @discri_r")['value'].value,
+                              c='b', marker='s', label="Discriminator")
+            axs[1][0].axvline(discri, c='b', label='Discriminator')
+            axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0],
+                          c='b', marker='s', label='Discriminator')
         return fig, axs
 
 
@@ -891,7 +883,12 @@ class Traverse(_Experimental):
     def deposit_id(self):
         return self._first.deposit_id
 
-    def process(self, monitors: Iterable[ReactionRate| int], *args, normalization: int|str=None,
+    def process(self,
+                monitors: Iterable[ReactionRate| int],
+                normalization: int|str=None,
+                visual: bool=False,
+                savefig: str='',
+                palette: str='tab10',
                 **kwargs) -> pd.DataFrame:
         """
         Normalizes all the reaction rates to the power in `monitors`
@@ -904,11 +901,18 @@ class Traverse(_Experimental):
             Should be `ReactionRate` when mapped to a `ReactionRate` and
             int when mapped to `ReactionRates`. The normalization is passed to
             `ReactionRate.per_unit_time_power()` or `ReactionRates.per_unit_time_power()`.
-        *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
         normalization : str, optional
             The `self.reaction_rates` ReactionRate identifier to normalize the traveres to.
             Defaults to None, normalizing to the one with the highest counts.
+        visual : bool, optional
+            Plots the processed data.
+            Default is False.
+        savefig : str, optional
+            File name to save the plotted data to.
+            Default is `''` for not saving.
+        palette : str, optional
+            Color palette to use for plotting.
+            Default is `'tab10'`.
         **kwargs : Any
             Keyword arguments to be passed to the `ReactionRate.plateau()` method.
         
@@ -925,14 +929,67 @@ class Traverse(_Experimental):
         normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.reaction_rates.items()):
-            n = rr.per_unit_time_power(monitors[i], *args, **kwargs)
+            n = rr.per_unit_time_power(monitors[i], **kwargs)
             normalized[k] = n if isinstance(rr, ReactionRate) else list(n.values())[0]
             if normalized[k]['value'].value > m:
                 max_k, m = k, normalized[k].value[0]
         norm_k = max_k if normalization is None else normalization
         out = []
         for k, v in normalized.items():
-            relative = False if k == norm_k else True
             v, u = ratio_v_u(v, normalized[norm_k])
             out.append(_make_df(v, u).assign(traverse=k))
+        # plot
+        if visual or savefig:
+            fig, _ = self.plot(monitors, palette, **kwargs)
+            if savefig:
+                fig.savefig(savefig)
+                plt.close()
         return pd.concat(out, ignore_index=True)
+
+    def plot(self,
+             monitors: Iterable[ReactionRate| int],
+             palette: str='tab10',
+             **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
+        """
+        Plot the data processed in Traverse.
+
+        Parameters
+        ----------
+        monitors : Iterable[ReactionRate | int]
+            ordered information on the power normalization.
+            Should be `ReactionRate` when mapped to a `ReactionRate` and
+            int when mapped to `ReactionRates`. The normalization is passed to
+            `ReactionRate.per_unit_time_power()` or `ReactionRates.per_unit_time_power()`.
+        *args : Any
+            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+        palette : str, optional
+            plt palette to use for plotting.
+            Defaults to `'tab10'`.
+        **kwargs : Any
+            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+        
+        Returns
+        -------
+        tuple[plt.Figure, Iterable[plt.Axes]]
+        """
+        fig, axs = plt.subplots(len(self.reaction_rates), 2,
+                              figsize=(30 / len(self.reaction_rates), 15))
+        j = 0
+        for i, (k, rr) in enumerate(self.reaction_rates.items()):
+            c = plt.get_cmap(palette)(j)
+            plat = rr.plateau(**kwargs)
+            dur = (plat.Time.max() - plat.Time.min()).total_seconds()
+            # plot data
+            rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0], c=c)
+            axs[i][0].plot([], [], c=c, label=k)
+            # plot monitor
+            axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1], c=c)
+            axs[i][1].plot([], [], c=c, label=k)
+
+            h, l = axs[i][0].get_legend_handles_labels()
+            axs[i][0].legend(h[1:], l[1:])
+            h, l = axs[i][1].get_legend_handles_labels()
+            axs[i][1].legend(h[1:], l[1:])
+
+            j = j + 1 if i < plt.get_cmap(palette).N else 0
+        return fig, axs

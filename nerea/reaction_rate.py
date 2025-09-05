@@ -6,6 +6,7 @@ import pandas as pd
 import linecache
 from datetime import datetime, timedelta
 import warnings
+import matplotlib.pyplot as plt
 
 from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u, get_fit_R2, smoothing
 from .defaults import *
@@ -263,7 +264,7 @@ class ReactionRate:
         v, u = ratio_v_u(_make_df(v, u), normalization)
         return _make_df(v, u)
 
-    def per_unit_time_power(self, monitor, *args, **kwargs):
+    def per_unit_time_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
         """
         Normalizes the raction rate to a power monitor and gives the conunt rate
         per unit power.
@@ -424,6 +425,50 @@ class ReactionRate:
                               timebase=self.timebase,
                               _dead_time_corrected=self._dead_time_corrected
                               )
+
+    def plot(self,
+             start_time: datetime=None,
+             duration: int=None,
+             ax: plt.Axes=None,
+             c: str='k') -> plt.Axes:
+        """
+        Plot data in ReactionRate.
+
+        Parameters
+        ----------
+        start_time : datetime, optional
+            The time the Reaction rate is considered from.
+            Default is None for first acquisition time.
+        duration : int, optional
+            The time-span the Reaction rate is considered for.
+            Default is None for until last acquisition time.
+        ax : plt.Axes, optional
+            The ax where the plot is drawn.
+            Defauls is None for a new axes.
+        c : str, optional
+            The color of the plotted seriese.
+            Default is `'k'`.
+        
+        Returns
+        -------
+        plt.Axes
+        """
+        start_time_ = start_time if start_time is not None else self.start_time
+        duration_ = duration if duration is not None else (
+            self.data.Time.max() - start_time_).total_seconds()
+        ax = self.data.plot(x="Time", y='value', ax=ax, color=c)
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+        ax.axvspan(self.start_time, start_time_, alpha=0.5, color='gray')
+        ax.axvspan(start_time_ + timedelta(seconds=duration_),
+                   self.data.Time.max(), alpha=0.5, color='gray',
+                   label='Ingored')
+        ax.set_ylabel("Power monitor count rate [1/s]")
+        ax.tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
+        ax.yaxis.set_label_position("right")
+        t = ax.yaxis.get_offset_text()
+        t.set_x(1.01)
+        return ax
+
 
     @classmethod
     def from_ascii(cls, file: str, detector: int, deposit_id: str):

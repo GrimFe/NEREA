@@ -392,7 +392,7 @@ class FissionFragmentSpectrum:
                              deposit_id=self.deposit_id,
                              bins=self.rebin(**kwargs).channel.max())
 
-    def plot(self, ax=None, c='k', **kwargs) ->plt.Axes:
+    def plot(self, ax: plt.Axes=None, c: str='k', **kwargs) ->plt.Axes:
         """
         Plots the pulse height spectrum data.
 
@@ -406,10 +406,12 @@ class FissionFragmentSpectrum:
             - r
         ax : plt.Axes, optional
             Axes wehere to plot. Default is None.
+        c : str, optional
+            plot color. Default is `'k'`.
 
         Returns
         -------
-        tuple[plt.Figure, plt.Axes]
+        plt.Axes
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         plt_kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.DataFrame.plot).parameters)}
