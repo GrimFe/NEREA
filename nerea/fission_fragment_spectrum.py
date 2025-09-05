@@ -319,6 +319,8 @@ class FissionFragmentSpectrum:
                   composition: dict[str, float] | pd.DataFrame,
                   monitor: ReactionRate,
                   one_group_xs: dict[str, float],
+                  visual: bool=False,
+                  savefig: str='',
                   **kwargs) -> EffectiveMass:
         """
         Computes the fission chamber effective mass from the fission
@@ -355,6 +357,7 @@ class FissionFragmentSpectrum:
             max_kwargs : dict, optional
                 - fst_ch : int
             llds : Iterable[int|float]
+            r : are the llds fractions of the R channel?
     
         Examples
         --------
@@ -378,6 +381,11 @@ class FissionFragmentSpectrum:
                                                          ratio_v_u(integral, kmc)[1])]
                                                          ).assign(channel=integral.channel,
                                                                   R=integral.R)
+        if visual or savefig:
+            ax = self.plot(**kwargs)
+            if savefig:
+                ax.figure.savefig(savefig)
+                plt.close()
         return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]],
                              composition=composition_.reset_index(names='nuclide'),
                              detector_id=self.detector_id,
