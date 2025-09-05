@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Callable
+from functools import reduce
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -146,7 +147,7 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
         the factors to multiply. Each dataframe should come with `value` and
         `uncertainty [%]` columns.
     """
-    v = np.prod([x.value for x in factors])
+    v = reduce(lambda left, right: left.value * right.value, factors)
     # it is easier to work in relative terms for products and turn to absolute later on
     u = np.sqrt(np.sum([(x['uncertainty [%]']/100)**2 for x in factors])) * v
     return v, u
@@ -155,7 +156,7 @@ def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float]:
     a = pd.concat(addends)
     return a["value"].sum(), np.sum(a["uncertainty"] **2)
 
-def _make_df(v, u, relative=True) -> pd.DataFrame:
+def _make_df(v, u, relative: bool=True, idx: pd.Index=None) -> pd.DataFrame:
     """
     Create a pandas DataFrame with the given value and uncertainty.
 
@@ -166,7 +167,10 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
     u : Iterable | float
         The uncertainty to store in the DataFrame.
     relative : bool, optional
-        flag to enable calulation of the relative uncertainty too.
+        Flag to enable calulation of the relative uncertainty too.
+    idx : pd.Index, optional
+        Index of the output dataframe.
+        Default is None, index is set to `'value'`.
 
     Returns
     -------
@@ -183,14 +187,16 @@ def _make_df(v, u, relative=True) -> pd.DataFrame:
     value    10.0          0.5
     """
     if not isinstance(v, Iterable):
+        idx_ = idx if idx is not None else ['value']
         rel = u / v * 100 if relative else np.nan
         out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
-                           index=['value'])
+                           index=idx_)
     else:
         v_, u_ = np.array(v), np.array(u)
         rel = u_ / v_ * 100 if relative else [np.nan] * len(v_)
+        idx_ = idx if idx is not None else ['value'] * len(v_)
         out = pd.DataFrame({'value': v_, 'uncertainty': u_, 'uncertainty [%]': rel},
-                           index=['value'] * len(v_))
+                           index=idx_)
     return out
 
 def polynomial(order: int, c: Iterable[float], x: float):
