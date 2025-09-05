@@ -21,7 +21,7 @@ def sample_spectrum_data():
     # Sample data for testing
     data = {
         "channel": [  1,   2,   3,   4,   5,   6,   7,   8,   9,  10, 11,  12, 13, 14, 15, 16, 17, 18, 19, 20],
-        "counts":  [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 50, 25, 10,  5,  3,  1,  0,  0,  0]
+        "value":  [100, 150, 200, 250, 300, 350, 400, 450, 500, 550, 600, 50, 25, 10,  5,  3,  1,  0,  0,  0]
     }
     return data
 
@@ -45,31 +45,31 @@ def test_smoothing(sample_spectrum):
     smoothed_data = sample_spectrum.smooth().data
     EXPECTED_MEAN_1 = 325.0
     EXPECTED_MEAN_2 = 375.0
-    assert all(smoothed_data.query("channel < 10").counts == [EXPECTED_MEAN_0] * 9)
-    assert smoothed_data.query("channel == 10").counts.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
-    assert smoothed_data.query("channel == 11").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
+    assert all(smoothed_data.query("channel < 10").value == [EXPECTED_MEAN_0] * 9)
+    assert smoothed_data.query("channel == 10").value.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
+    assert smoothed_data.query("channel == 11").value.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
     assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
     # test Moving Average window = 5
     smoothed_data = sample_spectrum.smooth(window=5).data
     EXPECTED_MEAN_1 = 200
     EXPECTED_MEAN_2 = 250
-    assert all(smoothed_data.query("channel < 5").counts == [EXPECTED_MEAN_0] * 4)
-    assert smoothed_data.query("channel == 5").counts.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
-    assert smoothed_data.query("channel == 6").counts.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
+    assert all(smoothed_data.query("channel < 5").value == [EXPECTED_MEAN_0] * 4)
+    assert smoothed_data.query("channel == 5").value.values[0] == pytest.approx(EXPECTED_MEAN_1, rel=1e-9)
+    assert smoothed_data.query("channel == 6").value.values[0] == pytest.approx(EXPECTED_MEAN_2, rel=1e-9)
     assert all(smoothed_data.channel == sample_spectrum.data.channel)
 
 def test_get_max(sample_spectrum):
     max_data = sample_spectrum.get_max(smooth=False)
     assert max_data["channel"][0] == 11
-    assert max_data["counts"][0] == 600
+    assert max_data["value"][0] == 600
 
 def test_get_R(sample_spectrum):
-    expected_df = pd.DataFrame({"channel": 12, "counts": 50}, index=[11])
+    expected_df = pd.DataFrame({"channel": 12, "value": 50}, index=[11])
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.get_R(smooth=False))
 
 def test_rebin(sample_spectrum):
-    expected_df = pd.DataFrame({"channel": [1, 2], "counts": [325.0, 2551.9]},
+    expected_df = pd.DataFrame({"channel": [1, 2], "value": [325.0, 2551.9]},
                                 index=pd.RangeIndex(0, 2))
     pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2))
 

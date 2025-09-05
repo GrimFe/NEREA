@@ -37,7 +37,7 @@ class FissionFragmentSpectrum:
 
     def smooth(self, **kwargs) -> Self:
         """
-        Calculates the sum of 'counts' and the minimum value of 'channel' for each
+        Calculates the sum of 'value' and the minimum value of 'channel' for each
         group based on the integer division of 'channel' by 10.
         Contains the data used to find `max` and hence `R`.
 
@@ -57,7 +57,7 @@ class FissionFragmentSpectrum:
         >>> smoothened_data = ffs.smooth()
         """
         df = self.data.copy()
-        df['counts'] = smoothing(df['counts'], **kwargs)
+        df['value'] = smoothing(df['value'], **kwargs)
         out = self.__class__(
             start_time = self.start_time,
             data = df,
@@ -110,9 +110,9 @@ class FissionFragmentSpectrum:
             bins_ = int(min(bins, max_bins))
             df['bins'] = pd.cut(df['channel'], bins=list(range(0, max_bins + 1, int(max_bins / bins_))))
             df = df.groupby('bins', as_index=False, observed=False
-                            ).agg({'counts': 'sum'}).drop('bins', axis=1
+                            ).agg({'value': 'sum'}).drop('bins', axis=1
                                                             ).assign(channel=range(1, bins_+1))
-        return df[['channel', 'counts']]
+        return df[['channel', 'value']]
 
     def get_max(self, fst_ch: int=None, **kwargs) -> pd.DataFrame:
         """
@@ -132,7 +132,7 @@ class FissionFragmentSpectrum:
         Returns
         -------
         pd.DataFrame
-            DataFrame with 'channel' and 'counts' columns.
+            DataFrame with 'channel' and 'value' columns.
 
         Examples
         --------
@@ -143,15 +143,15 @@ class FissionFragmentSpectrum:
 
         reb = self.rebin(**kwargs)
         if fst_ch is None:
-            lst_ch = reb[reb.counts > 0].channel.max()
-            fst_ch = reb[reb.counts > 0].channel.min() + np.floor(lst_ch / 10)
+            lst_ch = reb[reb.value > 0].channel.max()
+            fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
         df = reb[reb.channel > fst_ch]
-        return pd.DataFrame({"channel": [df.counts.idxmax() + 1], "counts": [df.counts.max()]})
+        return pd.DataFrame({"channel": [df.value.idxmax() + 1], "value": [df.value.max()]})
 
     def get_R(self, **kwargs) -> pd.DataFrame:
         """
         Filters data in channels above the channel of the spectrum maximum
-        and returns the first row with counts <= than the maximum.
+        and returns the first row with value <= than the maximum.
 
         Parameters
         ----------
@@ -167,7 +167,7 @@ class FissionFragmentSpectrum:
         Returns
         -------
         pd.DataFrame
-            DataFrame with 'channel' and 'counts' columns.
+            DataFrame with 'channel' and 'value' columns.
 
         Examples
         --------
@@ -179,7 +179,7 @@ class FissionFragmentSpectrum:
         reb = self.rebin(**kwargs)
         max_ch = self.get_max(**kwargs).channel[0]
         data = reb.query("channel > @max_ch")
-        return data[data.counts <= self.get_max(**kwargs).counts[0] / 2].iloc[0].to_frame().T[["channel", "counts"]]
+        return data[data.value <= self.get_max(**kwargs).value[0] / 2].iloc[0].to_frame().T[["channel", "value"]]
 
     def discriminators(self,
                        llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
@@ -264,10 +264,10 @@ class FissionFragmentSpectrum:
 
         out = []
         data = self.data if raw_integral else self.rebin(**kwargs)
-        data.counts = data.counts.astype('float64')
+        data.value = data.value.astype('float64')
         discri = self.discriminators(**kwargs)
         for ch in discri:
-            out.append(_make_df(*integral_v_u(data.query("channel >= @ch").counts)))
+            out.append(_make_df(*integral_v_u(data.query("channel >= @ch").value)))
         return pd.concat(out, ignore_index=True
                          ).assign(channel=discri, R=llds_ if r else [np.nan] * len(llds_)
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
@@ -416,19 +416,19 @@ class FissionFragmentSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         plt_kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.DataFrame.plot).parameters)}
 
-        ax = self.rebin(**kwargs).plot(x='channel', y='counts', kind='scatter',
+        ax = self.rebin(**kwargs).plot(x='channel', y='value', kind='scatter',
                                        s=10, c=c, ax=ax, **plt_kwargs)
 
         m = self.get_max(**kwargs)
-        ax.scatter(x=m.channel.iloc[0], y=m.counts.iloc[0], color='green', s=20, label="MAX")
+        ax.scatter(x=m.channel.iloc[0], y=m.value.iloc[0], color='green', s=20, label="MAX")
         r = self.get_R(**kwargs)
-        ax.scatter(x=r.channel.iloc[0], y=r.counts.iloc[0], color='red', s=20, label="R")
+        ax.scatter(x=r.channel.iloc[0], y=r.value.iloc[0], color='red', s=20, label="R")
 
         for i in self.discriminators(**kwargs):
             ax.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
         ax.legend()
-        ax.set_xlim([0, self.rebin(**kwargs).query("counts >= 1").channel.iloc[-1]])
-        ax.set_ylim([0, m.counts.iloc[0] * 1.1])
+        ax.set_xlim([0, self.rebin(**kwargs).query("value >= 1").channel.iloc[-1]])
+        ax.set_ylim([0, m.value.iloc[0] * 1.1])
         return ax
 
     @classmethod
@@ -457,11 +457,11 @@ class FissionFragmentSpectrum:
         """
         data = pd.read_csv(file, header=None)
         data = data.iloc[2:].reset_index(drop=True).reset_index()        
-        data.columns = ['channel', 'counts']
+        data.columns = ['channel', 'value']
         data.channel += 1
-        # GENIE overwrites the first two counts with time indications
+        # GENIE overwrites the first two values with time indications
         # Here two zeros are added at the beginning of the data
-        data = pd.concat([pd.DataFrame({'channel': [-1, -0], 'counts': [0, 0]}),
+        data = pd.concat([pd.DataFrame({'channel': [-1, -0], 'value': [0, 0]}),
                           data], ignore_index=True)
         data['channel'] += 2
         kwargs['data'] = data
@@ -514,7 +514,7 @@ class FissionFragmentSpectra():
     This class works under the assumption that no measurement time was
     lost in the process of measuring the fission fragment spectra.
 
-    That is that the `self.data` will be the channel-wise sum of the counts
+    That is that the `self.data` will be the channel-wise sum of the values
     of the listed fission fragment spectra, while the start time of the
     measurement will be the minimum start time and life and real times will
     be the sum of the respective times in the listed fission fragment spectra.
@@ -569,10 +569,10 @@ class FissionFragmentSpectra():
         >>> ffss = FissionFragmentSpectra(...)
         >>> best_spectrum = ffss.best
         """
-        max = self.spectra[0].data.counts.sum()
+        max = self.spectra[0].data.value.sum()
         out = self.spectra[0]
         for s in self.spectra[1:]:
-            if s.data.counts.sum() > max:
+            if s.data.value.sum() > max:
                 out = s
         return out
 
