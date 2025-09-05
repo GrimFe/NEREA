@@ -71,19 +71,19 @@ def test_get_R(sample_spectrum):
 def test_rebin(sample_spectrum):
     expected_df = pd.DataFrame({"channel": [1, 2], "value": [325.0, 2551.9]},
                                 index=pd.RangeIndex(0, 2))
-    pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2))
+    pd.testing.assert_frame_equal(expected_df, sample_spectrum.rebin(2).data)
 
     # test it gives the same data if rebinned to the same amount of bins
     pd.testing.assert_frame_equal(sample_spectrum.data,
-                                  sample_spectrum.rebin(20, smooth=False))
+                                  sample_spectrum.rebin(20, smooth=False).data)
     
     # test it gives smoothened data if rebinned to the same amount of bins, buth smooth is True
     pd.testing.assert_frame_equal(sample_spectrum.smooth().data,
-                                  sample_spectrum.rebin(20, smooth=True))
+                                  sample_spectrum.rebin(20, smooth=True).data)
     
     # test it also gives the same when smoothing and bins=None
     pd.testing.assert_frame_equal(sample_spectrum.smooth().data,
-                                  sample_spectrum.rebin(bins=None, smooth=True))
+                                  sample_spectrum.rebin(bins=None, smooth=True).data)
 
 def test_integrate(sample_spectrum):
     expected_df = pd.DataFrame({'channel':  np.int32([1, 2, 2, 3, 3, 4, 4, 5, 5, 6]),

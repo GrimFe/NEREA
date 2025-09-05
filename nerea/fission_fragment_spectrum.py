@@ -74,7 +74,7 @@ class FissionFragmentSpectrum:
         )        
         return out
 
-    def rebin(self, bins: int=None, smooth: bool=True, **kwargs) -> pd.DataFrame:
+    def rebin(self, bins: int=None, smooth: bool=True, **kwargs) -> Self:
         """
         Rebins the spectrum.
 
@@ -94,8 +94,8 @@ class FissionFragmentSpectrum:
 
         Returns
         -------
-        pd.DataFrame
-            Rebinned spectrum data.
+        self.__class__
+            Rebinned spectrum.
 
         Examples
         --------
@@ -112,7 +112,21 @@ class FissionFragmentSpectrum:
             df = df.groupby('bins', as_index=False, observed=False
                             ).agg({'value': 'sum'}).drop('bins', axis=1
                                                             ).assign(channel=range(1, bins_+1))
-        return df[['channel', 'value']]
+        out = self.__class__(
+                start_time = self.start_time,
+                data = df[['channel', 'value']],
+                campaign_id = self.campaign_id,
+                experiment_id = self.experiment_id,
+                detector_id = self.detector_id,
+                deposit_id = self.deposit_id,
+                location_id = self.location_id,
+                measurement_id = self.measurement_id,
+                life_time = self.life_time,
+                real_time = self.real_time,
+                life_time_uncertainty = self.life_time_uncertainty,
+                real_time_uncertainty = self.real_time_uncertainty
+            )        
+        return out
 
     def get_max(self, fst_ch: int=None, **kwargs) -> pd.DataFrame:
         """
@@ -141,7 +155,7 @@ class FissionFragmentSpectrum:
         """
         kwargs = DEFAULT_BIN_KWARGS | kwargs
 
-        reb = self.rebin(**kwargs)
+        reb = self.rebin(**kwargs).data
         if fst_ch is None:
             lst_ch = reb[reb.value > 0].channel.max()
             fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
@@ -176,7 +190,7 @@ class FissionFragmentSpectrum:
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
 
-        reb = self.rebin(**kwargs)
+        reb = self.rebin(**kwargs).data
         max_ch = self.get_max(**kwargs).channel[0]
         data = reb.query("channel > @max_ch")
         return data[data.value <= self.get_max(**kwargs).value[0] / 2].iloc[0].to_frame().T[["channel", "value"]]
@@ -263,7 +277,7 @@ class FissionFragmentSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds_, 'r': r}
 
         out = []
-        data = self.data if raw_integral else self.rebin(**kwargs)
+        data = self.data if raw_integral else self.rebin(**kwargs).data
         data.value = data.value.astype('float64')
         discri = self.discriminators(**kwargs)
         for ch in discri:
@@ -390,7 +404,7 @@ class FissionFragmentSpectrum:
                              composition=composition_.reset_index(names='nuclide'),
                              detector_id=self.detector_id,
                              deposit_id=self.deposit_id,
-                             bins=self.rebin(**kwargs).channel.max())
+                             bins=self.rebin(**kwargs).data.channel.max())
 
     def plot(self, ax: plt.Axes=None, c: str='k', **kwargs) ->plt.Axes:
         """
@@ -416,7 +430,7 @@ class FissionFragmentSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         plt_kwargs = {k: v for k, v in kwargs.items() if k in set(signature(pd.DataFrame.plot).parameters)}
 
-        ax = self.rebin(**kwargs).plot(x='channel', y='value', kind='scatter',
+        ax = self.rebin(**kwargs).data.plot(x='channel', y='value', kind='scatter',
                                        s=10, c=c, ax=ax, **plt_kwargs)
 
         m = self.get_max(**kwargs)
@@ -427,7 +441,7 @@ class FissionFragmentSpectrum:
         for i in self.discriminators(**kwargs):
             ax.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
         ax.legend()
-        ax.set_xlim([0, self.rebin(**kwargs).query("value >= 1").channel.iloc[-1]])
+        ax.set_xlim([0, self.rebin(**kwargs).data.query("value >= 1").channel.iloc[-1]])
         ax.set_ylim([0, m.value.iloc[0] * 1.1])
         return ax
 
