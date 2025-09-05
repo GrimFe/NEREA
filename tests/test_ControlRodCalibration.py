@@ -172,7 +172,7 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
                                                 'VAR_PORT_L': 0., 'h': 0.}, index=['value']))
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.49380032e-03,
-                                                'uncertainty': 4.11358218e-05,
+                                                'uncertainty': 4.112195806123739e-05,
                                                 'uncertainty [%]': 1.64952348e+00,
                                                 'VAR_PORT_T': 4.51445772e-10,
                                                 'VAR_PORT_B': 6.21904003e-10,

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from collections.abc import Iterable
-import warnings
+import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
@@ -144,15 +144,40 @@ class ControlRodCalibration:
             return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)
                             ).assign(VAR_PORT_X1=i1.uncertainty **2,
                                      VAR_PORT_X0=i0.uncertainty **2)
+    
+    def plot(self, dtc_kwargs=None, ac_kwargs=None):
+        dtc_kw = DEFAULT_DTC_KWARGS if dtc_kwargs is None else dtc_kwargs
+        ac_kw = DEFAULT_AC_KWARGS if ac_kwargs is None else ac_kwargs
+        fig, axs = plt.subplots(len(self.reaction_rates), 2,
+                              figsize=(15, 30 / len(self.reaction_rates)))
+        for i, (h, rr) in enumerate(self.reaction_rates.items()):
+            # data preparation
+            dtc = rr.dead_time_corrected(**dtc_kw)
+            ac = dtc.get_asymptotic_counts(**ac_kw)
+            # raw data
+            rr.plot(ax=axs[i][0])
+            axs[i][0].plot([], [], c='k', label=f'Raw count rate @ H={h}')
+            # dead time corrected
+            duration = (ac.data.Time.max() - ac.data.Time.min()).total_seconds()
+            dtc.plot(ac.start_time, duration, ax=axs[i][1], c='blue')
+            axs[i][1].plot([], [], c='blue',
+                           label=f'Count rate after dead time correction')
+            # remove legends
+            h, l = axs[i][0].get_legend_handles_labels()
+            axs[i][0].legend(h[1:], l[1:])
+            h, l = axs[i][1].get_legend_handles_labels()
+            axs[i][1].legend(h[1:], l[1:])
+        return fig, axs
 
 
 @dataclass(slots=True)
 class DifferentialNoCompensation(ControlRodCalibration):
-
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None) -> pd.DataFrame:
+                             ac_kwargs: dict=None,
+                             visual: bool=False,
+                             savefig: str='') -> pd.DataFrame:
         """"
         Computes the differential reacitivty curve dr/dh for measurements without compensation.
 
@@ -167,6 +192,12 @@ class DifferentialNoCompensation(ControlRodCalibration):
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
             Default is None.
+        visual : bool, optional
+            Whether to plot the processed data.
+            Default is False.
+        savefig : str, optional
+            File name to save the plotted data to.
+            Default is `''` for no plotting.
 
         Returns
         -------
@@ -183,6 +214,11 @@ class DifferentialNoCompensation(ControlRodCalibration):
                                                                                      # each differential corrsponds to the average of two heights
                                                                                      h=rho['h'].rolling(2).mean()
                                                                                      )
+        if visual or savefig:
+            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            if savefig:
+                fig.savefig(savefig)
+                plt.close()
         return out.dropna()  # dropping the first NaN of diff()
 
     @staticmethod
@@ -195,11 +231,12 @@ class DifferentialNoCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class IntegralNoCompensation(ControlRodCalibration):
-
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None) -> pd.DataFrame:
+                             ac_kwargs: dict=None,
+                             visual: bool=False,
+                             savefig: str='') -> pd.DataFrame:
         """"
         Computes the integral reacitivty curve dr/dh for measurement without compensation.
 
@@ -214,6 +251,12 @@ class IntegralNoCompensation(ControlRodCalibration):
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
             Default is None.
+        visual : bool, optional
+            Whether to plot the processed data.
+            Default is False.
+        savefig : str, optional
+            File name to save the plotted data to.
+            Default is `''` for no plotting.
 
         Returns
         -------
@@ -224,6 +267,11 @@ class IntegralNoCompensation(ControlRodCalibration):
         alias for self._get_rhos
         """
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        if visual or savefig:
+            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            if savefig:
+                fig.savefig(savefig)
+                plt.close()
         return rho
     
     @staticmethod
@@ -236,11 +284,12 @@ class IntegralNoCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class DifferentialCompensation(ControlRodCalibration):
-
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None) -> pd.DataFrame:
+                             ac_kwargs: dict=None,
+                             visual: bool=False,
+                             savefig: str='') -> pd.DataFrame:
         """"
         Computes the differential reacitivty curve dr/dh for measurements with compensation.
 
@@ -255,6 +304,12 @@ class DifferentialCompensation(ControlRodCalibration):
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
             Default is None.
+        visual : bool, optional
+            Whether to plot the processed data.
+            Default is False.
+        savefig : str, optional
+            File name to save the plotted data to.
+            Default is `''` for no plotting.
 
         Returns
         -------
@@ -273,6 +328,11 @@ class DifferentialCompensation(ControlRodCalibration):
                                                                                      # each differential corrsponds to the average of two heights
                                                                                      h=rho['h'].rolling(2).mean()
                                                                                      )
+        if visual or savefig:
+            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            if savefig:
+                fig.savefig(savefig)
+                plt.close()
         return out.dropna()  # dropping the first NaN of diff()
 
     @staticmethod
@@ -285,11 +345,12 @@ class DifferentialCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class IntegralCompensation(ControlRodCalibration):
-
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None) -> pd.DataFrame:
+                             ac_kwargs: dict=None,
+                             visual: bool=False,
+                             savefig: str = '') -> pd.DataFrame:
         """"
         Computes the integral reacitivty curve dr/dh for measurement with compensation.
 
@@ -304,6 +365,12 @@ class IntegralCompensation(ControlRodCalibration):
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
             Default is None.
+        visual : bool, optional
+            Whether to plot the processed data.
+            Default is False.
+        savefig : str, optional
+            File name to save the plotted data to.
+            Default is `''` for no plotting.
 
         Returns
         -------
@@ -314,6 +381,11 @@ class IntegralCompensation(ControlRodCalibration):
         alias for self._get_rhos
         """
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        if visual or savefig:
+            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            if savefig:
+                fig.savefig(savefig)
+                plt.close()
         return rho.loc[:, rho.columns != 'h'].cumsum().assign(h=rho['h'])
 
     @staticmethod

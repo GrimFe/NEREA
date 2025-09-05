@@ -63,7 +63,7 @@ class ReactionRate:
         if nonzero:
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
-                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
+                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows." % (self.data.shape[0] - data.shape[0]))
         if preprocessing is not None:
             y = getattr(np, preprocessing)(data.value)  # apply preprocessing
         else:
@@ -110,7 +110,7 @@ class ReactionRate:
         if nonzero:
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
-                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows.", self.data.shape[0] - data.shape[0])
+                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows." % (self.data.shape[0] - data.shape[0]))
         if preprocessing is not None:
             y = getattr(np, preprocessing)(data.value)  # apply preprocessing
         else:
@@ -190,49 +190,6 @@ class ReactionRate:
             w = kwargs['window'] if kwargs['smoothing_method'] == 'moving_average' else kwargs['window_length']
             if w < self.timebase:  ## if nor window nor window_length are passed w is False
                 raise ValueError("Smoothing window length should be larger than the Reaction Rate timebase.")
-        else:
-            out = pd.DataFrame({"Time": self.data["Time"],
-                                "value": smoothing(self.data["value"], **kwargs)})
-        return self.__class__(
-            data=out,
-            start_time=self.start_time,
-            campaign_id=self.campaign_id,
-            experiment_id=self.experiment_id,
-            detector_id=self.detector_id,
-            deposit_id=self.deposit_id,
-            timebase=self.timebase,
-            _dead_time_corrected=self._dead_time_corrected
-        )
-
-    def smooth(self, **kwargs) -> Self:
-        """
-        Calculates the reaction rate moving average.
-
-        Parameters
-        ----------
-        **kwargs :
-            arguments to nerea.utils.smoothing()
-            - method
-            - arguments to the metod
-        
-        Returns
-        -------
-        pd.DataFrame
-            with time and counts data.
-        
-        Notes
-        -----
-        Allowed methods are:
-            - "moving average"
-            - "savgol_filter"
-        """
-        w = False
-        if kwargs.get("method") == 'moving_average':
-            w = kwargs.get("window")
-        elif kwargs.get("method") == 'savgol_filter':
-            w = kwargs.get("window_length")
-        if w and w < self.timebase:  ## if nor window nor window_length are passed w is False
-            raise ValueError("Moving average window length should be larger than the Reaction Rate timebase.")
         else:
             out = pd.DataFrame({"Time": self.data["Time"],
                                 "value": smoothing(self.data["value"], **kwargs)})
@@ -507,7 +464,7 @@ class ReactionRate:
         else:
             first = first.iloc[-1].name
         return self.__class__(self.data[first:last],
-                              start_time=self.start_time,
+                              start_time=self.data[first:last].Time.min(),
                               campaign_id=self.campaign_id,
                               experiment_id=self.experiment_id,
                               detector_id=self.detector_id,
