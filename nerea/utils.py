@@ -1,6 +1,7 @@
 from collections.abc import Iterable, Callable
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 import warnings
 from scipy.optimize import curve_fit
 
@@ -8,7 +9,6 @@ from inspect import signature
 
 __all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df',
            'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
-
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -151,7 +151,11 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
     u = np.sqrt(np.sum([(x['uncertainty [%]']/100)**2 for x in factors])) * v
     return v, u
 
-def _make_df(v: Iterable | float, u: Iterable | float, relative=True) -> pd.DataFrame:
+def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float]:
+    a = pd.concat(addends)
+    return a["value"].sum(), np.sum(a["uncertainty"] **2)
+
+def _make_df(v, u, relative=True) -> pd.DataFrame:
     """
     Create a pandas DataFrame with the given value and uncertainty.
 

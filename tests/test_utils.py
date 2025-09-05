@@ -1,4 +1,6 @@
 import pytest
+import types
+
 import numpy as np
 import pandas as pd
 from nerea.utils import *

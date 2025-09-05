@@ -174,14 +174,14 @@ class DifferentialNoCompensation(ControlRodCalibration):
         """
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         drho_v = (rho["value"].diff() / rho["h"].diff()).fillna(0).values
-
         VAR_PORT_T = rho["VAR_PORT_T"].rolling(2).sum() / rho["h"].diff() **2
         VAR_PORT_B = rho["VAR_PORT_B"].rolling(2).sum() / rho["h"].diff() **2
         VAR_PORT_L = rho["VAR_PORT_L"].rolling(2).sum() / rho["h"].diff() **2
         out = _make_df(drho_v, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
                                                                                      VAR_PORT_B=VAR_PORT_B,
                                                                                      VAR_PORT_L=VAR_PORT_L,
-                                                                                     h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
+                                                                                     # each differential corrsponds to the average of two heights
+                                                                                     h=rho['h'].rolling(2).mean()
                                                                                      )
         return out.dropna()  # dropping the first NaN of diff()
 
@@ -264,14 +264,14 @@ class DifferentialCompensation(ControlRodCalibration):
         # no need to differenciate rho as with compensation the measured reactivity
         # is already related with a differential movement of the control rod
         drho_v = rho.value / rho["h"].diff()
-        
         VAR_PORT_T = rho["VAR_PORT_T"] / rho["h"].diff() **2
         VAR_PORT_B = rho["VAR_PORT_B"] / rho["h"].diff() **2
         VAR_PORT_L = rho["VAR_PORT_L"] / rho["h"].diff() **2
         out = _make_df(drho_v, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
                                                                                      VAR_PORT_B=VAR_PORT_B,
                                                                                      VAR_PORT_L=VAR_PORT_L,
-                                                                                     h=rho['h'].rolling(2).mean()  # each differential corrsponds to the average of two heights
+                                                                                     # each differential corrsponds to the average of two heights
+                                                                                     h=rho['h'].rolling(2).mean()
                                                                                      )
         return out.dropna()  # dropping the first NaN of diff()
 
