@@ -169,8 +169,22 @@ def test_integrate(sample_spectrum):
                                                             renormalize=False),
                                   check_exact=False, atol=0.00001)
 
-def test_calibrate(sample_spectrum):
+def test_get_calibration_coefficient(sample_spectrum):
+    composition = {'U235': [1, 0.1]}
+    composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
+                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+    expected_df = pd.DataFrame({'value': 3.8150947e-09,
+                                "uncertainty": 3.8150947e-10,
+                                "uncertainty [%]": 1.0000000e+01}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df,
+                sample_spectrum._get_calibration_coefficient(XS_FAST, composition_))
+    composition = {'U235': [100, 0.1 * 100]}
+    composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
+                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+    pd.testing.assert_frame_equal(expected_df,
+                sample_spectrum._get_calibration_coefficient(XS_FAST, composition_))
 
+def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
     sample_monitor = ReactionRate(data = pd.DataFrame({"Time": [sample_spectrum.start_time + datetime.timedelta(seconds=i) for i in range(duration)],
                                                   "value": [avg] * duration}),
