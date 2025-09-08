@@ -171,9 +171,6 @@ class CalculatedTraverse(_Calculated):
         norm_d = max_d if normalization is None else normalization
         den = self.data.query('traverse == @norm_d')
         den = _make_df(den.value.iloc[0], den.uncertainty.iloc[0])
-        for d in self.data.traverse:
-            num = self.data.query('traverse == @d')
-            num = _make_df(num.value.iloc[0], num.uncertainty.iloc[0])
-            v, u = ratio_v_u(num, den)
-            out.append(_make_df(v, u).assign(traverse=d))
-        return pd.concat(out, ignore_index=True)
+        num = _make_df(self.data.value, self.data.uncertainty)
+        out = _make_df(*ratio_v_u(num, den)).assign(traverse=self.data.traverse.values)
+        return out.reset_index(drop=True)

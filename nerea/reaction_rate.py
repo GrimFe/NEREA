@@ -307,10 +307,8 @@ class ReactionRate:
         """
         plateau = self.plateau(*args, **kwargs)
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
-        normalization = monitor.average(plateau.Time.min(), duration)
-        v, u = integral_v_u(plateau.value)
-        v, u = ratio_v_u(_make_df(v, u), normalization)
-        return _make_df(v, u)
+        normalization = monitor.average(plateau.Time.min(), duration) 
+        return _make_df(*ratio_v_u(_make_df(*integral_v_u(plateau.value)), normalization))
 
     def per_unit_time_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
         """
@@ -335,8 +333,7 @@ class ReactionRate:
         plateau = self.plateau(*args, **kwargs)
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
         unit_p = self.per_unit_power(monitor, *args, **kwargs)
-        v, u = unit_p.value / duration, unit_p.uncertainty / duration
-        return _make_df(v, u)
+        return _make_df(unit_p.value / duration, unit_p.uncertainty / duration)
 
     def dead_time_corrected(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
         """

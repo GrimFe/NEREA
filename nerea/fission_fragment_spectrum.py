@@ -320,8 +320,7 @@ class FissionFragmentSpectrum:
         ## calculation of the sum over nuclides in the deposit (n * xs)
         main = composition.query("value == 1").index.values[0]
         xs_ = xs.loc[composition.index]
-        a = _make_df(ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[0],
-                     ratio_v_u(AVOGADRO, ATOMIC_MASS[main])[1])
+        a = _make_df(*ratio_v_u(AVOGADRO, ATOMIC_MASS[main]))
         c_v = a['value'].value * composition.value @ xs_.value
         c_u = np.sqrt((a['value'].value * composition.value @ xs_.uncertainty) **2 +
                       (a['value'].value * composition.uncertainty @ xs_.value) **2 +
@@ -380,21 +379,25 @@ class FissionFragmentSpectrum:
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
 
-        composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+        composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
+                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
         c = self._get_calibration_coefficient(one_group_xs, composition_)
 
         pm = monitor.average(self.start_time, self.real_time)
-        kmc = _make_df(product_v_u([k, pm, c])[0], product_v_u([k, pm, c])[1])
-        integral = []
-        for _, row in self.integrate(**kwargs).iterrows():
-            v, u = ratio_v_u(row, _make_df(self.life_time, self.life_time_uncertainty))
-            integral.append(_make_df(v, u).assign(channel=row.channel, R=row.R))
-        integral = pd.concat(integral)
-
-        data = pd.concat([_make_df(v, u) for v, u in zip(ratio_v_u(integral, kmc)[0],
-                                                         ratio_v_u(integral, kmc)[1])]
-                                                         ).assign(channel=integral.channel,
-                                                                  R=integral.R)
+        kmc = _make_df(*product_v_u([k, pm, c]))
+        integral = self.integrate(**kwargs)
+        integral.index = ['value'] * integral.shape[0]
+        time = pd.concat([_make_df(self.life_time, self.life_time_uncertainty)
+                          ] * integral.shape[0])
+        integral = _make_df(*ratio_v_u(integral, time)).assign(channel=integral.channel.values,
+                                     R=integral.R.values)
+        # integral = []
+        # for _, row in self.integrate(**kwargs).iterrows():
+        #     integral.append(_make_df(*ratio_v_u(
+        #         row, _make_df(self.life_time, self.life_time_uncertainty
+        #                       ))).assign(channel=row.channel, R=row.R))
+        # integral = pd.concat(integral)
+        data = _make_df(*ratio_v_u(integral, kmc)).assign(channel=integral.channel, R=integral.R)
         if visual or savefig:
             ax = self.plot(**kwargs)
             if savefig:

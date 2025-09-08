@@ -38,12 +38,12 @@ def test_ratio_uncertainty():
 
 def test_product_v_u():
     product = product_v_u([pd.DataFrame({'value': x[0],
-                                         'uncertainty [%]': x[1]}, index=[0]) for x in
+                                         'uncertainty [%]': x[1]}, index=['value']) for x in
                                                             [(10, 10), (5, 2), (10, 20)]])
     EXPECTED_VALUE = 500
     EXPECTED_UNCERTAINTY = np.sqrt(2 **2 + 10 **2 + 20 **2) / 100 * EXPECTED_VALUE
-    assert product[0] == EXPECTED_VALUE
-    assert product[1] == EXPECTED_UNCERTAINTY
+    assert product[0].value == EXPECTED_VALUE
+    assert product[1].value == EXPECTED_UNCERTAINTY
 
 def test_make_df():
     df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY)

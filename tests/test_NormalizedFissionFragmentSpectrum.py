@@ -19,13 +19,14 @@ def sample_spectrum_data():
 
 @pytest.fixture
 def sample_integral_data():
-    data = {
-        "channel": [ 6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+    data = pd.DataFrame({
+        "channel": [ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "value":   [60,  80,  88,  87,  87,  88,  86,  85,  82,  78],
         "uncertainty": [.1, .2, .3, .4, .5, .6, .7, .8, .9, .1],
         "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]
-    }
-    return pd.DataFrame(data)
+    })
+    data['channel'] = data['channel'].astype('int32')
+    return data
 
 @pytest.fixture
 def sample_power_monitor_data():
@@ -113,9 +114,11 @@ def test_per_unit_mass_R(nffs):
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
         'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
-        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
+    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                   nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(
                                                                 raw_integral=False,
@@ -138,6 +141,8 @@ def test_per_unit_mass_ch(nffs):
         'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "R": [np.nan] * 10})
+    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     # No need to set llds as the R channels already allign absolute channels as well in this case
     pd.testing.assert_frame_equal(expected_df,
@@ -171,28 +176,32 @@ def test_per_unit_mass(nffs):
 
 def test_per_unit_mass_and_time(nffs):
     expected_df = pd.DataFrame({
-        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'value': [1.47733333, 1.108     , 1.00727273, 1.01528736, 1.01045977,
                   0.99295455, 1.00976744, 1.00552941, 0.99719512, 0.99397436],
         'uncertainty': [0.04968184, 0.03731853, 0.03400617, 0.03447879, 0.03457126,
                         0.03426649, 0.03523777, 0.03567267, 0.0365497 , 0.03572044],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858]})
+    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                    nffs.per_unit_mass_and_time(raw_integral=False, renormalize=False),
                                    check_exact=False, atol=0.00001)
 
 def test_per_unit_mass_and_power(nffs):
     expected_df = pd.DataFrame({
-        'CH_FFS': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
-        'CH_EM': [6.,  8., 10., 12., 14., 16., 18., 20., 22., 24.],
+        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'value': [0.14773333, 0.1108    , 0.10072727, 0.10152874, 0.10104598,
                   0.09929545, 0.10097674, 0.10055294, 0.09971951, 0.09939744],
         'uncertainty': [0.00681968, 0.00511892, 0.00465942, 0.00471126, 0.00470765,
                         0.00464774, 0.00475535, 0.00477873, 0.0048273 , 0.00475808],
         'uncertainty [%]': [4.61620691, 4.61996628, 4.62577642, 4.64032008, 4.65892314,
                             4.68072029, 4.70934719, 4.75245461, 4.84087431, 4.78692694]})
+    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                    nffs.per_unit_mass_and_power(raw_integral=False, renormalize=False),
                                    check_exact=False, atol=0.00001)

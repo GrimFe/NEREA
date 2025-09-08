@@ -95,16 +95,14 @@ class _Comparison:
         return pd.concat([df, var_num, var_den], axis=1)
 
     def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
-        n = self.num.calculate(normalization=normalization)
-        d = self.den.process(normalization=normalization, **kwargs)
-        out = []
-        for t in d.traverse:
-            v, u = ratio_v_u(n.query("traverse == @t").reset_index(),
-                             d.query("traverse == @t").reset_index())
-            v, u = v.iloc[0], u.iloc[0]
-            out.append(_make_df(v, u).assign(traverse=t) if not _minus_one_percent else
-                       _make_df((v - 1) * 100 , u * 100, relative=False).assign(traverse=t))
-        return pd.concat(out, ignore_index=True)
+        n = self.num.calculate(normalization=normalization).set_index('traverse')
+        d = self.den.process(normalization=normalization, **kwargs).set_index('traverse')
+        v, u = ratio_v_u(n, d)
+        if not _minus_one_percent:
+            out = _make_df(v, u, idx=v.index)
+        else:
+            out = _make_df((v - 1) * 100 , u * 100, relative=False, idx=v.index)
+        return out.reset_index(names='traverse')[['value', 'uncertainty', 'uncertainty [%]', 'traverse']]
 
     def compute(self, _minus_one_percent=False, *args, normalization: str =None,
                 **kwargs) -> pd.DataFrame:

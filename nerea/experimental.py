@@ -190,8 +190,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         start_time = self.fission_fragment_spectrum.start_time
         duration = self.fission_fragment_spectrum.real_time
         pm = self.power_monitor.average(start_time, duration)
-        v, u = ratio_v_u(_make_df(1, 0), pm)
-        return _make_df(v, u)
+        return _make_df(*ratio_v_u(_make_df(1, 0), pm))
 
     def _get_long_output(self,
                          plateau: pd.DataFrame,
@@ -265,20 +264,15 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             DataFrame with the information of the mass-normalized spectrum.
         """
-        data = []
         channels = sorted(set(emi.R).intersection(set(ffsi.R)))
         if len(channels) < len(emi.R): warnings.warn("Neglecting calibration channels.")
         if len(channels) < len(ffsi.R): warnings.warn("Neglecting integration channels.")
-        for r in channels:
-            ffs_, em_ = ffsi.query("R==@r").iloc[0], emi.query("R==@r").iloc[0]
-            v, u = ratio_v_u(ffs_, em_)
-            data.append(_make_df(v, u).assign(
-                                    VAR_PORT_FFS = (ffs_.uncertainty / em_.value) **2,
-                                    VAR_PORT_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
-                                    CH_FFS = ffs_.channel,
-                                    CH_EM = em_.channel,
-                                    R=r))
-        return pd.concat(data, ignore_index=True)
+        return _make_df(*ratio_v_u(ffsi, emi)).reset_index(drop=True).assign(
+                            VAR_PORT_FFS = (ffsi.uncertainty / emi.value) **2,
+                            VAR_PORT_EM = (ffsi.value / emi.value**2 * emi.uncertainty) **2,
+                            CH_FFS = ffsi.channel,
+                            CH_EM = emi.channel,
+                            R=emi.R)
 
     def _per_unit_mass_ch(self, ffsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
         """
@@ -297,20 +291,15 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             DataFrame with the information of the mass-normalized spectrum.
         """
-        data = []
         channels = sorted(set(emi.channel).intersection(set(ffsi.channel)))
         if len(channels) < len(emi.channel): warnings.warn("Neglecting calibration channels.")
         if len(channels) < len(ffsi.channel): warnings.warn("Neglecting integration channels.")
-        for ch in channels:
-            ffs_, em_ = ffsi.query("channel==@ch").iloc[0], emi.query("channel==@ch").iloc[0]
-            v, u = ratio_v_u(ffs_, em_)
-            data.append(_make_df(v, u).assign(
-                                    VAR_PORT_FFS = (ffs_.uncertainty / em_.value) **2,
-                                    VAR_PORT_EM = (ffs_.value / em_.value**2 * em_.uncertainty) **2,
-                                    CH_FFS = ch,
-                                    CH_EM = ch,
-                                    R=np.nan))
-        return pd.concat(data, ignore_index=True)
+        return _make_df(*ratio_v_u(ffsi, emi)).reset_index(drop=True).assign(
+                                    VAR_PORT_FFS = (ffsi.uncertainty / emi.value) **2,
+                                    VAR_PORT_EM = (ffsi.value / emi.value**2 * emi.uncertainty) **2,
+                                    CH_FFS = ffsi.channel,
+                                    CH_EM = emi.channel,
+                                    R=np.nan)
 
     def per_unit_mass(self, **kwargs) -> pd.DataFrame:
         """
@@ -383,13 +372,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
-
-        data = pd.concat([_make_df(x[0], x[1]) for x in
-                          [product_v_u([self._time_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass(**kwargs).loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass(**kwargs).index]],
-                         ignore_index=True).assign(CH_FFS=self.per_unit_mass(**kwargs).CH_FFS,
-                                                   CH_EM=self.per_unit_mass(**kwargs).CH_EM)
+        pum = self.per_unit_mass(**kwargs)
+        pum.index = ['value'] * pum.shape[0]
+        time = pd.concat([self._time_normalization] * pum.shape[0])
+        data = _make_df(*product_v_u([pum, time])).assign(
+            CH_FFS=pum.CH_FFS, CH_EM=pum.CH_EM).reset_index(drop=True)
         return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def per_unit_mass_and_power(self, **kwargs) -> pd.DataFrame:
@@ -421,13 +408,12 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
 
-        ffs, em = self.fission_fragment_spectrum, self.effective_mass
-        data = pd.concat([_make_df(x[0], x[1]) for x in
-                          [product_v_u([self._power_normalization.set_index(pd.Index([i])),
-                                        self.per_unit_mass(**kwargs).loc[i].to_frame().T]) for i in
-                                        self.per_unit_mass(**kwargs).index]],
-                         ignore_index=True).assign(CH_FFS=self.per_unit_mass(**kwargs).CH_FFS,
-                                                   CH_EM=self.per_unit_mass(**kwargs).CH_EM)
+        # ffs, em = self.fission_fragment_spectrum, self.effective_mass
+        pum = self.per_unit_mass(**kwargs)
+        pum.index = ['value'] * pum.shape[0]
+        power = pd.concat([self._power_normalization] * pum.shape[0])
+        data = _make_df(*product_v_u([pum, power])).assign(
+            CH_FFS=pum.CH_FFS, CH_EM=pum.CH_EM).reset_index(drop=True)
         return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01, **kwargs) -> pd.DataFrame:
@@ -541,14 +527,13 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         plateau = self.plateau(**kwargs)        # FFS / EM @plateau and relative variance fractions
         power = self._power_normalization       # this is 1/PM
         time = self._time_normalization         # this is 1/t
-        v, u = product_v_u([plateau, power, time])
-
         # compute variance fractions
         S_PLAT, S_PM, S_T = power.value * time.value, plateau.value * time.value, plateau.value * power.value
-        df = _make_df(v, u).assign(VAR_PORT_FFS=plateau["VAR_PORT_FFS"] * S_PLAT **2,
-                                   VAR_PORT_EM=plateau["VAR_PORT_EM"] * S_PLAT **2,
-                                   VAR_PORT_PM=(S_PM * power.uncertainty) **2,
-                                   VAR_PORT_t=(S_T * time.uncertainty) **2)
+        df = _make_df(*product_v_u([plateau, power, time])
+                      ).assign(VAR_PORT_FFS=plateau["VAR_PORT_FFS"] * S_PLAT **2,
+                               VAR_PORT_EM=plateau["VAR_PORT_EM"] * S_PLAT **2,
+                               VAR_PORT_PM=(S_PM * power.uncertainty) **2,
+                               VAR_PORT_t=(S_T * time.uncertainty) **2)
         if visual or savefig:
             fig, _ = self.plot(plateau['CH_FFS'].value, **kwargs)
             if savefig:
@@ -936,8 +921,7 @@ class Traverse(_Experimental):
         norm_k = max_k if normalization is None else normalization
         out = []
         for k, v in normalized.items():
-            v, u = ratio_v_u(v, normalized[norm_k])
-            out.append(_make_df(v, u).assign(traverse=k))
+            out.append(_make_df(*ratio_v_u(v, normalized[norm_k])).assign(traverse=k))
         # plot
         if visual or savefig:
             fig, _ = self.plot(monitors, palette, **kwargs)
