@@ -406,7 +406,7 @@ class ReactionRate:
                                                                                    VAR_PORT_B=VAR_PORT_B,
                                                                                    VAR_PORT_L=VAR_PORT_L)
 
-    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2, smooth_kwargs: dict=None, dtc_kwargs: dict=None) -> Self:
+    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2, smooth_kwargs: dict={}, dtc_kwargs: dict={}) -> Self:
         """
         Cut the power monitor data based on specific conditions to find the
         asymptotic exponential (after all harmonics have decayed).
@@ -421,10 +421,10 @@ class ReactionRate:
             exponential counts. Default is 1e-2.
         smooth_kwargs: dict, optional
             arguments to pass to `self.smooth`.
-            Default is None.
+            Default is `{}`.
         dtc_kwargs : dict, optional
             arguments to pass to `self.dead_time_corrected`.
-            Default is None.
+            Default is `{}`.
             
         Returns
         -------
@@ -436,9 +436,9 @@ class ReactionRate:
         Inherently uses dead time corrected counts
         Inherently uses smoothed data to ease the search
         """
-        smt_kw = DEFAULT_SMOOTH_KWARGS if smooth_kwargs is None else smooth_kwargs
+        smt_kw = DEFAULT_SMOOTH_KWARGS | smooth_kwargs
         if not self._dead_time_corrected:
-            dtc_kw = DEFAULT_DTC_KWARGS if dtc_kwargs is None else dtc_kwargs
+            dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
             data = self.dead_time_corrected(**dtc_kw).smooth(**smt_kw).data
         else:
             data = self.smooth(**smt_kw).data

@@ -89,8 +89,8 @@ class ControlRodCalibration:
 
     def _get_rhos(self,
                   delayed_data: EffectiveDelayedParams,
-                  dtc_kwargs: dict=None,
-                  ac_kwargs: dict=None) -> pd.DataFrame:
+                  dtc_kwargs: dict={},
+                  ac_kwargs: dict={}) -> pd.DataFrame:
         """"
         Computes the reactivity associated with each reaction rate
         in self.reaction_rates.
@@ -101,17 +101,17 @@ class ControlRodCalibration:
             effective delayed  neutron data for control rod calibration.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
-            Default is None.
+            Default is `{}`.
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
-            Default is None.
+            Default is `{}`.
 
         Returns
         -------
         pd.DataFrame
         """
-        dtc_kw = DEFAULT_DTC_KWARGS if dtc_kwargs is None else dtc_kwargs
-        ac_kw = DEFAULT_AC_KWARGS if ac_kwargs is None else ac_kwargs
+        dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
+        ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         rhos = [_make_df(0, 0, False).assign(h=self.critical_height)]
         for h, r in self.reaction_rates.items():
             dtc = r.dead_time_corrected(**dtc_kw)
@@ -134,8 +134,8 @@ class ControlRodCalibration:
                              x1: float,
                              delayed_data: EffectiveDelayedParams,
                              order: int,
-                             dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None) -> pd.DataFrame:
+                             dtc_kwargs: dict={},
+                             ac_kwargs: dict={}) -> pd.DataFrame:
             rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
             rho.columns = ['x', 'y', 'u']
             coef, coef_cov = polyfit(order, rho)
@@ -145,9 +145,9 @@ class ControlRodCalibration:
                             ).assign(VAR_PORT_X1=i1.uncertainty **2,
                                      VAR_PORT_X0=i0.uncertainty **2)
     
-    def plot(self, dtc_kwargs=None, ac_kwargs=None):
-        dtc_kw = DEFAULT_DTC_KWARGS if dtc_kwargs is None else dtc_kwargs
-        ac_kw = DEFAULT_AC_KWARGS if ac_kwargs is None else ac_kwargs
+    def plot(self, dtc_kwargs: dict={}, ac_kwargs: dict={}):
+        dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
+        ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         fig, axs = plt.subplots(len(self.reaction_rates), 2,
                               figsize=(15, 30 / len(self.reaction_rates)))
         for i, (h, rr) in enumerate(self.reaction_rates.items()):
@@ -174,8 +174,8 @@ class ControlRodCalibration:
 class DifferentialNoCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
-                             dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None,
+                             dtc_kwargs: dict={},
+                             ac_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -188,10 +188,10 @@ class DifferentialNoCompensation(ControlRodCalibration):
             neutron data from.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
-            Default is None.
+            Default is `{}`.
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
-            Default is None.
+            Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
             Default is False.
@@ -233,8 +233,8 @@ class DifferentialNoCompensation(ControlRodCalibration):
 class IntegralNoCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
-                             dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None,
+                             dtc_kwargs: dict={},
+                             ac_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -247,10 +247,10 @@ class IntegralNoCompensation(ControlRodCalibration):
             neutron data from.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
-            Default is None.
+            Default is `{}`.
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
-            Default is None.
+            Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
             Default is False.
@@ -286,8 +286,8 @@ class IntegralNoCompensation(ControlRodCalibration):
 class DifferentialCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
-                             dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None,
+                             dtc_kwargs: dict={},
+                             ac_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -300,10 +300,10 @@ class DifferentialCompensation(ControlRodCalibration):
             neutron data from.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
-            Default is None.
+            Default is `{}`.
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
-            Default is None.
+            Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
             Default is False.
@@ -347,8 +347,8 @@ class DifferentialCompensation(ControlRodCalibration):
 class IntegralCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
-                             dtc_kwargs: dict=None,
-                             ac_kwargs: dict=None,
+                             dtc_kwargs: dict={},
+                             ac_kwargs: dict={},
                              visual: bool=False,
                              savefig: str = '') -> pd.DataFrame:
         """"
@@ -361,10 +361,10 @@ class IntegralCompensation(ControlRodCalibration):
             neutron data from.
         dtc_kwargs : dict, optional
             kwargs for nerea.ReactionRate.dead_time_corrected.
-            Default is None.
+            Default is `{}`.
         ac_kwargs : dict, optional
             kwargs for nerea.ReactionRate.asymptotic_counts.
-            Default is None.
+            Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
             Default is False.

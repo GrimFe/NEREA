@@ -8,8 +8,9 @@ from scipy.optimize import curve_fit
 
 from inspect import signature
 
-__all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', '_make_df',
-           'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing']
+__all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', 'dot_product_v_u',
+           '_make_df', 'fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing',
+           '_normalize_array', 'get_relative_array', 'impurity_correction']
 
 def integral_v_u(s: pd.Series) -> tuple[float]:
     """
@@ -153,6 +154,14 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
          ).pow(2).sum(axis=1)
     return v, np.sqrt(u) * v
 
+def dot_product_v_u(a: pd.DataFrame, b: pd.DataFrame) -> tuple[float]:
+    idx = a.index.intersection(b.index)
+    a_ = a.loc[idx]
+    b_ = b.loc[idx]
+    v = a_.value @ b_.value
+    u = (a_.value **2 @ b_.uncertainty **2) + (a_.uncertainty **2 @ b_.value **2)
+    return v, np.sqrt(u)
+
 def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float]:
     a = pd.concat(addends)
     return a["value"].sum(), np.sum(a["uncertainty"] **2)
@@ -187,11 +196,13 @@ def _make_df(v, u, relative: bool=True, idx: pd.Index=None) -> pd.DataFrame:
             value  uncertainty
     value    10.0          0.5
     """
-    if not isinstance(v, Iterable):
+    if not isinstance(v, Iterable) and not isinstance(v, (str, bytes)):
         idx_ = idx if idx is not None else ['value']
         rel = u / v * 100 if relative else np.nan
         out = pd.DataFrame({'value': v, 'uncertainty': u, 'uncertainty [%]': rel},
                            index=idx_)
+    elif isinstance(v, (str, bytes)):
+        raise TypeError(f"{type(v)} is not an allowed type for _make_df")
     else:
         v_, u_ = np.array(v), np.array(u)
         rel = u_ / v_ * 100 if relative else [np.nan] * len(v_)
@@ -370,3 +381,174 @@ def smoothing(data: pd.Series,
     if renormalize:
         s *= (data.sum() / s.sum())
     return s
+
+def _normalize_array(a: pd.DataFrame,
+                     d: str) -> pd.DataFrame:
+    """
+    Calculates array a normalized to its entry
+    with index d. Supports `get_relative_array()`.
+
+    Paramters
+    ---------
+    a : pd.DataFrame
+        the array to make relative.
+        Has columns for its value and uncertainty.
+    den : str
+        flag to make the array relative to one entry `den`.
+
+    Return
+    ------
+    pd.DataFrame
+    """
+    a_ = a.copy()
+    idx = a_.index
+    den = pd.concat([a_.loc[d]] * a_.shape[0],
+                    axis=1).T.reset_index()
+    a_ = _make_df(*ratio_v_u(a_.reset_index(),
+                             den))[['value', 'uncertainty']]
+    a_.index = idx
+    # the denominator is fully correlated with itself:
+    a_.loc[d, 'uncertainty'] = 0
+    return a_
+
+def get_relative_array(a: dict[str, float] | pd.DataFrame,
+                       den: str = '') -> pd.DataFrame:
+    """
+    Transforms composition array making it relative to its main component.
+
+    Paramters
+    ---------
+    a : dict[str, float] | pd.DataFrame
+        the array to make relative.
+        `key` is the nuclide string identifier (e.g., `'U235'`),
+        and `value` is its array value.
+        Has columns for its value and uncertainty.
+    den : str, optional
+        flag to make the array relative to one entry `den`.
+        Default is `''` to normalize to the maximum.
+
+    Return
+    ------
+    pd.DataFrame
+    """
+    a_ = pd.DataFrame(a, index=['value', 'uncertainty']
+            ).T if not isinstance(a, pd.DataFrame) else a.copy()
+    if den == '':
+        match a_.value.max():
+            case 1:
+                pass
+            case 100:
+                a_.value /= 100
+                a_.uncertainty /= 100
+            case _:
+                a_ = _normalize_array(a_, a_.value.idxmax())
+    else:
+        a_ = _normalize_array(a_, den)
+    return a_
+
+def impurity_correction(one_group_xs: dict[str, float],
+                        composition: pd.DataFrame,
+                        xs_den: str='',
+                        drop_main: bool=False,
+                        **kwargs) -> pd.DataFrame:
+        """
+        Calculates the fission chamber calibration coefficient.
+
+        Paramters
+        ---------
+        one_group_xs : dict[str, float]
+            the one group cross sections of the fission
+            chamber components. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its one group cross section.
+            Has columns for its value and uncertainty.
+        composition : pd.DataFrame
+            the fission chamber composition relative to
+            the deposit main nuclide. `key` is the nuclide
+            string identifier (e.g., `'U235'`), and `value`
+            is its atomic abundance relative to the main one.
+            Has columns for its value and uncertainty.
+        xs_den : str, optional
+            the cross section entry of `one_group_xs` to
+            normalize the impurity correction to.
+            Default is `''` for no cross section normalization.
+        drop_main : bool, optional
+            flag to drop the main nuclide.
+            Default is False.
+        **kwargs 
+            keyword arguments passed to `_make_df()`
+
+        Returns 
+        -------
+        pd.DataFrame
+
+        Note
+        ----
+        The implementation features a separate calculation of
+        value and uncertainty to proper account for uncertianties
+        in dot products where the elements of the two vectors
+        are variable.
+        This also covers for the setting of u(N_main) to 0 in
+        `get_relative_composition` when renormalization is required.
+        """
+        if composition.shape[0] <= 1 and drop_main:
+            # one cannot remove main if there is one nuclide ony
+            warnings.warn(f"Removing main from processing of mono-isotopic deposit.")
+            out = _make_df(0, 0, relative=False)
+        else:
+            one_over_xsd = 1 / one_group_xs.loc[xs_den].value if xs_den else 1
+            c = get_relative_array(composition)
+            main = c.query("value == 1").index.values[0]
+            if drop_main:
+                c = c.drop(main)
+                comp = composition.drop(main)  # comp is used to compute uncertainties
+            else:
+                comp = composition.copy()
+            # Only the xs in the composition array are taken
+            # xs normalization is performed at the end
+            if not isinstance(one_group_xs, pd.DataFrame):
+                xs = pd.DataFrame(one_group_xs,
+                                index=['value', 'uncertainty']
+                                ).T.loc[c.index]
+            else:
+                xs = one_group_xs.copy().loc[c.index]
+            ## BEST ESTIMATE
+            v, _ = dot_product_v_u(c, xs)
+            v = v * one_over_xsd
+
+            ## UNCERTAINTY
+            na = composition.loc[main]
+            # use unchanged composition uncertainty data as I treat the ratio
+            # Ni / Na separately.
+            # the variance from Ni is just the sum of variances from each Ni
+            var_ni = 1 / na.value **2 * (xs.value **2 @ comp.uncertainty **2) * one_over_xsd **2
+            # If the main nuclide was not removed, its var_ni quota should be
+            # removed as it is anyways correlated 1 with itself
+            if not drop_main:
+                var_ni -= (na.uncertainty / na.value * xs.loc[main].value * one_over_xsd) **2
+            # the variance from Na instead takes the sensitivity of the output to
+            # Na, which is the dot product of Ni and xs
+            # here again we use the unmodified composition array
+            # Same as before I need to subtract one contribution ot var_na
+            # if not drop_main as main is still in xs and comp
+            if drop_main:
+                var_na = 1 / na.value **4 * (xs.value @ comp.value
+                                        ) **2 * na.uncertainty **2 * one_over_xsd **2
+            else:
+                var_na = 1 / na.value **4 * (xs.drop(main).value @ comp.drop(main).value
+                                        ) **2 * na.uncertainty **2 * one_over_xsd **2
+            # the sensitivity of the output to xi is just the normalized
+            # composition array in composition_
+            var_xi = c.value **2 @ xs.uncertainty **2 * one_over_xsd **2
+            # If normalization to a cross section is required, then
+            # sensitivity to it is computed taking the normalized
+            # concentration array and the cross section value
+            if xs_den:
+                x = one_group_xs.loc[xs_den]
+                var_xd = 1 / x.value **4 * (c.value @ xs.value
+                                            ) **2 * x.uncertainty **2
+            else:
+                var_xd = 0
+            u = np.sqrt(var_ni + var_na + var_xi + var_xd)
+            out = _make_df(v, u, **kwargs)
+        return out

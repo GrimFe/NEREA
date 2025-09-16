@@ -45,6 +45,19 @@ def test_product_v_u():
     assert product[0].value == EXPECTED_VALUE
     assert product[1].value == EXPECTED_UNCERTAINTY
 
+def test_dot_product_v_u():
+    v1, u1, v2, u2 = 1, 0.1, 2, 0.2
+    a = pd.DataFrame({'value': [v1, v2],
+                      'uncertainty': [u1, u2]}
+                      , index=[1, 2])
+    b = pd.DataFrame({'value': [v1, v2],
+                      'uncertainty': [u1, u2]}
+                      , index=[2, 1])
+    v, u = dot_product_v_u(a, b)
+    u_ = np.sqrt((v1 * u2) **2 + (v2 * u1) **2 + (v1 * u2) **2 + (v2 * u1) **2)
+    assert v == v1 * v2 + v1 * v2
+    assert u == u_
+
 def test_make_df():
     df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY)
     expected_df = pd.DataFrame({'value': [EXPECTED_RATIO],
@@ -195,3 +208,211 @@ def test_smoothing():
                                                    11.182118655723848,
                                                    12.247033956860777,
                                                    13.311975977021957]), atol=1e-5)
+
+def test_normalize_array():
+    a = pd.DataFrame({"value": [10, 5],
+                      "uncertainty": [1, .5]},
+                      index=["A", "B"])
+    expected = pd.DataFrame({"value": [1, .5],
+                             "uncertainty": [0, np.sqrt(
+                                 .1**2 + .1**2
+                                 ) * .5]},
+                             index=["A", "B"])
+    pd.testing.assert_frame_equal(_normalize_array(a, "A"), expected)
+
+def test_get_relative_array():
+    expected = pd.DataFrame({"value": [1, .5],
+                             "uncertainty": [.1, .05]},
+                             index=["A", "B"])
+    c = {"A": [1, 0.1], "B": [0.5, 0.05]}
+    pd.testing.assert_frame_equal(get_relative_array(c), expected)
+    c = expected.copy()
+    pd.testing.assert_frame_equal(get_relative_array(c), expected)
+    c = expected * 100
+    pd.testing.assert_frame_equal(get_relative_array(c), expected)
+    c = pd.DataFrame({"value": [2, 1],
+                      "uncertainty": [.2, .1]},
+                      index=["A", "B"])
+    expected = pd.DataFrame({"value": [1, .5],
+                             "uncertainty": [0, np.sqrt(
+                                 (1 / 2 * .1)**2 +
+                                 (1 / 2**2 * .2) **2
+                             )]},
+                             index=["A", "B"])
+    pd.testing.assert_frame_equal(get_relative_array(c), expected)
+
+def test_impurity_correction():
+    w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, .6 / 235.043923, .004 / 235.043923
+    v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
+
+    s_w1, s_w2 = 1 / wd * x1 / xd, 1 / wd * x2 / xd
+    s_x1, s_x2 = w1 / wd * 1 / xd, w2 / wd * 1 / xd
+    s_wd = 1 / wd **2 * (w1 * x1 / xd + w2 * x2 / xd)
+    s_xd = 1 / xd **2 * (w1 / wd * x1 + w2 / wd * x2)
+    u = np.sqrt((s_w1 * uw1) **2 + (s_w2 * uw2) **2 +
+                (s_x1 * ux1) **2 + (s_x2 * ux2) **2 +
+                (s_wd * uwd) **2 + (s_xd * uxd) **2 )
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [0.9, 0.003],
+                                            'U235': [xd, uxd]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w1, w2, wd],
+                                'uncertainty': [uw1, uw2, uwd]},
+                                index=['U236', 'U234', 'U238'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=True, xs_den='U235')
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+    ## NO XS DEN
+    w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, 1, 0
+    v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
+
+    s_w1, s_w2 = 1 / wd * x1 / xd, 1 / wd * x2 / xd
+    s_x1, s_x2 = w1 / wd * 1 / xd, w2 / wd * 1 / xd
+    s_wd = 1 / wd **2 * (w1 * x1 / xd + w2 * x2 / xd)
+    s_xd = 1 / xd **2 * (w1 / wd * x1 + w2 / wd * x2)
+    u = np.sqrt((s_w1 * uw1) **2 + (s_w2 * uw2) **2 +
+                (s_x1 * ux1) **2 + (s_x2 * ux2) **2 +
+                (s_wd * uwd) **2 + (s_xd * uxd) **2 )
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [0.9, 0.003],
+                                            'U235': [xd, uxd]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w1, w2, wd],
+                                'uncertainty': [uw1, uw2, uwd]},
+                                index=['U236', 'U234', 'U238'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=True)
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+    ## NO DROP_MAIN
+    w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
+    x1, ux1, x2, ux2, xd_, uxd_ = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, .6 / 235.043923, .004 / 235.043923
+    xd, uxd = 0.9 / 238.050783, 0.003 / 238.050783
+    v = (w1/wd * x1/xd_) + (w2/wd * x2/xd_) + (wd/wd * xd/xd_)
+
+    s_w1, s_w2 = 1 / wd * x1 / xd_, 1 / wd * x2 / xd_
+    s_x1, s_x2 = w1 / wd * 1 / xd_, w2 / wd * 1 / xd_
+    s_xd = 1 / xd_
+    s_wd = 1 / wd **2 * (w1 * x1 / xd_ + w2 * x2 / xd_)
+    s_xd_ = 1 / xd_ **2 * (w1 / wd * x1 + w2 / wd * x2 + xd)
+    u = np.sqrt((s_w1 * uw1) **2 + (s_w2 * uw2) **2 +
+                (s_x1 * ux1) **2 + (s_x2 * ux2) **2 + (s_xd * uxd) **2 +
+                (s_wd * uwd) **2 + (s_xd_ * uxd_) **2 )
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [xd, uxd],
+                                            'U235': [xd_, uxd_]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w1, w2, wd],
+                                'uncertainty': [uw1, uw2, uwd]},
+                                index=['U236', 'U234', 'U238'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=False, xs_den='U235')
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+    ## MONO-ISOTOPIC deposit
+    # only uncertainty = 0 makes sense
+    w, uw = 1, 0
+    x, ux = .6 / 235.043923, .004 / 235.043923
+    v, u = x, ux
+
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [xd, uxd],
+                                            'U235': [x, ux]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w],
+                                'uncertainty': [uw]},
+                                index=['U235'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=False, xs_den='')
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+    # and the absolute value of w does not matter
+    w, uw = 10, 0
+    x, ux = .6 / 235.043923, .004 / 235.043923
+    v, u = x, ux
+
+    data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [xd, uxd],
+                                            'U235': [x, ux]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w],
+                                'uncertainty': [uw]},
+                                index=['U235'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=False, xs_den='')
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+    # Now test dropping main doees not break NEREA
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, .6 / 235.043923, .004 / 235.043923
+
+    w, uw = 1, 0
+    x, ux = .6 / 235.043923, .004 / 235.043923
+    v, u = x, ux
+
+    data = pd.DataFrame({'value': [0], 'uncertainty': [0], 'uncertainty [%]': np.nan}, index=['value'])
+
+    synthetic_one_g_xs_data = pd.DataFrame({'U236': [x1, ux1],
+                                            'U234': [x2, ux2],
+                                            'U238': [xd, uxd],
+                                            'U235': [x, ux]}
+                                            ).T.reset_index()
+    synthetic_one_g_xs_data.columns = ['nuclide', 'value', 'uncertainty']
+    synthetic_one_g_xs_data = synthetic_one_g_xs_data.set_index('nuclide')
+
+    composition = pd.DataFrame({'value': [w],
+                                'uncertainty': [uw]},
+                                index=['U235'])
+
+    nerea_ = impurity_correction(synthetic_one_g_xs_data, composition, drop_main=True, xs_den='')
+    np.testing.assert_equal(data.index.values, nerea_.index.values)
+    np.testing.assert_equal(data.columns.values, nerea_.columns.values)
+    np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
+    np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)

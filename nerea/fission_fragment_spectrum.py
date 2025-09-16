@@ -10,7 +10,7 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
-from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u, smoothing
+from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u, smoothing, get_relative_array, impurity_correction
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate
@@ -287,7 +287,8 @@ class FissionFragmentSpectrum:
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
 
     @staticmethod
-    def _get_calibration_coefficient(one_group_xs: dict[str, float], composition: dict[str, float] | pd.DataFrame):
+    def _get_calibration_coefficient(one_group_xs: dict[str, float],
+                                     composition: dict[str, float] | pd.DataFrame) -> pd.DataFrame:
         """
         Calculates the fission chamber calibration coefficient.
 
@@ -301,31 +302,28 @@ class FissionFragmentSpectrum:
             Has columns for its value and uncertainty.
         composition : dict[str, float] | pd.DataFrame
             the fission chamber composition relative to
-            the deposit main nuclide. `key` is the nuclide
-            string identifier (e.g., `'U235'`), and `value`
-            is its atomic abundance relative to the main one.
-            Has columns for its value and uncertainty.
-        """
-        xs = pd.DataFrame(one_group_xs, index=['value', 'uncertainty']).T if not isinstance(one_group_xs, pd.DataFrame) else one_group_xs.copy()
-        match composition.value.max():
-            case 1:
-                pass
-            case 100:
-                composition.value /= 100
-                composition.uncertainty /= 100
-            case _:
-                raise ValueError("`composition` should be relative to the main isotope," +
-                                 "which should be reported in it.")
+            the total. `key` is the nuclide string identifier
+            (e.g., `'U235'`), and `value` is its atomic
+            abundance relative to the total. Has columns
+            for its value and uncertainty.
 
-        ## calculation of the sum over nuclides in the deposit (n * xs)
-        main = composition.query("value == 1").index.values[0]
-        xs_ = xs.loc[composition.index]
+        Returns
+        -------
+        pd.DataFrame
+        """
+        _c = get_relative_array(composition)
+        main = _c.loc[_c.value.idxmax()].name
+        # calculation of the sum over nuclides in the deposit (n * xs)
+        # impurity_correction requires non-normalized composition
+        ic = impurity_correction(one_group_xs,
+                                 composition,
+                                 xs_den='',
+                                 drop_main=False)
+        # this can be done after impurity correction calculation
+        # because we assume no uncertainty on Nav and A
         a = _make_df(*ratio_v_u(AVOGADRO, ATOMIC_MASS[main]))
-        c_v = a['value'].value * composition.value @ xs_.value
-        c_u = np.sqrt((a['value'].value * composition.value @ xs_.uncertainty) **2 +
-                      (a['value'].value * composition.uncertainty @ xs_.value) **2 +
-                      (a['uncertainty'].value * composition.value @ xs_.value) **2)
-        return _make_df(c_v / 1e6, c_u / 1e6)  # EM in ug
+        units_of_ug = _make_df(1e-6, 0)
+        return _make_df(*product_v_u([a, units_of_ug, ic]))
 
     def calibrate(self,
                   k: pd.DataFrame,
@@ -349,10 +347,10 @@ class FissionFragmentSpectrum:
             Has columns for its value and uncertainty.
         composition : dict[str, float] | pd.DataFrame
             the fission chamber composition relative to
-            the deposit main nuclide. `key` is the nuclide
-            string identifier (e.g., `'U235'`), and `value`
-            is its atomic abundance relative to the main one.
-            Has columns for its value and uncertainty.
+            the total. `key` is the nuclide string identifier
+            (e.g., `'U235'`), and `value` is its atomic
+            abundance relative to the total. Has columns
+            for its value and uncertainty.
         one_group_xs : dict[str, float]
             the one group cross sections of the fission
             chamber components. `key` is the nuclide
@@ -380,7 +378,8 @@ class FissionFragmentSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
 
         composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
-                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+            ).T if not isinstance(composition, pd.DataFrame
+                                  ) else composition.copy()
         c = self._get_calibration_coefficient(one_group_xs, composition_)
 
         pm = monitor.average(self.start_time, self.real_time)
@@ -391,12 +390,6 @@ class FissionFragmentSpectrum:
                           ] * integral.shape[0])
         integral = _make_df(*ratio_v_u(integral, time)).assign(channel=integral.channel.values,
                                      R=integral.R.values)
-        # integral = []
-        # for _, row in self.integrate(**kwargs).iterrows():
-        #     integral.append(_make_df(*ratio_v_u(
-        #         row, _make_df(self.life_time, self.life_time_uncertainty
-        #                       ))).assign(channel=row.channel, R=row.R))
-        # integral = pd.concat(integral)
         data = _make_df(*ratio_v_u(integral, kmc)).assign(channel=integral.channel, R=integral.R)
         if visual or savefig:
             ax = self.plot(**kwargs)

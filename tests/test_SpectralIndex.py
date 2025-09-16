@@ -50,7 +50,7 @@ def sample_spectrum_2(sample_spectrum_data):
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    data = pd.DataFrame({'U236': [0.1, 0.01], 'U234': [0.2, 0.02], 'U238': [0.7, 0.07]}).T.reset_index()
+    data = pd.DataFrame({'U236': [0.1 , 0.01], 'U234': [0.2 , 0.02], 'U238': [.7, 0.07]}).T.reset_index()
     data.columns = ['nuclide', 'value', 'uncertainty']
     return EffectiveMass(deposit_id="U238", detector_id="C1", data=sample_integral_data, bins=42, composition=data)
 
@@ -62,7 +62,7 @@ def effective_mass_2(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-        return ReactionRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
+    return ReactionRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def rr_1(sample_spectrum_1, effective_mass_1, power_monitor):
@@ -146,19 +146,19 @@ def test_process(si):
 
 def test_compute_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
-    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234., .002 / 234., .6 / 235.043923, .004 / 235.043923
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, .6 / 235.043923, .004 / 235.043923
     v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
 
-    W1, X1 = w1 / wd, x1 / xd
-    vW1, vX1 = (uw1 / wd) **2 + (w1 / wd **2 * uwd) **2, (ux1 / xd) **2 + (x1 / xd **2 * uxd) **2 
-    W2, X2 = w2 / wd, x2 / xd
-    vW2, vX2 = (uw2 / wd) **2 + (w2 / wd **2 * uwd) **2, (ux2 / xd) **2 + (x2 / xd **2 * uxd) **2
-    u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
+    s_w1, s_w2 = 1 / wd * x1 / xd, 1 / wd * x2 / xd
+    s_x1, s_x2 = w1 / wd * 1 / xd, w2 / wd * 1 / xd
+    s_wd = 1 / wd **2 * (w1 * x1 / xd + w2 * x2 / xd)
+    s_xd = 1 / xd **2 * (w1 / wd * x1 + w2 / wd * x2)
+    u = np.sqrt((s_w1 * uw1) **2 + (s_w2 * uw2) **2 +
+                (s_x1 * ux1) **2 + (s_x2 * ux2) **2 +
+                (s_wd * uwd) **2 + (s_xd * uxd) **2 )
 
     data = pd.DataFrame({'value': [v], 'uncertainty': [u], 'uncertainty [%]': u / v * 100}, index=['value'])
-
     nerea_ = si._compute_correction(synthetic_one_g_xs_data)
-
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_.columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
@@ -166,20 +166,20 @@ def test_compute_correction(si, synthetic_one_g_xs_data):
 
 def test_compute_with_correction(si, synthetic_one_g_xs_data):
     w1, uw1, w2, uw2, wd, uwd = .1, .01, .2, .02, .7, .07
-    x1, ux1, x2, ux2, xd, uxd = .07, .001, .08, .002, .6, .004
+    x1, ux1, x2, ux2, xd, uxd = .07 / 236., .001 / 236., .08 / 234.040916, .002 / 234.040916, .6 / 235.043923, .004 / 235.043923
     v = (w1/wd * x1/xd) + (w2/wd * x2/xd)
 
-    W1, X1 = w1 / wd, x1 / xd
-    vW1, vX1 = (uw1 / wd) **2 + (w1 / wd **2 * uwd) **2, (ux1 / xd) **2 + (x1 / xd **2 * uxd) **2 
-    W2, X2 = w2 / wd, x2 / xd
-    vW2, vX2 = (uw2 / wd) **2 + (w2 / wd **2 * uwd) **2, (ux2 / xd) **2 + (x2 / xd **2 * uxd) **2
-    u = np.sqrt(vW1 * X1**2 + W1**2 * vX1 + vW2 * X2**2 + W2**2 * vX2)
-
+    s_w1, s_w2 = 1 / wd * x1 / xd, 1 / wd * x2 / xd
+    s_x1, s_x2 = w1 / wd * 1 / xd, w2 / wd * 1 / xd
+    s_wd = 1 / wd **2 * (w1 * x1 / xd + w2 * x2 / xd)
+    s_xd = 1 / xd **2 * (w1 / wd * x1 + w2 / wd * x2)
+    u = np.sqrt((s_w1 * uw1) **2 + (s_w2 * uw2) **2 +
+                (s_x1 * ux1) **2 + (s_x2 * ux2) **2 +
+                (s_wd * uwd) **2 + (s_xd * uxd) **2 )
     v_ = 1 - v
     u_ = np.sqrt(0.06588712284729072 **2 + u **2)
 
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
-
     nerea_ = si.process(synthetic_one_g_xs_data,
                         numerator_kwargs={'raw_integral': False, 'renormalize': False},
                         denominator_kwargs={'raw_integral': False, 'renormalize': False})

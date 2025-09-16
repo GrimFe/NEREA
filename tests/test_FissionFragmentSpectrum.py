@@ -9,9 +9,9 @@ from nerea.constants import KNBS
 XS_FAST = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.95, 1264.48,
                                    1971.88, 2132.61, 1308.2, np.nan, 1115.87, 1321.81,
                                    1024.24]) * 1e-27,   ## fast xs JEFF-3.1.1 [mb] then converted to cm^2
-                         "uncertainty": [0., 0., 0., 0., 0., 0.,
+                         "uncertainty": np.array([0., 0., 1., 0., 2., 0.,
                                    0., 0., 0., 0., 0., 0.,
-                                   0.]   ## to be computed [b]
+                                   0.]) * 1e-27  # just for testing
                          }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
                                    "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
                                    "Am243"])
@@ -170,17 +170,25 @@ def test_integrate(sample_spectrum):
                                   check_exact=False, atol=0.00001)
 
 def test_get_calibration_coefficient(sample_spectrum):
-    composition = {'U235': [1, 0.1]}
-    composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
-                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
-    expected_df = pd.DataFrame({'value': 3.8150947e-09,
-                                "uncertainty": 3.8150947e-10,
-                                "uncertainty [%]": 1.0000000e+01}, index=['value'])
+    # The only uncertainty that makes sense for a mono-isotopic
+    # deposit is 0
+    composition_ = pd.DataFrame({'U235': [1, 0]}, index=['value', 'uncertainty']).T
+    expected_df = pd.DataFrame({'value': 6.02214076e23 / 235.043923 / 1e6 * 1489.03 * 1e-27,
+                            "uncertainty": 6.02214076e23 / 235.043923 / 1e6 * 1 * 1e-27,
+                            "uncertainty [%]": 1 / 1489.03 * 100}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                 sample_spectrum._get_calibration_coefficient(XS_FAST, composition_))
-    composition = {'U235': [100, 0.1 * 100]}
-    composition_ = pd.DataFrame(composition, index=['value', 'uncertainty']
-                ).T if not isinstance(composition, pd.DataFrame) else composition.copy()
+    # now with two nuclides
+    composition_ = pd.DataFrame({'U235': [.9, .09], 'U238': [.1, .01]}, index=['value', 'uncertainty']).T
+    x8, ux8, x5, ux5 = 284.95 * 1e-27, 2 * 1e-27, 1489.03 * 1e-27, 1 * 1e-27
+    v = 6.02214076e23 / 235.043923 / 1e6 * (.1 / .9 * x8 + x5)
+    u = 6.02214076e23 / 235.043923 / 1e6 * np.sqrt((1 / .9 * x8 * .01) **2 \
+                                                + (.1 / .9**2 * x8 * .09) **2 \
+                                                + (.1 / .9 * ux8) **2 \
+                                                + (ux5) **2)
+    expected_df = pd.DataFrame({'value': v,
+                                "uncertainty": u,
+                                "uncertainty [%]": u / v * 100}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                 sample_spectrum._get_calibration_coefficient(XS_FAST, composition_))
 
@@ -194,46 +202,44 @@ def test_calibrate(sample_spectrum):
                              detector_id='test',
                              deposit_id="U235",
                              timebase= 1)
+    k, uk = 8720., 0.02 * 8720.
+    m, um = 27000, 51.96152422706632
+    c, uc = 3.815094702900616e-09, 2.562134210123782e-12
+    kmc, ukmc = k * m * c, np.sqrt((uk * m * c)**2 + (k * um * c)**2 + (k * m * uc)**2)
+
+    phs_t = np.array([394.4, 384.4, 369.4, 369.4, 349.4, 349.4, 324.4, 294.4, 294.4,
+        259.4])
+    uphs_t = np.array([6.280127387, 6.2        , 6.07782856 , 6.07782856 , 5.911006682,
+        5.911006682, 5.695612346, 5.425863987, 5.425863987, 5.093132631])
+    v = phs_t / kmc
+    u = np.sqrt((1 / kmc * uphs_t)**2 + (phs_t / kmc **2 * ukmc)**2)
     expected_df = pd.DataFrame({'channel': [1, 2, 3, 3, 4, 4, 5, 6, 6, 7],
-                                'value': [439.08776331513275, 427.9547064359458, 411.25512111716546, 411.25512111716546, 388.9890073587916,
-                                          388.9890073587916, 361.15636516082424, 327.7571945232634, 327.7571945232634, 288.79149544610914],
-                                'uncertainty': [45.328774766486085, 44.19313472096307, 42.48966619235774, 42.48966619235774, 40.21835702157304,
-                                                40.21835702157304, 37.37918673739926, 33.972120356027794, 33.972120356027794, 29.99709489018778],
-                                'uncertainty [%]': [10.323397405623822, 10.326591589331588, 10.331705068361337, 10.331705068361337, 10.339201432619625,
-                                                    10.339201432619625, 10.349862370764024, 10.365026587880601, 10.365026587880601, 10.3871115885355],
+                                'value': v,
+                                'uncertainty': u,
+                                'uncertainty [%]': u / v * 100,
                                 "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]},
                                 index=['value'] * 10)
     expected_df['channel'] = expected_df['channel'].astype('int32')
 
     # fractional composition
-    composition = {'U235': [1, 0.1]}
+    composition = {'U235': [1, 0]}
     c = sample_spectrum.calibrate(k=KNBS["BR1-MARK3"],
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
                                   bins=None,
                                   smooth=False)
-    pd.testing.assert_frame_equal(expected_df, c.data)
-
-    # per cent composition
-    composition = {'U235': [1, 0.1]}
-    c = sample_spectrum.calibrate(k=KNBS["BR1-MARK3"],
-                                  composition=composition,
-                                  monitor=sample_monitor,
-                                  one_group_xs=XS_FAST,
-                                  bins=None,
-                                  smooth=False)
-    pd.testing.assert_frame_equal(expected_df, c.data)
+    pd.testing.assert_frame_equal(expected_df, c.data, check_exact=False, atol=1e-8)
 
     # pd.DataFrame composition
-    composition = pd.DataFrame({'U235': [1, 0.1]}, index=['value', 'uncertainty']).T
+    composition = pd.DataFrame({'U235': [1, 0]}, index=['value', 'uncertainty']).T
     c = sample_spectrum.calibrate(k=KNBS["BR1-MARK3"],
                                   composition=composition,
                                   monitor=sample_monitor,
                                   one_group_xs=XS_FAST,
                                   bins=None,
                                   smooth=False)
-    pd.testing.assert_frame_equal(expected_df, c.data)
+    pd.testing.assert_frame_equal(expected_df, c.data, check_exact=False, atol=1e-8)
 
     # test other effective mass attributes
     assert sample_spectrum.deposit_id == c.deposit_id
