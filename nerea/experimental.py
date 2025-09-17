@@ -5,15 +5,16 @@ from dataclasses import dataclass
 from .fission_fragment_spectrum import FissionFragmentSpectrum
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate, ReactionRates
-from .utils import ratio_v_u, product_v_u, _make_df, impurity_correction
+from .utils import ratio_v_u, product_v_u, _make_df
+from .functions import impurity_correction
 from .constants import ATOMIC_MASS
-from . defaults import *
+from .defaults import *
+from .classes import Xs
 
 import pandas as pd
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
-import datetime
 
 __all__ = ['_Experimental',
            'NormalizedFissionFragmentSpectrum',
@@ -694,13 +695,8 @@ class SpectralIndex(_Experimental):
             If xs is not given for all impurities.
         """
         comp = self.numerator.effective_mass.composition_.copy()
-        # normalize Serpent output per unit mass
-        xs = pd.concat([one_g_xs['value'] / ATOMIC_MASS.T['value'],
-                        one_g_xs['uncertainty'] / ATOMIC_MASS.T['value']],
-                       axis=1).dropna()
-        xs.columns = ["value", "uncertainty"]
         # sum over impurities != self.numerator.deposit_id
-        return impurity_correction(xs, comp, drop_main=True,
+        return impurity_correction(one_g_xs, comp, drop_main=True,
                                    xs_den=self.denominator.deposit_id,
                                    relative = True if comp.shape[0] != 0 else False
                                    ).dropna()
@@ -754,8 +750,10 @@ class SpectralIndex(_Experimental):
             out = pd.DataFrame()
         return out
 
-    def process(self, one_g_xs: pd.DataFrame = None,
-                one_g_xs_file: dict[str, tuple[str, str]] = None,
+    def process(self,
+                one_g_xs: Xs = None,
+                one_g_xs_file: str = None,
+                nuc_dec_from_file : dict[str, str] = None,
                 numerator_kwargs: dict={},
                 denominator_kwargs: dict={}) -> pd.DataFrame:
         """
@@ -767,10 +765,12 @@ class SpectralIndex(_Experimental):
             dataframe with nuclides as index, one group cross sections as `value`
             and absolute uncertainty as `uncertainty`.
             Defaults to None for no correction.
-        one_g_xs_file : dict[str, tuple[str, str]], optional
-            the Serpent detector file `value[1]` to read each one group xs
-            `value[0]` from for each nuclide `key`. Alternative to `one_g_xs`.
-            Defaults to None for no file.
+        one_g_xs_file : str, optional
+            the Serpent detector file to read the one group xs from.
+            Default is None.
+        nuc_dec_from_file : dict[str, str], optional
+            A dictionary mapping each nuclide with the detector associated
+            with its cross section calculation in `one_g_xs_file`.
         **kwargs : Any
             Keyword arguments to be passed to the
             `NormalizedFissionFragmentSpectrum.process()` method.
@@ -798,18 +798,13 @@ class SpectralIndex(_Experimental):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
                           " to be accounted for.")
         if one_g_xs_file is not None:
-            read = pd.DataFrame({nuc: sts.read(det[1]).detectors[det[0]].bins[0][-2:]
-                                 for nuc, det in one_g_xs_file.items()}).T
-            read.columns = ['value', 'uncertainty']
-            read.index.name = 'nuclide'
-            # uncertainy is absolute
-            read.uncertainty = read.uncertainty * read.value
+            read = Xs.from_file(one_g_xs_file, nuc_dec_from_file)
         else:
             read = None
 
         one_g_xs_ = read if one_g_xs is None else one_g_xs
         if one_g_xs_ is not None:
-            k = self._compute_correction(one_g_xs_)
+            k = self._compute_correction(one_g_xs_.normalized)
             v = v - k.value
             u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None

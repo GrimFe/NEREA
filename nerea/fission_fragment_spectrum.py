@@ -10,7 +10,8 @@ import numpy as np
 
 from datetime import datetime, timedelta
 
-from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u, smoothing, get_relative_array, impurity_correction
+from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
+from .functions import smoothing, get_relative_array, impurity_correction
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate
@@ -321,7 +322,7 @@ class FissionFragmentSpectrum:
                                  drop_main=False)
         # this can be done after impurity correction calculation
         # because we assume no uncertainty on Nav and A
-        a = _make_df(*ratio_v_u(AVOGADRO, ATOMIC_MASS[main]))
+        a = _make_df(*ratio_v_u(AVOGADRO, ATOMIC_MASS.loc[main]))
         units_of_ug = _make_df(1e-6, 0)
         return _make_df(*product_v_u([a, units_of_ug, ic]))
 

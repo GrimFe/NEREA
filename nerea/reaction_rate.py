@@ -9,7 +9,8 @@ from datetime import datetime, timedelta
 import warnings
 import matplotlib.pyplot as plt
 
-from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u, get_fit_R2, smoothing
+from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u
+from .functions import get_fit_R2, smoothing
 from .defaults import *
 from .classes import EffectiveDelayedParams
 from .constants import BASE_DATE

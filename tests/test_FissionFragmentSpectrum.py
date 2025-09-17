@@ -5,8 +5,9 @@ import numpy as np
 from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
 from nerea.reaction_rate import ReactionRate
 from nerea.constants import KNBS
+from nerea.classes import Xs
 
-XS_FAST = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.95, 1264.48,
+XS_FAST = Xs(pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.95, 1264.48,
                                    1971.88, 2132.61, 1308.2, np.nan, 1115.87, 1321.81,
                                    1024.24]) * 1e-27,   ## fast xs JEFF-3.1.1 [mb] then converted to cm^2
                          "uncertainty": np.array([0., 0., 1., 0., 2., 0.,
@@ -14,7 +15,7 @@ XS_FAST = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.
                                    0.]) * 1e-27  # just for testing
                          }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
                                    "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
-                                   "Am243"])
+                                   "Am243"]))
 
 @pytest.fixture
 def sample_spectrum_data():

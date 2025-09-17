@@ -27,7 +27,7 @@ ATOMIC_MASS = pd.DataFrame(
      "Pu242": [242.0, 0.0],
      "Pu244": [244.0, 0.0],
      "Am241": [241.0, 0.0]
-     }, index=['value', 'uncertainty'])
+     }, index=['value', 'uncertainty']).T
 
 KNBS = {"BR1-MARK3": _make_df(8720., 0.02 * 8720.), #_make_df(8703., 0.02 * 8703.),
         "BR1-EMPTY CAVITY": _make_df(25456., 0.021 * 25456.)}
