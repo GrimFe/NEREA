@@ -1,7 +1,10 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 from .utils import _make_df
+
+BASE_DATE = datetime.datetime(1899, 12, 30)  # Excel epoch
 
 AVOGADRO = _make_df(6.02214076e23, 0)
 
