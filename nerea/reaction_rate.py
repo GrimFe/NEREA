@@ -548,7 +548,8 @@ class ReactionRate:
         start_time = datetime.strptime(linecache.getline(file, 1), "%d-%m-%Y %H:%M:%S\n")
         read = pd.read_csv(file, sep='\t', skiprows=[0,1], decimal=',')
         read["Time"] = read["Time"].apply(lambda x: start_time + timedelta(seconds=x))
-        campaign_id, experiment_id = file.split('\\')[-1].split('_')
+        metadata = file.split('\\')[-1].split('.')[0]
+        campaign_id, experiment_id = metadata.split('_')
         return cls(read[["Time", f"Det {detector}"]].rename(columns={f"Det {detector}": "value"}),
                    start_time=start_time,
                    campaign_id=campaign_id,
@@ -592,7 +593,7 @@ class ReactionRate:
         timebase = data.Time.diff().dt.total_seconds().mean()
         return cls(data,
                    start_time=data.Time.min(),
-                   detector_id=f"Det {detector}",
+                   detector_id=detector,
                    timebase=timebase,
                    **kwargs)
     
@@ -626,7 +627,8 @@ class ReactionRate:
         
         File format: `'CAMP_EXP_DET.log'`
         """
-        campaign_id, experiment_id, det = file.split('\\')[-1].split('_')
+        metadata = file.split('\\')[-1].split('.')[0]
+        campaign_id, experiment_id, det = metadata.split('_')
         return cls._from_phspa(file,
                                detector=det,
                                campaign_id=campaign_id,
@@ -893,9 +895,7 @@ class ReactionRates:
 
     @classmethod
     def from_ascii(cls,
-                   file: str,
-                   detectors: Iterable[int],
-                   deposit_ids: Iterable[str],
+                   files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
                    filetypes: Iterable[str]='infer'):
         """
         Creates an instance of ReactionRate using data extracted from an ASCII file.
@@ -903,16 +903,23 @@ class ReactionRates:
         The ASCII file should contain columns of data including timestamps and power readings.
 
         The filename is supposed to be formatted as:
-        {Campaign}_{experiment}.txt
+        {Campaign}_{experiment} (ADS) or
+        {Campaign}_{experiment}_{detector} (PHSPA)
 
         Parameters
         ----------
-        file : str
-            Path to the ASCII file containing the power monitor data.
-        detectors : Iterable[int]
-            Detector numbers to read from the ASCII file.
-        deposit_ids : Iterable[str]
-            Ordered deposits of the detectors.
+        files : dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]]
+            Maps each file to the detectors to read there and
+            the corresponding deposit id.
+            - key: str
+                Path to the ASCII files containing the power monitor data.
+            -values: tuple
+                first: Iterable[str]|Iterable[int]
+                    detector ids for ADS files
+                    or None
+                    for PHSPA file (detector id inferred from filename)
+                second: Iterable[str]
+                    deposit ids
         filetype : Iterable[str], optional
             Type of ASCII file to process.
             Default is `'infer'` to infer it from
@@ -921,50 +928,40 @@ class ReactionRates:
         Returns
         -------
         ReactionRate
-            An instance of the ReactionRate class initialized with the data from the ASCII file.
+            An instance of the ReactionRate class initialized
+            with the data from the ASCII file.
 
         Note
         ----
         Allowed only for formatted source files.
 
-        Example
-        -------
-        Consider an ASCII file `power_data.txt` with the following content:
-
-        ```
-        timestamp,power
-        2023-01-01 00:00:00,100
-        2023-01-01 01:00:00,150
-        2023-01-01 02:00:00,200
-        ```
-
-        You can create a ReactionRate instance from this file as follows:
-
-        ```python
-        from nerea.ReactionRate import ReactionRate
-
-        power_monitor = ReactionRate.from_ascii('path/to/power_data.txt', experiment_id='EXP123')
-        print(power_monitor.data)
-        ```
-
-        This will output:
-
-        ```
-                    timestamp  power
-        0 2023-01-01 00:00:00    100
-        1 2023-01-01 01:00:00    150
-        2 2023-01-01 02:00:00    200
-        ```
-
-        Note
-        ----
-        Ensure that the file path provided is correct and that the file format matches the expected structure.
+        ADS files requires detectors to be passed as an iterable
+        in the same order as the ADS processed files.
         """
-        ft = ['infer'] * len(detectors) if filetypes == 'infer' else filetypes
+        ft = ['infer'] * len(files) if filetypes == 'infer' else filetypes
         out = {}
-        for i, d in enumerate(detectors):
-            out[d] = ReactionRate.from_ascii(file,
-                                             filetype=ft[i],
-                                             detector=d,
-                                             deposit_id=deposit_ids[i])
+        for i, (f, (dets, deps)) in enumerate(files.items()):
+            ft_ = f.split('.')[-1] if ft[i] == 'infer' else ft
+            match ft_:
+                case 'ads':
+                    for d, d_ in zip(dets, deps):
+                        out[d] = ReactionRate.from_ascii(f,
+                                                        filetype=ft_,
+                                                        detector=d,
+                                                        deposit_id=d_)
+                case 'phspa':
+                    d = f.split('\\')[-1].split('.')[0].split('_')[-1]
+                    d_ = deps[0]
+                    out[d] = ReactionRate.from_ascii(f,
+                                                     filetype=ft_,
+                                                     detector=d,
+                                                     deposit_id=d_)
+                case 'log':
+                    d = f.split('\\')[-1].split('.')[0].split('_')[-1]
+                    d_ = deps[0]
+                    out[d] = ReactionRate.from_ascii(f,
+                                                     filetype=ft_,
+                                                     deposit_id=d_)
         return cls(out)
+
+
