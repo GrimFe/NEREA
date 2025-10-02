@@ -51,7 +51,8 @@ class CalculatedSpectralIndex(_Calculated):
                                                     'SI_detector', model_id='Model1')
         """
         v, u = sts.read(file).detectors[detector_name].bins[0][-2:]
-        mass_norm = ATOMIC_MASS[kwargs['deposit_ids'][1]]['value'] / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value']
+        n, d = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
+        mass_norm = ATOMIC_MASS.loc[d]['value'] / ATOMIC_MASS.loc[n]['value']
         # Serpent detector uncertainty is relative
         kwargs['data'] = _make_df(v * mass_norm, u * v * mass_norm
                                   ).assign(VAR_PORT_C_n=None,
@@ -87,10 +88,11 @@ class CalculatedSpectralIndex(_Calculated):
         v2, u2_ = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
         # Serpent detector uncertainty is relative
         u1, u2 = u1_ * v1, u2_ * v2
-        v, u = ratio_v_u(_make_df(v=v1 / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value'],
-                                  u=u1 / ATOMIC_MASS[kwargs['deposit_ids'][0]]['value']),
-                         _make_df(v=v2 / ATOMIC_MASS[kwargs['deposit_ids'][1]]['value'],
-                                  u=u2 / ATOMIC_MASS[kwargs['deposit_ids'][1]]['value']))
+        n, d = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
+        v, u = ratio_v_u(_make_df(v=v1 / ATOMIC_MASS.loc[n]['value'],
+                                  u=u1 / ATOMIC_MASS.loc[n]['value']),
+                         _make_df(v=v2 / ATOMIC_MASS.loc[d]['value'],
+                                  u=u2 / ATOMIC_MASS.loc[d]['value']))
         S1, S2= 1 / v2, v1 / v2 **2
         kwargs['data'] = _make_df(v, u).assign(VAR_PORT_C_n=(S1 * u1) **2,
                                                VAR_PORT_C_d=(S2 * u2) **2)
