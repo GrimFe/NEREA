@@ -218,8 +218,7 @@ def test_calibrate(sample_spectrum):
                                 'value': v,
                                 'uncertainty': u,
                                 'uncertainty [%]': u / v * 100,
-                                "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]},
-                                index=['value'] * 10)
+                                "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
     expected_df['channel'] = expected_df['channel'].astype('int32')
 
     # fractional composition

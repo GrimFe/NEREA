@@ -221,7 +221,7 @@ def test_impurity_correction():
                                 'uncertainty': [uw1, uw2, uwd]},
                                 index=['U236', 'U234', 'U238'])
 
-    nerea_ = impurity_correction(Xs(synthetic_one_g_xs_data), composition, drop_main=True)
+    nerea_ = impurity_correction(Xs(synthetic_one_g_xs_data), composition, drop_main=True, xs_den='')
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_.columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)

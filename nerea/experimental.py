@@ -449,21 +449,29 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             If the channel values differ beyond the specified tolerance.
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
-        
         data = self.per_unit_mass(**kwargs)
+        
         # check where the values in the mass-normalized count rate converge withing tolerance
-        close_values = data[np.isclose(data.value, np.roll(data.value, shift=1), rtol=int_tolerance)]
+        vals = data.value.values
+        mask_value = np.isclose(vals[1:], vals[:-1], rtol=int_tolerance)
+        close_values = data.iloc[1:][mask_value]
         if close_values.shape[0] == 0:
             raise Exception("No convergence found with the given tolerance on the integral.", ValueError)
-        # consider only values where the convergence is observed in two neighboring channels, i.e. atol=1
-        plateau = close_values[np.isclose(close_values.index, np.roll(close_values.index, shift=1), atol=1)]
+
+        # and where close values were found in successive rows 
+        idx = close_values.index.values
+        mask_successive = np.isclose(idx, np.roll(idx, shift=1), atol=1)
+        plateau = close_values[mask_successive]
         if plateau.shape[0] == 0:
             raise Exception("No convergence found in neighbouring channels.", ValueError)
-        # check the channels in which value does not differ more than ch_tolerance from the calibration ones
-        plateau = plateau[abs(plateau['CH_FFS'] - plateau['CH_EM'])
-                / plateau['CH_EM'] < ch_tolerance]
+
+        # test if the channels are within tolerance
+        mask_channel = np.abs(plateau['CH_FFS'] - plateau['CH_EM']) / plateau['CH_EM'] < ch_tolerance
+        plateau = plateau[mask_channel]
         if plateau.shape[0] == 0:
             raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
+
+        # return first value of the plateau
         out = plateau.iloc[0].to_frame().T
         out.index = ['value']
         return out
@@ -618,8 +626,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         if discri is not None:
             discri_r = self.fission_fragment_spectrum.integrate(
                     **kwargs).query("channel == @discri").R.iloc[0]
-            axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].value,
-                              y=self.effective_mass.data.query("R == @discri_r")['value'].value,
+            axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].iloc[0],
+                              y=self.effective_mass.data.query("R == @discri_r")['value'].iloc[0],
                               c='b', marker='s', label="Discriminator")
             axs[1][0].axvline(discri, c='b', label='Discriminator')
             axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0],

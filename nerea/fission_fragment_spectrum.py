@@ -397,7 +397,7 @@ class FissionFragmentSpectrum:
             if savefig:
                 ax.figure.savefig(savefig)
                 plt.close()
-        return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]],
+        return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]].reset_index(drop=True),
                              composition=composition_.reset_index(names='nuclide'),
                              detector_id=self.detector_id,
                              deposit_id=self.deposit_id,
