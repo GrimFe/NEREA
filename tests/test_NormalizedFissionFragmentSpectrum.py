@@ -206,6 +206,29 @@ def test_per_unit_mass_and_power(nffs):
                                    nffs.per_unit_mass_and_power(raw_integral=False, renormalize=False),
                                    check_exact=False, atol=0.00001)
 
+def test_per_unit_power_and_time(nffs):
+    expected_df = pd.DataFrame({'channel': [6, 8, 10, 12, 14, 16, 18, 20, 22, 24],
+                                'R': [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6],
+                                'value': [.942, .938, .933, .927, .92, .914, .91, .825, .725, .7],
+                                'uncertainty': [0.04277106498557173, 0.04263618181779415,
+                                                0.04246750522458319, 0.04226498550810115,
+                                                0.04202856171700383, 0.04182578152288371,
+                                                0.041690526501832526, 0.038802383947381384,
+                                                0.03536417678951399, 0.034496376621320685],
+                                'uncertainty [%]': [4.540452758553262, 4.545435161811742,
+                                                    4.551715458154682, 4.559329612524396,
+                                                    4.5683219257612855, 4.576124893094497,
+                                                    4.581376538662915, 4.703319266349258,
+                                                    4.877817488208827, 4.928053803045811]})
+    expected_df["channel"] = expected_df["channel"].astype("int32")
+    pd.testing.assert_frame_equal(expected_df,
+                                  nffs.per_unit_power_and_time(),
+                                  check_exact=False, atol=0.00001)
+    expected_df['R'] = [np.nan] * 10
+    pd.testing.assert_frame_equal(expected_df,
+                                  nffs.per_unit_power_and_time(llds=[ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24], r=False),
+                                  check_exact=False, atol=0.00001)
+
 def test_plateau(nffs):
     expected_df = pd.Series({'value': 10.104598,
                              'uncertainty': 0.345713,

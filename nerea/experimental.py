@@ -419,6 +419,46 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             CH_FFS=pum.CH_FFS, CH_EM=pum.CH_EM).reset_index(drop=True)
         return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
+    def per_unit_power_and_time(self, **kwargs) -> pd.DataFrame:
+        """
+        The integrated FFS normalized per unit power and time.
+
+        Parameters
+        ----------
+        **kwargs for self.fission_fragment_spectrum.integrate()
+        bin_kwargs : dict, optional
+            - bins : int
+            - smooth : bool
+            Defailt is empty, rading from nerea.defaults.
+        max_kwargs : dict, optional
+            Paramters for self.get_max().
+            - fst_ch : int
+            Defailt is empty, rading from nerea.defaults.
+        llds : Iterable[int|float] | int, optional
+            low level discriminator(s) to integrate from.
+            Defaults to 10 llds between [0.15, 0.6].
+        r : bool, optional
+            Defines whether the discriminators are absolute or
+            fractions of the R channel.
+            Default is True.
+        raw_integral : bool, optional
+            Defines whether to integrate the raw data or the
+            smoothed ones.
+            Default is False.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the information of the power- and time- normalized spectrum.
+        """
+        phspa_int = self.fission_fragment_spectrum.integrate(**kwargs).set_index(['channel', 'R'])
+        idx = phspa_int.index
+        return _make_df(*product_v_u([phspa_int.reset_index(drop=True),
+                                      pd.concat([self._time_normalization] * phspa_int.shape[0], ignore_index=True),
+                                      pd.concat([self._power_normalization] * phspa_int.shape[0], ignore_index=True)]),
+                                      idx=idx).reset_index()
+
+
     def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate per unit mass.
