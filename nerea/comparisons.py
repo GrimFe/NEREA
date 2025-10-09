@@ -179,9 +179,11 @@ class _Comparison:
 class CoverE(_Comparison):
     num: _Calculated  # calculation
     den: _Experimental  # experiment
+    _enable_checks: bool = True
 
     def __post_init__(self):
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def _check_consistency(self) -> None:
         _Comparison(self.num, self.den)._check_consistency_attrs()
@@ -197,9 +199,11 @@ class CoverE(_Comparison):
 class CoverC(_Comparison):
     num: _Calculated  # calculation
     den: _Calculated  # calculation
+    _enable_checks: bool = True
 
     def __post_init__(self):
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def _check_consistency(self) -> None:
         _Comparison(self.num, self.den)._check_consistency_attrs()

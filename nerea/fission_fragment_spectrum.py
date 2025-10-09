@@ -534,9 +534,11 @@ class FissionFragmentSpectra():
 
     """
     spectra: Iterable[FissionFragmentSpectrum]
+    _enable_checks: bool = True
 
     def __post_init__(self) -> None:
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def __iter__(self):
         return self.spectra.__iter__()

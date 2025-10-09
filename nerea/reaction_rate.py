@@ -788,9 +788,11 @@ class ReactionRate:
 @dataclass(slots=True)
 class ReactionRates:
     detectors: dict[int, ReactionRate]
+    _enable_checks: bool = True
 
     def __post_init__(self) -> None:
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def _check_consistency(self, time_tolerance: timedelta=timedelta(seconds=60),
                            timebase: int=100, sigma=1) -> None:

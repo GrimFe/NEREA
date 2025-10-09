@@ -41,9 +41,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
     fission_fragment_spectrum: FissionFragmentSpectrum
     effective_mass: EffectiveMass
     power_monitor: ReactionRate
+    _enable_checks: bool = True
 
     def __post_init__(self) -> None:
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def _check_consistency(self) -> None:
         """
@@ -639,9 +641,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 class SpectralIndex(_Experimental):
     numerator: NormalizedFissionFragmentSpectrum
     denominator: NormalizedFissionFragmentSpectrum
+    _enable_checks: bool = True
 
     def __post_init__(self):
-        self._check_consistency()
+        if self._enable_checks:
+            self._check_consistency()
 
     def _check_consistency(self) -> None:
         """
@@ -836,13 +840,15 @@ class SpectralIndex(_Experimental):
 @dataclass(slots=True)
 class Traverse(_Experimental):
     reaction_rates: dict[str, ReactionRate | ReactionRates]
+    _enable_checks: bool = True
     
     def __post_init__(self):
-        for item in self.reaction_rates.values():
-            if not self._first.campaign_id == item.campaign_id:
-                    warnings.warn("Not matching campaign ids.")
-            if not self._first.deposit_id == item.deposit_id:
-                    warnings.warn("Not matching deposit ids.")
+        if self._enable_checks:
+            for item in self.reaction_rates.values():
+                if not self._first.campaign_id == item.campaign_id:
+                        warnings.warn("Not matching campaign ids.")
+                if not self._first.deposit_id == item.deposit_id:
+                        warnings.warn("Not matching deposit ids.")
 
     @property
     def _first(self):
