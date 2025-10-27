@@ -60,7 +60,7 @@ def evaluate_integral_integral_cr(x: float,
     Parameters:
     -----------
     x : float
-        The point whereto evaluate the integral.
+        The point where to evaluate the integral.
     order : int
         Polynomial order to integrate
     coef : Iterable[float]
@@ -137,16 +137,60 @@ class ControlRodCalibration:
                              order: int,
                              dtc_kwargs: dict={},
                              ac_kwargs: dict={}) -> pd.DataFrame:
-            rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
-            rho.columns = ['x', 'y', 'u']
-            coef, coef_cov = polyfit(order, rho)
-            i0 = self._evaluate_integral(x0, order, coef, coef_cov)
-            i1 = self._evaluate_integral(x1, order, coef, coef_cov)
-            return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)
-                            ).assign(VAR_PORT_X1=i1.uncertainty **2,
-                                     VAR_PORT_X0=i0.uncertainty **2)
+        """
+        Computes the reactivity worth given by a control rod movement.
+
+        Parameters
+        ----------
+        x0: float
+            starting control rod position.
+        x1: float
+            final control rod position.
+        delayed_data: nerea.EffectiveDelayedParams
+            delayed neutron data to use to calculate the reactivity.
+        order: int
+            polynomial order for the control rod calibration curve.
+        dtc_kwargs: dict, optional
+            keyword arguments for count rate dead time correction.
+            Default is `{}` taking values from nerea.defaults.py.
+        ac_kwargs: dict, optional
+            keyword arguments for asymptotic count rate identification.
+            Default is `{}` taking values from nerea.defaults.py.
+
+        Returns
+        -------
+        pd.DataFrame
+            The reactivity worth associated with the chosen control
+            rod movement.
+        """    
+        rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
+        rho.columns = ['x', 'y', 'u']
+        coef, coef_cov = polyfit(order, rho)
+        i0 = self._evaluate_integral(x0, order, coef, coef_cov)
+        i1 = self._evaluate_integral(x1, order, coef, coef_cov)
+        return _make_df(i1.value - i0.value, np.sqrt(i1.uncertainty **2 + i0.uncertainty **2)
+                        ).assign(VAR_PORT_X1=i1.uncertainty **2,
+                                    VAR_PORT_X0=i0.uncertainty **2)
     
-    def plot(self, dtc_kwargs: dict={}, ac_kwargs: dict={}):
+    def plot(self, dtc_kwargs: dict={}, ac_kwargs: dict={}
+             ) -> tuple[plt.Figure, plt.Axes]:
+        """
+        Plots the data handled.
+
+        Parameters
+        ----------
+        dtc_kwargs: dict, optional
+            keyword arguments for count rate dead time correction.
+            Default is `{}` taking values from nerea.defaults.py.
+        ac_kwargs: dict, optional
+            keyword arguments for asymptotic count rate identification.
+            Default is `{}` taking values from nerea.defaults.py.
+
+        Returns
+        -------
+        tuple[plt.Figure, plt.Axes]
+            The Figure and Axes produced.
+        """   
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
         ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         fig, axs = plt.subplots(len(self.reaction_rates), 2,
@@ -226,7 +270,26 @@ class DifferentialNoCompensation(ControlRodCalibration):
     def _evaluate_integral(x: float,
                            order: int,
                            coef: Iterable[float],
-                           coef_cov: Iterable[Iterable[float]]):
+                           coef_cov: Iterable[Iterable[float]])-> pd.DataFrame:
+        """
+        Itegrates control rod data following a polynomial.
+
+        Parameters
+        ----------
+        x: float
+            The point where to evaluate the integral.
+        order: int
+            Fitting polynomial order.
+        coef: Iterable[float]
+            Polynomial coefficients.
+        coef_cov: Iterable[Iterable[float]]
+            Polynomial coefficient covariance matrix.
+
+        Returns
+        -------
+        pd.DataFrame
+            The integral reactivity worth up to position `x`.
+        """
         return evaluate_integral_differential_cr(x, order, coef, coef_cov)
 
 
@@ -279,7 +342,26 @@ class IntegralNoCompensation(ControlRodCalibration):
     def _evaluate_integral(x: float,
                            order: int,
                            coef: Iterable[float],
-                           coef_cov: Iterable[Iterable[float]]):
+                           coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
+        """
+        Itegrates control rod data following a polynomial.
+
+        Parameters
+        ----------
+        x: float
+            The point where to evaluate the integral.
+        order: int
+            Fitting polynomial order.
+        coef: Iterable[float]
+            Polynomial coefficients.
+        coef_cov: Iterable[Iterable[float]]
+            Polynomial coefficient covariance matrix.
+
+        Returns
+        -------
+        pd.DataFrame
+            The integral reactivity worth up to position `x`.
+        """
         return evaluate_integral_integral_cr(x, order, coef, coef_cov)
 
 
@@ -340,7 +422,26 @@ class DifferentialCompensation(ControlRodCalibration):
     def _evaluate_integral(x: float,
                            order: int,
                            coef: Iterable[float],
-                           coef_cov: Iterable[Iterable[float]]):
+                           coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
+        """
+        Itegrates control rod data following a polynomial.
+
+        Parameters
+        ----------
+        x: float
+            The point where to evaluate the integral.
+        order: int
+            Fitting polynomial order.
+        coef: Iterable[float]
+            Polynomial coefficients.
+        coef_cov: Iterable[Iterable[float]]
+            Polynomial coefficient covariance matrix.
+
+        Returns
+        -------
+        pd.DataFrame
+            The integral reactivity worth up to position `x`.
+        """
         return evaluate_integral_differential_cr(x, order, coef, coef_cov)
 
 
@@ -393,5 +494,24 @@ class IntegralCompensation(ControlRodCalibration):
     def _evaluate_integral(x: float,
                            order: int,
                            coef: Iterable[float],
-                           coef_cov: Iterable[Iterable[float]]):
+                           coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
+        """
+        Itegrates control rod data following a polynomial.
+
+        Parameters
+        ----------
+        x: float
+            The point where to evaluate the integral.
+        order: int
+            Fitting polynomial order.
+        coef: Iterable[float]
+            Polynomial coefficients.
+        coef_cov: Iterable[Iterable[float]]
+            Polynomial coefficient covariance matrix.
+
+        Returns
+        -------
+        pd.DataFrame
+            The integral reactivity worth up to position `x`.
+        """
         return evaluate_integral_integral_cr(x, order, coef, coef_cov)

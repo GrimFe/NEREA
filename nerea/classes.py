@@ -58,7 +58,7 @@ class Xs:
                   read: dict[str, str],
                   *args, **kwargs) -> Self:
         """
-        Create Xs object from serpent file.
+        Create Xs object from serpent detector output file.
 
         Parameters
         ----------

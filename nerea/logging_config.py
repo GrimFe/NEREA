@@ -1,8 +1,21 @@
 import logging
 import sys
 
-def setup_logging(level=logging.INFO):
-    """Configure global logging for the package."""
+def setup_logging(level: int=logging.INFO) -> logging.RootLogger:
+    """
+    Configure global logging for the package.
+    
+    Parameters
+    ----------
+    level: int, optional
+        level to display log messages.
+        Default is `logging.INFO`.
+    
+    Returns
+    -------
+    logging.RootLogger
+        the logger.
+    """
     root_logger = logging.getLogger()
 
     # Avoid adding multiple handlers if setup is called multiple times

@@ -528,7 +528,7 @@ class FissionFragmentSpectrum:
         return ax
 
     @classmethod
-    def from_TKA(cls, file: str, **kwargs):
+    def from_TKA(cls, file: str, **kwargs) -> Self:
         """
         Reads data from a TKA file to create a `FissionFragmentSpectrum`
         instance.
@@ -564,7 +564,7 @@ class FissionFragmentSpectrum:
         return cls(**kwargs)
 
     @classmethod
-    def from_formatted_TKA(cls, file: str):
+    def from_formatted_TKA(cls, file: str) -> Self:
         """
         Reads data from a formatted TKA file and extracts metadata from the
         file name to create a `FissionFragmentSpectrum` instance.

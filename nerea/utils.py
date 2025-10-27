@@ -5,7 +5,7 @@ import pandas as pd
 __all__ = ['integral_v_u', 'time_integral_v_u', 'ratio_uncertainty', 'ratio_v_u', 'product_v_u', 'dot_product_v_u',
            '_make_df']
 
-def integral_v_u(s: pd.Series) -> tuple[float]:
+def integral_v_u(s: pd.Series) -> tuple[float, float]:
     """
     Compute the integral (sum) of a series and its associated uncertainty.
 
@@ -19,7 +19,8 @@ def integral_v_u(s: pd.Series) -> tuple[float]:
     v : float
         The sum of the series.
     u : float
-        The absolute uncertainty of the sum, calculated as the inverse of the square root of the sum.
+        The absolute uncertainty of the sum, calculated as the inverse of
+        the square root of the sum.
 
     Examples
     --------
@@ -34,7 +35,7 @@ def integral_v_u(s: pd.Series) -> tuple[float]:
     u = np.sqrt(v)
     return v, u
 
-def time_integral_v_u(s: pd.DataFrame) -> tuple[float]:
+def time_integral_v_u(s: pd.DataFrame) -> tuple[float, float]:
     """
     Compute the time integral (c.dot(dt)) of a series and its associated uncertainty.
 
@@ -63,7 +64,7 @@ def time_integral_v_u(s: pd.DataFrame) -> tuple[float]:
     u = np.sqrt(v)
     return v, u
 
-def ratio_uncertainty(n, un, d, ud) -> tuple[float]:
+def ratio_uncertainty(n, un, d, ud) -> tuple[float, float]:
     """
     Compute the uncertainty of a ratio given the values and uncertainties of the numerator and denominator.
 
@@ -94,7 +95,7 @@ def ratio_uncertainty(n, un, d, ud) -> tuple[float]:
     """
     return np.sqrt((1 / d * un)**2 + (n / d**2 * ud)**2)
 
-def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float]:
+def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float, float]:
     """
     Compute the value and uncertainty of a ratio given objects with value and uncertainty attributes.
 
@@ -130,7 +131,7 @@ def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float]:
     u = ratio_uncertainty(n.value, n.uncertainty, d.value, d.uncertainty)
     return v, u
 
-def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
+def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float, float]:
     """
     Computes the product of a number of values and propagates their uncertainty
     to the result.
@@ -147,7 +148,27 @@ def product_v_u(factors: Iterable[pd.DataFrame]) -> tuple[float]:
          ).pow(2).sum(axis=1)
     return v, np.sqrt(u) * v
 
-def dot_product_v_u(a: pd.DataFrame, b: pd.DataFrame) -> tuple[float]:
+def dot_product_v_u(a: pd.DataFrame, b: pd.DataFrame) -> tuple[float, float]:
+    """
+    Calculates value and uncertainty of the dot product
+    of two vectors.
+
+    Params
+    ------
+    a: pd.DataFrame
+        First vector: a data frame with `'value'` and
+        `'uncertainty'` columns.
+    b: pd.DataFrame
+        Second vector: a data frame with `'value'` and
+        `'uncertainty'` columns.
+    
+    Retruns
+    -------
+    v : float
+        The dot product value.
+    u : float
+        The dot product absolute uncertainty.
+    """
     idx = a.index.intersection(b.index)
     a_ = a.loc[idx]
     b_ = b.loc[idx]
@@ -155,7 +176,23 @@ def dot_product_v_u(a: pd.DataFrame, b: pd.DataFrame) -> tuple[float]:
     u = (a_.value **2 @ b_.uncertainty **2) + (a_.uncertainty **2 @ b_.value **2)
     return v, np.sqrt(u)
 
-def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float]:
+def sum_v_u(addends: Iterable[pd.DataFrame]) -> tuple[float, float]:
+    """
+    Calculates value and uncertainty of a sum.
+
+    Params
+    ------
+    a: Iterable[pd.DataFrame]
+        Lists all items to sum. Each is a data frame
+        with `'value'` and `'uncertainty'` columns.
+    
+    Retruns
+    -------
+    v : float
+        The sum value.
+    u : float
+        The sum absolute uncertainty.
+    """
     a = pd.concat(addends)
     return a["value"].sum(), np.sum(a["uncertainty"] **2)
 

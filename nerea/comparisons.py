@@ -65,6 +65,9 @@ class _Comparison:
     den: _Experimental | _Calculated
 
     def _check_consistency_attrs(self) -> None:
+        """"
+        Checks consistency of `deposit_id` or `deposit_ids`.
+        """
         if isinstance(self.den, Traverse):
             if not self.num.deposit_id == self.den.deposit_id:
                 raise Exception("Inconsistent deposits between C and E.")
@@ -85,16 +88,67 @@ class _Comparison:
         """
         return self.num.deposit_ids
 
-    def _get_denominator(self, **kwargs):
+    def _get_denominator(self, **kwargs) -> pd.DataFrame:
+        """
+        Processess the comparison denominator discrimiating
+        between Experimental and Calculated types.
+
+        Parameters
+        ----------
+        kwargs: any
+            keyword arguments for experimental denominator
+            processing.
+
+        Returns
+        -------
+        pd.DataFrame
+            The processed / calculated denominator.
+        """
         return self.den.process(**kwargs) if isinstance(self.den,
                                                         _Experimental) else self.den.calculate()
 
-    def _compute_si(self, _minus_one_percent=False, **kwargs):
+    def _compute_si(self, _minus_one_percent: bool=False, **kwargs) -> pd.DataFrame:
+        """
+        Computes the C/E value for spectral indices.
+
+        Parameters
+        ----------
+        _minus_one_percent: bool, optional
+            flag to compute C/E - 1 [%]. Default is False.
+        **kwargs: any
+            keyword arguments for denominator (experimental)
+            spectral index processing.
+
+        Returns
+        -------
+        pd.DataFrame
+            the C/E value and uncertainty
+        """
         num, den = self.num.calculate(), self._get_denominator(**kwargs)
         df, var_num, var_den = _frame_comparison(num, den, _minus_one_percent)
         return pd.concat([df, var_num, var_den], axis=1)
 
-    def _compute_traverse(self, _minus_one_percent=False, normalization=None, **kwargs):
+    def _compute_traverse(self, _minus_one_percent: bool=False,
+                          normalization: int|str=None, **kwargs) -> pd.DataFrame:
+        """
+        Computes the C/E value for traverses.
+
+        Parameters
+        ----------
+        _minus_one_percent: bool, optional
+            flag to compute C/E - 1 [%]. Default is False
+        normalization: int|str, optional
+            The point to normalize the traverse to. Default is
+            None, normalizing to the one with the highest counts.
+        **kwargs: any
+            keyword arguments for denominator (experimental)
+            traverse processing.
+
+        Returns
+        -------
+        pd.DataFrame
+            the C/E value and uncertainty
+        """
         n = self.num.calculate(normalization=normalization).set_index('traverse')
         d = self.den.process(normalization=normalization, **kwargs).set_index('traverse')
         v, u = ratio_v_u(n, d)
@@ -104,7 +158,7 @@ class _Comparison:
             out = _make_df((v - 1) * 100 , u * 100, relative=False, idx=v.index)
         return out.reset_index(names='traverse')[['value', 'uncertainty', 'uncertainty [%]', 'traverse']]
 
-    def compute(self, _minus_one_percent=False, *args, normalization: str =None,
+    def compute(self, _minus_one_percent: bool=False, *args, normalization: str =None,
                 **kwargs) -> pd.DataFrame:
         """
         Computes the comparison value.
@@ -144,7 +198,7 @@ class _Comparison:
             out = self._compute_traverse(_minus_one_percent, normalization=normalization, **kwargs)
         return out
 
-    def minus_one_percent(self, **kwargs):
+    def minus_one_percent(self, **kwargs) -> pd.DataFrame:
         """
         Computes the comparison value and subtracts 1, adjusting the uncertainty accordingly.
         The result is in units of %.
@@ -181,11 +235,17 @@ class CoverE(_Comparison):
     den: _Experimental  # experiment
     _enable_checks: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """
+        Runs consistency checks.
+        """
         if self._enable_checks:
             self._check_consistency()
 
     def _check_consistency(self) -> None:
+        """
+        Checks consistency of C and E types and runs _Comparison checks.
+        """
         _Comparison(self.num, self.den)._check_consistency_attrs()
         if ((isinstance(self.num, CalculatedTraverse) and not isinstance(self.den, Traverse)) or
             (isinstance(self.den, Traverse) and not isinstance(self.num, CalculatedTraverse))):
@@ -201,11 +261,17 @@ class CoverC(_Comparison):
     den: _Calculated  # calculation
     _enable_checks: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """
+        Runs consistency checks.
+        """
         if self._enable_checks:
             self._check_consistency()
 
     def _check_consistency(self) -> None:
+        """
+        Checks consistency of C and E types and runs _Comparison checks.
+        """
         _Comparison(self.num, self.den)._check_consistency_attrs()
         if isinstance(self.num, CalculatedTraverse) and not isinstance(self.den, CalculatedTraverse):
             raise Exception("Cannot compare Traverse and non-Traverse object.")
@@ -218,6 +284,19 @@ class FrameCompare:
     num: pd.DataFrame
     den: pd.DataFrame
 
-    def compute(self, _minus_one_percent=False):
+    def compute(self, _minus_one_percent=False) -> pd.DataFrame:
+        """
+        Computes the comparison value as ratio of `num` and `den`.
+
+        Parameters
+        ----------
+        _minus_one_percent : bool, optional
+            computes the C/E-1 [%]. Defaults to False.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the comparison value.
+        """
         return pd.concat(_frame_comparison(self.num, self.den, _minus_one_percent),
                          axis=1)

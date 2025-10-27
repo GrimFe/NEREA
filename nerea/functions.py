@@ -15,12 +15,71 @@ __all__ = ['fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothi
 
 
 def polynomial(order: int, c: Iterable[float], x: float):
+    """
+    Evaluate a polynomial of a given order at a specific value.
+
+    The polynomial is defined as:
+        P(x) = c₀·xⁿ + c₁·xⁿ⁻¹ + ... + cₙ
+
+    Parameters
+    ----------
+    order : int
+        The order (degree) of the polynomial (n in the equation).
+    c : Iterable[float]
+        Sequence of polynomial coefficients, with length `order + 1`.
+        Coefficients are ordered from highest degree to constant term.
+    x : float
+        The point at which to evaluate the polynomial.
+
+    Returns
+    -------
+    float
+        The computed polynomial value at `x`.
+
+    Raises
+    ------
+    ValueError
+        If the number of coefficients does not match `order + 1`.
+
+    Examples
+    --------
+    >>> polynomial(2, [1, -3, 2], 5)
+    12.0  # computes 1*5² - 3*5 + 2
+    """
     if len(c) != order + 1:
             raise ValueError(f"Expected {order + 1} coefficients, got {len(c)}")
         # returns the polynomial value @x
     return sum([c[i] * x **(order - i) for i in range(order + 1)])
 
 def fitting_polynomial(order: int) -> float:
+    """
+    Return a callable polynomial function of a given order for curve fitting.
+
+    This is typically used as a model function for fitting tools such as
+    `scipy.optimize.curve_fit`. The returned function takes an independent
+    variable `x` and a sequence of `order + 1` coefficients, and computes:
+
+        P(x) = c₀·xⁿ + c₁·xⁿ⁻¹ + ... + cₙ
+
+    Parameters
+    ----------
+    order : int
+        The order (degree) of the polynomial (n in the equation).
+
+    Returns
+    -------
+    Callable[[float, *float], float]
+        A function that computes the polynomial value given `x` and its coefficients.
+
+    Raises
+    ------
+    ValueError
+        If the provided number of coefficients does not match `order + 1`.
+
+    Notes
+    --------
+    Returns a scipy.curve_fit-suitable function.
+    """
     def poly(x, *c):
         if len(c) != order + 1:
             raise ValueError(f"Expected {order + 1} coefficients, got {len(c)}")

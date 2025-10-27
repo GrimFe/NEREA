@@ -244,7 +244,7 @@ class ReactionRate:
             raise Exception(f"No plateau found in for detector {self.detector_id} in experiment {self.experiment_id}.")
         return self.data.query("Time > @max_plateau_start_time and Time <= @max_plateau_end_time")
 
-    def per_unit_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
+    def per_unit_power(self, monitor: Self, *args, **kwargs) -> pd.DataFrame:
         """
         Normalizes the raction rate to a power monitor.
 
@@ -268,7 +268,7 @@ class ReactionRate:
         normalization = monitor.average(plateau.Time.min(), duration) 
         return _make_df(*ratio_v_u(_make_df(*integral_v_u(plateau.value)), normalization))
 
-    def per_unit_time_power(self, monitor, *args, **kwargs) -> pd.DataFrame:
+    def per_unit_time_power(self, monitor: Self, *args, **kwargs) -> pd.DataFrame:
         """
         Normalizes the raction rate to a power monitor and gives the conunt rate
         per unit power.
@@ -364,7 +364,8 @@ class ReactionRate:
                                                                                    VAR_PORT_B=VAR_PORT_B,
                                                                                    VAR_PORT_L=VAR_PORT_L)
 
-    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2, smooth_kwargs: dict={}, dtc_kwargs: dict={}) -> Self:
+    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2,
+                              smooth_kwargs: dict={}, dtc_kwargs: dict={}) -> Self:
         """
         Cut the power monitor data based on specific conditions to find the
         asymptotic exponential (after all harmonics have decayed).
@@ -793,6 +794,9 @@ class ReactionRates:
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
+        """
+        Runs consistency checks.
+        """
         if self._enable_checks:
             self._check_consistency()
 
@@ -909,19 +913,28 @@ class ReactionRates:
                 warnings.warn(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
-    def _first(self):
+    def _first(self) -> ReactionRate:
+        """
+        The first reaction rate in `self.detectors`.
+        """
         return list(self.detectors.values())[0]
 
     @property
-    def campaign_id(self):
+    def campaign_id(self) -> str:
+        """
+        Campaign id of thefirst reaction rate in `self.detectors`.
+        """
         return self._first.campaign_id
 
     @property
-    def experiment_id(self):
+    def experiment_id(self) -> str:
+        """
+        Experiment id of thefirst reaction rate in `self.detectors`.
+        """
         return self._first.experiment_id
 
     @property
-    def deposit_id(self):
+    def deposit_id(self) -> str:
         """
         The deposit id of the first element of `self.detectors`.
         """
@@ -1008,7 +1021,7 @@ class ReactionRates:
     @classmethod
     def from_ascii(cls,
                    files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
-                   filetypes: Iterable[str]='infer'):
+                   filetypes: Iterable[str]='infer') -> Self:
         """
         Creates an instance of ReactionRate using data extracted from an ASCII file.
 

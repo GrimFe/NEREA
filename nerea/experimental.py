@@ -26,7 +26,21 @@ __all__ = ['_Experimental',
            'Traverse']
 
 
-def average_v_u(df):
+def average_v_u(df: pd.DataFrame) -> tuple[float, float]:
+    """
+    Computes average value and uncertainty.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        A data frame with `'value'` and `'uncertainty'`
+        columns to take the average of.
+    
+    Returns
+    -------
+    tuple[float, float]
+        The average value and uncertainty.
+    """
     v = df.value.mean()
     u = sum(df.uncertainty **2) / len(df.uncertainty)
     return v, u
@@ -48,6 +62,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
+        """"
+        Runs consistency checks.
+        """
         if self._enable_checks:
             self._check_consistency()
 
@@ -155,7 +172,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         return self.fission_fragment_spectrum.location_id
 
     @property
-    def deposit_id(self):
+    def deposit_id(self) -> str:
         """
         The deposit ID associated with the fission fragment spectrum.
 
@@ -690,7 +707,10 @@ class SpectralIndex(_Experimental):
     denominator: NormalizedFissionFragmentSpectrum
     _enable_checks: bool = True
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """
+        Runs consistency checks.
+        """
         if self._enable_checks:
             self._check_consistency()
 
@@ -894,6 +914,9 @@ class Traverse(_Experimental):
     _enable_checks: bool = True
     
     def __post_init__(self):
+        """
+        Runs consistency checks.
+        """
         if self._enable_checks:
             for item in self.reaction_rates.values():
                 if not self._first.campaign_id == item.campaign_id:
@@ -902,11 +925,25 @@ class Traverse(_Experimental):
                         warnings.warn("Not matching deposit ids.")
 
     @property
-    def _first(self):
+    def _first(self) -> ReactionRate:
+        """
+        The first element of `self.reaction_rates`.
+
+        Returns
+        -------
+        nerea.ReactionRate
+        """
         return list(self.reaction_rates.values())[0]
 
     @property
-    def deposit_id(self):
+    def deposit_id(self) -> str:
+        """
+        The deposit id of the first reaction rate.
+
+        Returns
+        -------
+        str
+        """
         return self._first.deposit_id
 
     def process(self,
