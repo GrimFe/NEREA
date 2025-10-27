@@ -35,6 +35,10 @@ class FissionFragmentSpectrum:
     real_time: int
     life_time_uncertainty: float = 0.
     real_time_uncertainty: float = 0.
+    __smoothing_verbose_printed: bool=False
+    __rebin_verbose_printed: bool=False
+    __max_verbose_printed: bool=False
+    __r_verbose_printed: bool=False
 
     def smooth(self, **kwargs) -> Self:
         """
@@ -57,6 +61,14 @@ class FissionFragmentSpectrum:
         >>> ffs = FissionFragmentSpectrum(...)
         >>> smoothened_data = ffs.smooth()
         """
+        if kwargs.get('verbose', False) and not self.__smoothing_verbose_printed:
+            sm = kwargs.get('smoothing_method', 'no smoothing method')
+            if kwargs.get('window', False):
+                w = kwargs.get('window', False)
+            else:
+                w = kwargs.get('window_length', False)
+            self.__smoothing_verbose_printed = True
+            print(f"Smoothing PHS with {sm} and window length {w}.")
         df = self.data.copy()
         df['value'] = smoothing(df['value'], **kwargs)
         out = self.__class__(
@@ -113,6 +125,9 @@ class FissionFragmentSpectrum:
             df = df.groupby('bins', as_index=False, observed=False
                             ).agg({'value': 'sum'}).drop('bins', axis=1
                                                             ).assign(channel=range(1, bins_+1))
+            if kwargs.get('verbose', False) and not self.__rebin_verbose_printed:
+                self.__rebin_verbose_printed = True
+                print(f"Rebinning PHS to {bins} bins.")
         out = self.__class__(
                 start_time = self.start_time,
                 data = df[['channel', 'value']],
@@ -128,17 +143,72 @@ class FissionFragmentSpectrum:
                 real_time_uncertainty = self.real_time_uncertainty
             )        
         return out
+    
+    def _get_processing_chs(self, fst_ch: int|str=None, **kwargs) -> tuple[int]:
+        """
+        Method to find the channels used to
+        serach a PHS maximum from.
 
-    def get_max(self, fst_ch: int=None, **kwargs) -> pd.DataFrame:
+        Parameters
+        ----------
+        fst_ch : int | str, optional
+            Left channel to search the maximum from.
+            Defaults to `None` for automatic 1/10 of total
+            channels acquired.
+            string options are:
+            - 'valley': to search the valley backwards
+                        from 1/10 of total channels
+                        acquired.
+            - 'iterative': to search for the valley
+                           iteratively from the left.
+        
+        Returns
+        -------
+        tuple[int]
+            Channel to start max serach from, Last channel with counts
+        """
+        kwargs = DEFAULT_BIN_KWARGS | kwargs
+
+        reb = self.rebin(**kwargs).data
+        lst_ch = reb[reb.value > 0].channel.max()
+        if fst_ch is None:
+            if kwargs.get('verbose', False):
+                print(f"Searching PHS maximum from {fst_ch}.")
+            fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
+        elif fst_ch == 'valley':
+            if kwargs.get('verbose', False):
+                print(f"Searching PHS maximum looking for PHS valley.")
+            fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
+            # supposedly, this locates the rising edge of the PHS
+            do = True
+            while do:
+                try:
+                    vfst = reb.query('channel == @fst_ch').value.iloc[0]
+                    vleft = reb.query('channel == @fst_ch - 50').value.iloc[0]
+                    do = vleft < vfst
+                    if do: fst_ch -= 50
+                except IndexError:
+                    # then the search has reached its end
+                    do = False
+        elif fst_ch == 'iterative':
+            if kwargs.get('verbose', False):
+                print(f"Searching PHS maximum iteratively.")
+            fst_ch = reb.query('value > 20').channel.iloc[0]
+            do = True
+            while do:
+                new_ch = fst_ch + 70
+                mfst = reb.query('channel >= @fst_ch').value.max()
+                mnew = reb.query('channel >= @new_ch').value.max()
+                do = (mfst != mnew)
+                fst_ch = new_ch
+        return fst_ch, lst_ch
+
+    def get_max(self, **kwargs) -> pd.DataFrame:
         """
         Finds the channel with the maximum count value in a DataFrame.
 
         Parameters
         ----------
-        fst_ch : int, optional
-            Left channel to search the maximum from.
-            Defaults to `None` for automatic 1/10 of total
-            channels acquired.
         bin_kwargs : dict, optional
             - bins : int
             - smooth : bool
@@ -149,18 +219,18 @@ class FissionFragmentSpectrum:
         pd.DataFrame
             DataFrame with 'channel' and 'value' columns.
 
-        Examples
+        Note
         --------
-        >>> ffs = FissionFragmentSpectrum(...)
-        >>> max_data = ffs.get_max(...)
+        First channel finding is handled by _get_fst_ch().
         """
         kwargs = DEFAULT_BIN_KWARGS | kwargs
 
         reb = self.rebin(**kwargs).data
-        if fst_ch is None:
-            lst_ch = reb[reb.value > 0].channel.max()
-            fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
+        fst_ch, _ = self._get_processing_chs(**kwargs)
         df = reb[reb.channel > fst_ch]
+        if kwargs.get('verbose', False) and not self.__max_verbose_printed:
+            self.__max_verbose_printed = True
+            print(f"PHS maximum found from first channel {fst_ch}: channel {df.value.idxmax() + 1}.")
         return pd.DataFrame({"channel": [df.value.idxmax() + 1], "value": [df.value.max()]})
 
     def get_R(self, **kwargs) -> pd.DataFrame:
@@ -194,7 +264,11 @@ class FissionFragmentSpectrum:
         reb = self.rebin(**kwargs).data
         max_ch = self.get_max(**kwargs).channel[0]
         data = reb.query("channel > @max_ch")
-        return data[data.value <= self.get_max(**kwargs).value[0] / 2].iloc[0].to_frame().T[["channel", "value"]]
+        out = data[data.value <= self.get_max(**kwargs).value[0] / 2].iloc[0].to_frame().T[["channel", "value"]]
+        if kwargs.get('verbose', False) and not self.__r_verbose_printed:
+            self.__r_verbose_printed = True
+            print(f"PHS R channel found: {out.channel.iloc[0]}.")
+        return out
 
     def discriminators(self,
                        llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
@@ -283,6 +357,11 @@ class FissionFragmentSpectrum:
         discri = self.discriminators(**kwargs)
         for ch in discri:
             out.append(_make_df(*integral_v_u(data.query("channel >= @ch").value)))
+        if kwargs.get('verbose', False):
+            r = kwargs.get('r', False)
+            llds = kwargs.get('llds', False)
+            print(f"PHS integration with r method: {r}.")
+            if not r: print(f"LLDs are {llds}.")
         return pd.concat(out, ignore_index=True
                          ).assign(channel=discri, R=llds_ if r else [np.nan] * len(llds_)
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
@@ -431,14 +510,16 @@ class FissionFragmentSpectrum:
                                        s=10, c=c, ax=ax, **plt_kwargs)
 
         m = self.get_max(**kwargs)
-        ax.scatter(x=m.channel.iloc[0], y=m.value.iloc[0], color='green', s=20, label="MAX")
+        ax.scatter(x=m.channel.iloc[0], y=m.value.iloc[0], color='green', s=20, label=f"MAX: {m.channel.iloc[0]:.0f}")
         r = self.get_R(**kwargs)
-        ax.scatter(x=r.channel.iloc[0], y=r.value.iloc[0], color='red', s=20, label="R")
+        ax.scatter(x=r.channel.iloc[0], y=r.value.iloc[0], color='red', s=20, label=f"R: {r.channel.iloc[0]:.0f}")
 
         for i in self.discriminators(**kwargs):
             ax.axvline(i, color='red', alpha = 0.5, label=f"LLD: {i:.0f}", ls='--')
+        fst, lst = self._get_processing_chs(**kwargs)
+        ax.axvline(fst, color='green', alpha = 0.5, label=f"FST: {fst:.0f}", ls='--')
         ax.legend()
-        ax.set_xlim([0, self.rebin(**kwargs).data.query("value >= 1").channel.iloc[-1]])
+        ax.set_xlim([0, lst])
         ax.set_ylim([0, m.value.iloc[0] * 1.1])
         return ax
 

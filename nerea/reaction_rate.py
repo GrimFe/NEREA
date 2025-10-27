@@ -109,6 +109,8 @@ class ReactionRate:
         # end_time should be 1 timebase after the real end time to use
         end_time = start_time + timedelta(seconds=duration + self.timebase)
         series = self.data.query("Time >= @start_time and Time < @end_time")
+        if series.empty:
+            raise ValueError("No reaction rate data in the requested interval.")
         v, u = time_integral_v_u(series)
         relative = True if v != 0 else False
         # Time Normalization of the Average

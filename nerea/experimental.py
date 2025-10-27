@@ -458,8 +458,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                                       pd.concat([self._power_normalization] * phspa_int.shape[0], ignore_index=True)]),
                                       idx=idx).reset_index()
 
-
-    def plateau(self, int_tolerance: float =.01, ch_tolerance: float =.01, **kwargs) -> pd.DataFrame:
+    def plateau(self, int_tolerance: float=.01, ch_tolerance: float=.01, **kwargs) -> pd.DataFrame:
         """
         Computes the reaction rate per unit mass.
 
@@ -492,6 +491,9 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         data = self.per_unit_mass(**kwargs)
+
+        if kwargs.get('verbose', False):
+            print(f"Normalized PHS plateau found with integral tolerance {int_tolerance} and channel tolerance {ch_tolerance}.")
         
         # check where the values in the mass-normalized count rate converge withing tolerance
         vals = data.value.values
@@ -842,7 +844,11 @@ class SpectralIndex(_Experimental):
             value  uncertainty
         0  0.95   0.034139
         """
+        if numerator_kwargs.get('verbose', False):
+            print("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
+        if denominator_kwargs.get('verbose', False):
+            print("PROCESSING SPECTRAL INDEX DENOMINATOR.")
         den = self.denominator.process(**denominator_kwargs)
         v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
