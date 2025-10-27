@@ -17,6 +17,10 @@ from .effective_mass import EffectiveMass
 from .reaction_rate import ReactionRate
 from .defaults import *
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "FissionFragmentSpectrum",
     "FissionFragmentSpectra"]
@@ -68,7 +72,7 @@ class FissionFragmentSpectrum:
             else:
                 w = kwargs.get('window_length', False)
             self.__smoothing_verbose_printed = True
-            print(f"Smoothing PHS with {sm} and window length {w}.")
+            logger.info(f"Smoothing PHS with {sm} and window length {w}.")
         df = self.data.copy()
         df['value'] = smoothing(df['value'], **kwargs)
         out = self.__class__(
@@ -127,7 +131,7 @@ class FissionFragmentSpectrum:
                                                             ).assign(channel=range(1, bins_+1))
             if kwargs.get('verbose', False) and not self.__rebin_verbose_printed:
                 self.__rebin_verbose_printed = True
-                print(f"Rebinning PHS to {bins} bins.")
+                logger.info(f"Rebinning PHS to {bins} bins.")
         out = self.__class__(
                 start_time = self.start_time,
                 data = df[['channel', 'value']],
@@ -172,12 +176,12 @@ class FissionFragmentSpectrum:
         reb = self.rebin(**kwargs).data
         lst_ch = reb[reb.value > 0].channel.max()
         if fst_ch is None:
-            if kwargs.get('verbose', False):
-                print(f"Searching PHS maximum from {fst_ch}.")
             fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
+            if kwargs.get('verbose', False) and not self.__max_verbose_printed:
+                logger.info(f"Searching PHS maximum from {fst_ch}.")
         elif fst_ch == 'valley':
-            if kwargs.get('verbose', False):
-                print(f"Searching PHS maximum looking for PHS valley.")
+            if kwargs.get('verbose', False) and not self.__max_verbose_printed:
+                logger.info(f"Searching PHS maximum looking for PHS valley.")
             fst_ch = reb[reb.value > 0].channel.min() + np.floor(lst_ch / 10)
             # supposedly, this locates the rising edge of the PHS
             do = True
@@ -191,8 +195,8 @@ class FissionFragmentSpectrum:
                     # then the search has reached its end
                     do = False
         elif fst_ch == 'iterative':
-            if kwargs.get('verbose', False):
-                print(f"Searching PHS maximum iteratively.")
+            if kwargs.get('verbose', False) and not self.__max_verbose_printed:
+                logger.info(f"Searching PHS maximum iteratively.")
             fst_ch = reb.query('value > 20').channel.iloc[0]
             do = True
             while do:
@@ -230,7 +234,7 @@ class FissionFragmentSpectrum:
         df = reb[reb.channel > fst_ch]
         if kwargs.get('verbose', False) and not self.__max_verbose_printed:
             self.__max_verbose_printed = True
-            print(f"PHS maximum found from first channel {fst_ch}: channel {df.value.idxmax() + 1}.")
+            logger.info(f"PHS maximum found from first channel {fst_ch}: channel {df.value.idxmax() + 1}.")
         return pd.DataFrame({"channel": [df.value.idxmax() + 1], "value": [df.value.max()]})
 
     def get_R(self, **kwargs) -> pd.DataFrame:
@@ -267,7 +271,7 @@ class FissionFragmentSpectrum:
         out = data[data.value <= self.get_max(**kwargs).value[0] / 2].iloc[0].to_frame().T[["channel", "value"]]
         if kwargs.get('verbose', False) and not self.__r_verbose_printed:
             self.__r_verbose_printed = True
-            print(f"PHS R channel found: {out.channel.iloc[0]}.")
+            logger.info(f"PHS R channel found: {out.channel.iloc[0]}.")
         return out
 
     def discriminators(self,
@@ -360,8 +364,8 @@ class FissionFragmentSpectrum:
         if kwargs.get('verbose', False):
             r = kwargs.get('r', False)
             llds = kwargs.get('llds', False)
-            print(f"PHS integration with r method: {r}.")
-            if not r: print(f"LLDs are {llds}.")
+            logger.info(f"PHS integration with r method: {r}.")
+            if not r: logger.info(f"LLDs are {llds}.")
         return pd.concat(out, ignore_index=True
                          ).assign(channel=discri, R=llds_ if r else [np.nan] * len(llds_)
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]

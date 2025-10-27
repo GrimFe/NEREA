@@ -16,6 +16,10 @@ import numpy as np
 import warnings
 import matplotlib.pyplot as plt
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 __all__ = ['_Experimental',
            'NormalizedFissionFragmentSpectrum',
            'SpectralIndex',
@@ -493,7 +497,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         data = self.per_unit_mass(**kwargs)
 
         if kwargs.get('verbose', False):
-            print(f"Normalized PHS plateau found with integral tolerance {int_tolerance} and channel tolerance {ch_tolerance}.")
+            msg = f"Normalized PHS plateau found with integral tolerance {int_tolerance} and channel tolerance {ch_tolerance}."
+            logger.info(msg)
         
         # check where the values in the mass-normalized count rate converge withing tolerance
         vals = data.value.values
@@ -845,10 +850,10 @@ class SpectralIndex(_Experimental):
         0  0.95   0.034139
         """
         if numerator_kwargs.get('verbose', False):
-            print("PROCESSING SPECTRAL INDEX NUMERATOR.")
+            logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
         if denominator_kwargs.get('verbose', False):
-            print("PROCESSING SPECTRAL INDEX DENOMINATOR.")
+            logger.info("PROCESSING SPECTRAL INDEX DENOMINATOR.")
         den = self.denominator.process(**denominator_kwargs)
         v, u = ratio_v_u(num, den)
         if (one_g_xs is None and one_g_xs_file is None
