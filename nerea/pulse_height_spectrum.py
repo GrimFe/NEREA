@@ -14,7 +14,7 @@ from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .functions import smoothing, get_relative_array, impurity_correction
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
-from .reaction_rate import ReactionRate
+from .count_rate import CountRate
 from .defaults import *
 
 import logging
@@ -22,11 +22,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "FissionFragmentSpectrum",
-    "FissionFragmentSpectra"]
+    "PulseHeightSpectrum",
+    "PulseHeightSpectra"]
 
 @dataclass(slots=True)
-class FissionFragmentSpectrum:
+class PulseHeightSpectrum:
     start_time: datetime
     data: pd.DataFrame
     campaign_id: str
@@ -58,11 +58,11 @@ class FissionFragmentSpectrum:
         Returns
         -------
         self.__class__
-            With the smoothed fission fragment spectrum as data.
+            With the smoothed pulse height spectrum as data.
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(...)
+        >>> ffs = PulseHeightSpectrum(...)
         >>> smoothened_data = ffs.smooth()
         """
         if kwargs.get('verbose', False) and not self.__smoothing_verbose_printed:
@@ -116,7 +116,7 @@ class FissionFragmentSpectrum:
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(...)
+        >>> ffs = PulseHeightSpectrum(...)
         >>> rebinned_data = ffs.rebin()
         """
         df = self.smooth(**kwargs).data if smooth else self.data.copy()
@@ -260,7 +260,7 @@ class FissionFragmentSpectrum:
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(...)
+        >>> ffs = PulseHeightSpectrum(...)
         >>> r_data = ffs.get_R(...)
         """
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
@@ -349,7 +349,7 @@ class FissionFragmentSpectrum:
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(...)
+        >>> ffs = PulseHeightSpectrum(...)
         >>> integral_data = ffs.integrate()
         """
         llds_ = llds if isinstance(llds, Iterable) else [llds]
@@ -412,14 +412,14 @@ class FissionFragmentSpectrum:
     def calibrate(self,
                   k: pd.DataFrame,
                   composition: dict[str, float] | pd.DataFrame,
-                  monitor: ReactionRate,
+                  monitor: CountRate,
                   one_group_xs: dict[str, float],
                   visual: bool=False,
                   savefig: str='',
                   **kwargs) -> EffectiveMass:
         """
-        Computes the fission chamber effective mass from the fission
-        fragment spectrum.
+        Computes the fission chamber effective mass from the pulse
+        height spectrum.
 
         Takes
         -----
@@ -530,7 +530,7 @@ class FissionFragmentSpectrum:
     @classmethod
     def from_TKA(cls, file: str, **kwargs) -> Self:
         """
-        Reads data from a TKA file to create a `FissionFragmentSpectrum`
+        Reads data from a TKA file to create a `PulseHeightSpectrum`
         instance.
 
         Parameters
@@ -538,18 +538,18 @@ class FissionFragmentSpectrum:
         file : str
             TKA file path.
         *args : Any
-            Positional arguments to be passed to the `FissionFragmentSpectrum()` initialization.
+            Positional arguments to be passed to the `PulseHeightSpectrum()` initialization.
         **kwargs : Any
-            Keyword arguments to be passed to the `FissionFragmentSpectrum()` initialization.
+            Keyword arguments to be passed to the `PulseHeightSpectrum()` initialization.
 
         Returns
         -------
-        FissionFragmentSpectrum
-            Fission fragment spectrum instance.
+        PulseHeightSpectrum
+            Pulse height spectrum instance.
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum.from_TKA('filename.TKA', ...)
+        >>> ffs = PulseHeightSpectrum.from_TKA('filename.TKA', ...)
         """
         data = pd.read_csv(file, header=None)
         data = data.iloc[2:].reset_index(drop=True).reset_index()        
@@ -567,7 +567,7 @@ class FissionFragmentSpectrum:
     def from_formatted_TKA(cls, file: str) -> Self:
         """
         Reads data from a formatted TKA file and extracts metadata from the
-        file name to create a `FissionFragmentSpectrum` instance.
+        file name to create a `PulseHeightSpectrum` instance.
         The filename is expected to be formatted as:
         {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA
         Requires a text file with the same name with time information.
@@ -579,12 +579,12 @@ class FissionFragmentSpectrum:
 
         Returns
         -------
-        FissionFragmentSpectrum
-            Fission fragment spectrum instance.
+        PulseHeightSpectrum
+            Pulse height spectrum instance.
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum.from_TKA(f
+        >>> ffs = PulseHeightSpectrum.from_TKA(f
                     '{Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA')
         """
         with open(file.replace('.TKA', '.txt'), 'r') as f:
@@ -605,20 +605,20 @@ class FissionFragmentSpectrum:
 
 
 @dataclass(slots=True)
-class FissionFragmentSpectra():
+class PulseHeightSpectra():
     """
     This class works under the assumption that no measurement time was
-    lost in the process of measuring the fission fragment spectra.
+    lost in the process of measuring the pulse height spectra.
 
     That is that the `self.data` will be the channel-wise sum of the values
-    of the listed fission fragment spectra, while the start time of the
+    of the listed pulse height spectra, while the start time of the
     measurement will be the minimum start time and life and real times will
-    be the sum of the respective times in the listed fission fragment spectra.
+    be the sum of the respective times in the listed pulse height spectra.
 
     For a more solid behaviour, resort to the `AverageReactionRate` class.
 
     """
-    spectra: Iterable[FissionFragmentSpectrum]
+    spectra: Iterable[PulseHeightSpectrum]
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
@@ -628,7 +628,7 @@ class FissionFragmentSpectra():
     def __iter__(self):
         return self.spectra.__iter__()
 
-    def __getitem__(self, item) -> FissionFragmentSpectrum:
+    def __getitem__(self, item) -> PulseHeightSpectrum:
          return self.spectra[item]
 
     def _check_consistency(self) -> None:
@@ -647,24 +647,24 @@ class FissionFragmentSpectra():
         must = ['detector_id', 'deposit_id', 'location_id']
         for attr in should:
             if not all([getattr(ffs, attr) == getattr(self.spectra[0], attr) for ffs in self.spectra]):
-                warnings.warn(f"Inconsistent {attr} among different FissionFragmentSpectrum instances.")
+                warnings.warn(f"Inconsistent {attr} among different PulseHeightSpectrum instances.")
         for attr in must:
             if not all([getattr(ffs, attr) == getattr(self.spectra[0], attr) for ffs in self.spectra]):
-                raise Exception(f"Inconsistent {attr} among different FissionFragmentSpectrum instances.")
+                raise Exception(f"Inconsistent {attr} among different PulseHeightSpectrum instances.")
 
     @property
-    def best(self) -> FissionFragmentSpectrum:
+    def best(self) -> PulseHeightSpectrum:
         """
-        Returns the fission fragment spectrum with the highest sum value.
+        Returns the pulse height spectrum with the highest sum value.
 
         Returns
         -------
-        FissionFragmentSpectrum
-            Fission fragment spectrum with the highest integral count.
+        PulseHeightSpectrum
+            Pulse height spectrum with the highest integral count.
 
         Examples
         --------
-        >>> ffss = FissionFragmentSpectra(...)
+        >>> ffss = PulseHeightSpectra(...)
         >>> best_spectrum = ffss.best
         """
         max = self.spectra[0].data.value.sum()
@@ -674,26 +674,26 @@ class FissionFragmentSpectra():
                 out = s
         return out
 
-    def merge(self) -> FissionFragmentSpectrum:
+    def merge(self) -> PulseHeightSpectrum:
         """
-        Returns a Fission Fragment Spectrum instance containing merged
-        informatio of the fission fragment spectra in `self.spectra`.
+        Returns a PulseHeightSpectrum instance containing merged
+        informatio of the pulse height spectra in `self.spectra`.
 
         Returns
         -------
-        FissionFragmentSpectrum
-            merged fission fragment specrtum instance
+        PulseHeightSpectrum
+            merged pulse height specrtum instance
 
         Example
         -------
-        >>> ffs = FissionFragmentSpectra([ffs1, ffs2]).merge()
+        >>> ffs = PulseHeightSpectra([ffs1, ffs2]).merge()
         """
         pass
 
     @classmethod
     def from_formatted_TKA(cls, files: Iterable[str]):
         """
-        Reads a list of files to create a FissionFragmentSpectra object.
+        Reads a list of files to create a PulseHeightSpectra object.
         Each filename is expected to be formatted as:
         {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA
         Each file requires a text file with the same name with time information.
@@ -705,12 +705,12 @@ class FissionFragmentSpectra():
 
         Returns
         -------
-        FissionFragmentSpectra
-            Fission fragment spectra instance.
+        PulseHeightSpectra
+            PulseHeightSpectra instance.
 
         Examples
         --------
-        >>> ffss = FissionFragmentSpectra.from_TKA(['file1.TKA', 'file2.TKA'])
+        >>> ffss = PulseHeightSpectra.from_TKA(['file1.TKA', 'file2.TKA'])
         """
         data = []
         for file in files:

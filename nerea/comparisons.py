@@ -180,17 +180,6 @@ class _Comparison:
         -------
         pd.DataFrame
             DataFrame containing the comparison value.
-
-        Examples
-        --------
-        >>> c_instance = C(data=pd.DataFrame({'value': [0.5]}), model_id='Model1', deposit_ids='Dep1')
-        >>> ffs_num = ReactionRate(...)  # Assuming proper initialization
-        >>> ffs_den = ReactionRate(...)  # Assuming proper initialization
-        >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
-        >>> cover_e_instance = CoverE(c=c_instance, e=spectral_index)
-        >>> cover_e_instance.compute()
-           value  uncertainty
-        0    ...          ...
         """
         if isinstance(self.num, CalculatedSpectralIndex):
             out = self._compute_si(_minus_one_percent, **kwargs)
@@ -214,17 +203,6 @@ class _Comparison:
         -------
         pd.DataFrame
             DataFrame containing the adjusted comparison value.
-
-        Examples
-        --------
-        >>> c_instance = C(data=pd.DataFrame({'value': [1.05]}), model_id='Model1', deposit_ids='Dep1')
-        >>> ffs_num = ReactionRate(...)  # Assuming proper initialization
-        >>> ffs_den = ReactionRate(...)  # Assuming proper initialization
-        >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
-        >>> cover_e_instance = CoverE(c=c_instance, e=spectral_index)
-        >>> cover_e_instance.minus_one_percent()
-           value  uncertainty
-        0    5.0          ...
         """
         return self.compute(**kwargs, _minus_one_percent=True)
 

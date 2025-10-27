@@ -2,8 +2,8 @@ import pytest
 import datetime
 import pandas as pd
 import numpy as np
-from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
-from nerea.reaction_rate import ReactionRate
+from nerea.pulse_height_spectrum import PulseHeightSpectrum
+from nerea.count_rate import CountRate
 from nerea.constants import KNBS
 from nerea.classes import Xs
 
@@ -28,7 +28,7 @@ def sample_spectrum_data():
 
 @pytest.fixture
 def sample_spectrum(sample_spectrum_data):
-    return FissionFragmentSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
+    return PulseHeightSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10,
                                    real_time=10,
                                    data=pd.DataFrame(sample_spectrum_data),
@@ -195,7 +195,7 @@ def test_get_calibration_coefficient(sample_spectrum):
 
 def test_calibrate(sample_spectrum):
     avg, duration = 27000, 100
-    sample_monitor = ReactionRate(data = pd.DataFrame({"Time": [sample_spectrum.start_time + datetime.timedelta(seconds=i) for i in range(duration)],
+    sample_monitor = CountRate(data = pd.DataFrame({"Time": [sample_spectrum.start_time + datetime.timedelta(seconds=i) for i in range(duration)],
                                                   "value": [avg] * duration}),
                              start_time=sample_spectrum.start_time,
                              campaign_id='CALIBRATION',

@@ -1,8 +1,8 @@
 from .classes import *
 
-from .fission_fragment_spectrum import *
+from .pulse_height_spectrum import *
 from .effective_mass import *
-from .reaction_rate import *
+from .count_rate import *
 
 from .experimental import *
 

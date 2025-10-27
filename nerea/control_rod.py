@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .reaction_rate import ReactionRate
+from .count_rate import CountRate
 from .utils import _make_df
 from .functions import polyfit, polynomial
 from .defaults import *
@@ -84,7 +84,7 @@ def evaluate_integral_integral_cr(x: float,
 
 @dataclass(slots=True)
 class ControlRodCalibration:
-    reaction_rates: dict[float, ReactionRate]  # height and corresponding RR
+    count_rates: dict[float, CountRate]  # height and corresponding RR
     critical_height: float
     name: int
 
@@ -93,18 +93,18 @@ class ControlRodCalibration:
                   dtc_kwargs: dict={},
                   ac_kwargs: dict={}) -> pd.DataFrame:
         """"
-        Computes the reactivity associated with each reaction rate
-        in self.reaction_rates.
+        Computes the reactivity associated with each count rate
+        in self.count_rates.
 
         Parameters
         ---------
         delayed_data : EffectiveDelayedParams
             effective delayed  neutron data for control rod calibration.
         dtc_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.dead_time_corrected.
+            kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
         ac_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.asymptotic_counts.
+            kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
 
         Returns
@@ -114,7 +114,7 @@ class ControlRodCalibration:
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
         ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         rhos = [_make_df(0, 0, False).assign(h=self.critical_height)]
-        for h, r in self.reaction_rates.items():
+        for h, r in self.count_rates.items():
             dtc = r.dead_time_corrected(**dtc_kw)
             ac = dtc.get_asymptotic_counts(**ac_kw)
             rho = ac.get_reactivity(delayed_data)
@@ -193,9 +193,9 @@ class ControlRodCalibration:
         """   
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
         ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
-        fig, axs = plt.subplots(len(self.reaction_rates), 2,
-                              figsize=(15, 30 / len(self.reaction_rates)))
-        for i, (h, rr) in enumerate(self.reaction_rates.items()):
+        fig, axs = plt.subplots(len(self.count_rates), 2,
+                              figsize=(15, 30 / len(self.count_rates)))
+        for i, (h, rr) in enumerate(self.count_rates.items()):
             # data preparation
             dtc = rr.dead_time_corrected(**dtc_kw)
             ac = dtc.get_asymptotic_counts(**ac_kw)
@@ -232,10 +232,10 @@ class DifferentialNoCompensation(ControlRodCalibration):
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.dead_time_corrected.
+            kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
         ac_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.asymptotic_counts.
+            kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
@@ -310,10 +310,10 @@ class IntegralNoCompensation(ControlRodCalibration):
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.dead_time_corrected.
+            kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
         ac_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.asymptotic_counts.
+            kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
@@ -382,10 +382,10 @@ class DifferentialCompensation(ControlRodCalibration):
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.dead_time_corrected.
+            kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
         ac_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.asymptotic_counts.
+            kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.
@@ -462,10 +462,10 @@ class IntegralCompensation(ControlRodCalibration):
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
         dtc_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.dead_time_corrected.
+            kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
         ac_kwargs : dict, optional
-            kwargs for nerea.ReactionRate.asymptotic_counts.
+            kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
         visual : bool, optional
             Whether to plot the processed data.

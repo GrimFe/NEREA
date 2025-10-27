@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -19,7 +19,7 @@ def sample_data():
 
 @pytest.fixture
 def power_monitor(sample_data):
-    return ReactionRate(data=sample_data, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
@@ -33,7 +33,7 @@ def sample_data_02s():
 
 @pytest.fixture
 def power_monitor_02s(sample_data_02s):
-    return ReactionRate(data=sample_data_02s, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data_02s, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=0.2)
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def sample_data_uncertain_time_binning():
 
 @pytest.fixture
 def power_monitor_uncertain_time_binning(sample_data_uncertain_time_binning):
-    return ReactionRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
@@ -93,7 +93,7 @@ def plateau_data():
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return ReactionRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=1, deposit_id='dep')
 
@@ -101,14 +101,14 @@ def rr_plateau(plateau_data):
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
     data_.value = [15000] * len(data_.value)
-    return ReactionRate(data_, data_.Time.min(),
+    return CountRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
 @pytest.fixture
 def dtc_monitor():
     t_start = datetime(2025, 4, 3, 15, 33, 20)
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": [t_start, t_start + timedelta(seconds=1)], "value": [1e6, 1e6]}),
         start_time=t_start,
         campaign_id="TEST",
@@ -121,7 +121,7 @@ def dtc_monitor():
 @pytest.fixture
 def linear_monitor():
     t_start = datetime(2025, 4, 3, 15, 33, 20)
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": [t_start] + [t_start + timedelta(seconds=i) for i in range(1, 5)], "value": [1, 2, 3, 4, 5]}),
         start_time=t_start,
         campaign_id="TEST",
@@ -182,7 +182,7 @@ def exponential_monitor():
     # data generated with period T = 50s
     t_start = datetime(2025, 4, 3, 15, 33, 20)
     times = [t_start + timedelta(seconds=i) for i in range(180)]
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": times, "value": counts}),
         start_time=t_start,
         campaign_id="TEST",
@@ -204,7 +204,7 @@ def test_average(power_monitor):
 @pytest.fixture
 def linear_monitor():
     t_start = datetime(2025, 4, 3, 15, 33, 20)
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": [t_start] + [t_start + timedelta(seconds=i) for i in range(1, 5)], "value": [1, 2, 3, 4, 5]}),
         start_time=t_start,
         campaign_id="TEST",
@@ -264,7 +264,7 @@ def exponential_monitor():
     # data generated with period T = 50s
     t_start = datetime(2025, 4, 3, 15, 33, 20)
     times = [t_start + timedelta(seconds=i) for i in range(180)]
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": times, "value": counts}),
         start_time=t_start,
         campaign_id="TEST",

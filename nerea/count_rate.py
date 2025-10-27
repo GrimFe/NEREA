@@ -16,11 +16,11 @@ from .classes import EffectiveDelayedParams
 from .constants import BASE_DATE
 
 __all__ = [
-    "ReactionRate",
-    "ReactionRates"]
+    "CountRate",
+    "CountRates"]
 
 @dataclass(slots=True)
-class ReactionRate:
+class CountRate:
     data: pd.DataFrame
     start_time: datetime
     campaign_id: str
@@ -34,7 +34,7 @@ class ReactionRate:
     @property
     def period(self) -> pd.DataFrame:
             """
-            Calculate the reactor period from a ReactionRate instance.
+            Calculate the reactor period from a CountRate instance.
             
             Returns
             -------
@@ -66,7 +66,7 @@ class ReactionRate:
         if nonzero:
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
-                warnings.warn("Removing 0 counts from Reaction Rate to enable period log fit. Removed %s rows." % (self.data.shape[0] - data.shape[0]))
+                warnings.warn("Removing 0 counts from Count Rate to enable period log fit. Removed %s rows." % (self.data.shape[0] - data.shape[0]))
         if preprocessing is not None:
             y = getattr(np, preprocessing)(data.value)  # apply preprocessing
         else:
@@ -101,7 +101,7 @@ class ReactionRate:
         >>> from datetime import datetime
         >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
                                  'value': np.random.rand(100)})
-        >>> pm = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                               campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
         >>> print(avg_df)
@@ -110,7 +110,7 @@ class ReactionRate:
         end_time = start_time + timedelta(seconds=duration + self.timebase)
         series = self.data.query("Time >= @start_time and Time < @end_time")
         if series.empty:
-            raise ValueError("No reaction rate data in the requested interval.")
+            raise ValueError("No count rate data in the requested interval.")
         v, u = time_integral_v_u(series)
         relative = True if v != 0 else False
         # Time Normalization of the Average
@@ -124,7 +124,7 @@ class ReactionRate:
 
     def smooth(self, **kwargs) -> Self:
         """
-        Calculates the reaction rate moving average.
+        Calculates the count rate moving average.
 
         Parameters
         ----------
@@ -147,7 +147,7 @@ class ReactionRate:
         if kwargs.get('window') or kwargs.get('window_lenght'):
             w = kwargs['window'] if kwargs['smoothing_method'] == 'moving_average' else kwargs['window_length']
             if w < self.timebase:  ## if nor window nor window_length are passed w is False
-                raise ValueError("Smoothing window length should be larger than the Reaction Rate timebase.")
+                raise ValueError("Smoothing window length should be larger than the Count Rate timebase.")
         else:
             out = pd.DataFrame({"Time": self.data["Time"],
                                 "value": smoothing(self.data["value"], **kwargs)})
@@ -186,7 +186,7 @@ class ReactionRate:
         >>> from datetime import datetime
         >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
                                  'value': np.random.rand(100)})
-        >>> pm = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                               campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> integrated_df = pm.integrate(10)
         >>> print(integrated_df)
@@ -250,17 +250,17 @@ class ReactionRate:
 
         Parameters
         ----------
-        monitor : ReactionRate
-            The power monitor for the reaction rate normalization.
+        monitor : CountRate
+            The power monitor for the count rate normalization.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+            Positional arguments to be passed to the `CountRate.plateau()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
         
         Returns
         -------
         pd.DataFrame
-            with value and uncertainty of the normalized reaction rate
+            with value and uncertainty of the normalized count rate
             integrated over time.
         """
         plateau = self.plateau(*args, **kwargs)
@@ -275,17 +275,17 @@ class ReactionRate:
 
         Parameters
         ----------
-        monitor : ReactionRate
-            The power monitor for the reaction rate normalization.
+        monitor : CountRate
+            The power monitor for the count rate normalization.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+            Positional arguments to be passed to the `CountRate.plateau()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
         
         Returns
         -------
         pd.DataFrame
-            with value and uncertainty of the normalized reaction rate
+            with value and uncertainty of the normalized count rate
             averaged over time.
         """
         plateau = self.plateau(*args, **kwargs)
@@ -295,7 +295,7 @@ class ReactionRate:
 
     def dead_time_corrected(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
         """
-        Apply dead time correction to the reaction rate data.
+        Apply dead time correction to the count rate data.
         
         Parameters
         ----------
@@ -336,7 +336,7 @@ class ReactionRate:
 
     def get_reactivity(self, delayed_data: EffectiveDelayedParams) -> pd.DataFrame:
         """
-        Calculates the reactor reactivity based on the Reaction Rate-estimated
+        Calculates the reactor reactivity based on the Count Rate-estimated
         reactor period and on effective nuclear data computed by Serpent.
         
         Parameters
@@ -437,15 +437,15 @@ class ReactionRate:
              c: str='k',
              **kwargs) -> plt.Axes:
         """
-        Plot data in ReactionRate.
+        Plot data in CountRate.
 
         Parameters
         ----------
         start_time : datetime, optional
-            The time the Reaction rate is considered from.
+            The time the count rate is considered from.
             Default is None for first acquisition time.
         duration : int, optional
-            The time-span the Reaction rate is considered for.
+            The time-span the count rate is considered for.
             Default is None for until last acquisition time.
         ax : plt.Axes, optional
             The ax where the plot is drawn.
@@ -487,7 +487,7 @@ class ReactionRate:
     @classmethod
     def _from_formatted_ads(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file generated by ADS DAQ.
 
         Parameters
@@ -502,8 +502,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
 
         Note
         ----
@@ -514,7 +514,7 @@ class ReactionRate:
         """
         detector = kwargs.pop('detector', None)
         if detector is None:
-            raise ValueError("`'detector'` kwarg required to read ReactionRate.")
+            raise ValueError("`'detector'` kwarg required to read CountRate.")
         start_time = datetime.strptime(linecache.getline(file, 1), "%d-%m-%Y %H:%M:%S\n")
         read = pd.read_csv(file, sep='\t', skiprows=[0,1], decimal=',')
         read["Time"] = read["Time"].apply(lambda x: start_time + timedelta(seconds=x))
@@ -531,7 +531,7 @@ class ReactionRate:
     @classmethod
     def _from_phspa(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file generated by PHSPA DAQ.
 
         Parameters
@@ -550,12 +550,12 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
         """
         detector = kwargs.pop('detector', None)
         if detector is None:
-            raise ValueError("`'detector'` kwarg required to read ReactionRate.")
+            raise ValueError("`'detector'` kwarg required to read CountRate.")
         data = pd.read_csv(file, sep="\t", skiprows=18, decimal=',').iloc[:,:-1]
         data.columns = ["Time", "value"]
         data.Time = data.Time.apply(lambda x: BASE_DATE + timedelta(days=x))
@@ -570,7 +570,7 @@ class ReactionRate:
     @classmethod
     def _from_formatted_phspa(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file generated by PHSPA DAQ.
 
         Parameters
@@ -587,8 +587,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
 
         Note
         ----
@@ -608,7 +608,7 @@ class ReactionRate:
     @classmethod
     def _from_formatted_br1(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file generated by the NBS chamber
         DAQ at BR1.
 
@@ -622,8 +622,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
 
         Note
         ----
@@ -647,7 +647,7 @@ class ReactionRate:
     @classmethod
     def _from_formatted_vf(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file generated by the VENUS-F
         monitoring system.
 
@@ -663,8 +663,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
 
         Note
         ----
@@ -678,7 +678,7 @@ class ReactionRate:
         """
         detector = kwargs.pop('detector', None)
         if detector is None:
-            raise ValueError("`'detector'` kwarg required to read ReactionRate.")
+            raise ValueError("`'detector'` kwarg required to read CountRate.")
         data = pd.read_csv(file, encoding='unicode_escape', sep=r'\s+', index_col=False)
         md = file.split('\\')[-1].split('.')[0]
         cmp, exp, time = md.split('_')[0], md.split('_')[1], md.split('_')[2]
@@ -697,7 +697,7 @@ class ReactionRate:
     @classmethod
     def from_ascii(cls, file: str, filetype: str='infer', **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         from an ASCII file.
 
         Parameters
@@ -720,8 +720,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
         """
         ft = file.split('.')[-1] if filetype == 'infer' else filetype
         match ft:
@@ -742,7 +742,7 @@ class ReactionRate:
     @classmethod
     def from_files(cls, files: Iterable[str], filetype: str='infer', **kwargs) -> Self:
         """
-        Method to create a `ReactionRate` instance
+        Method to create a `CountRate` instance
         joing data from ASCII files of the same type.
 
         Parameters
@@ -765,8 +765,8 @@ class ReactionRate:
 
         Returns
         -------
-        ReactionRate
-            A new `ReactionRate` instance.
+        CountRate
+            A new `CountRate` instance.
         """
         data = []
         vlines = []
@@ -789,8 +789,8 @@ class ReactionRate:
 
 
 @dataclass(slots=True)
-class ReactionRates:
-    detectors: dict[int, ReactionRate]
+class CountRates:
+    detectors: dict[int, CountRate]
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
@@ -818,23 +818,23 @@ class ReactionRates:
         --------
         >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
                                  'value': np.random.rand(100)})
-        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
-        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
+        >>> pms = CountRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_consistency()
         """
         must = ['campaign_id', 'experiment_id']
         for attr in must:
             if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
                         for m in self.detectors.values()]):
-                raise Exception(f"Inconsistent {attr} among different ReactionRate instances.")
+                raise Exception(f"Inconsistent {attr} among different CountRate instances.")
         should = ['deposit_id']
         for attr in should:
             if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
                         for m in self.detectors.values()]):
-                warnings.warn(f"Inconsistent {attr} among different ReactionRate instances.")
+                warnings.warn(f"Inconsistent {attr} among different CountRate instances.")
         self._check_time_consistency(time_tolerance)
         self._check_curve_consistency(timebase, sigma)
 
@@ -852,11 +852,11 @@ class ReactionRates:
         --------
         >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
                                  'value': np.random.rand(100)})
-        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
-        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
+        >>> pms = CountRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_time_consistency(timedelta(seconds=60))
         """
         ref = list(self.detectors.values())[0].start_time
@@ -883,11 +883,11 @@ class ReactionRates:
         --------
         >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
                                  'value': np.random.rand(100)})
-        >>> pm1 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M1')
-        >>> pm2 = ReactionRate(data=data, start_time=datetime(2021, 1, 1), 
+        >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
-        >>> pms = ReactionRates(detectors={1: pm1, 2: pm2})
+        >>> pms = CountRates(detectors={1: pm1, 2: pm2})
         >>> pms._check_curve_consistency(10, 1)
         """
         ref = list(self.detectors.values())[0].data.groupby(
@@ -913,23 +913,23 @@ class ReactionRates:
                 warnings.warn(f"Power monitor {monitor.detector_id} inconsistent with {list(self.detectors.values())[0].detector_id}")
 
     @property
-    def _first(self) -> ReactionRate:
+    def _first(self) -> CountRate:
         """
-        The first reaction rate in `self.detectors`.
+        The first count rate in `self.detectors`.
         """
         return list(self.detectors.values())[0]
 
     @property
     def campaign_id(self) -> str:
         """
-        Campaign id of thefirst reaction rate in `self.detectors`.
+        Campaign id of thefirst count rate in `self.detectors`.
         """
         return self._first.campaign_id
 
     @property
     def experiment_id(self) -> str:
         """
-        Experiment id of thefirst reaction rate in `self.detectors`.
+        Experiment id of thefirst count rate in `self.detectors`.
         """
         return self._first.experiment_id
 
@@ -941,18 +941,18 @@ class ReactionRates:
         return self._first.deposit_id
 
     @property
-    def best(self) -> ReactionRate:
+    def best(self) -> CountRate:
         """
         Returns the power monitor with the highest sum value.
 
         Returns
         -------
-        ReactionRate
+        CountRate
             Power monitor with the highest integral count.
 
         Examples
         --------
-        >>> pm = ReactionRate(...)
+        >>> pm = CountRate(...)
         >>> best_pm = pm.best
         """
         max = list(self.detectors.values())[0].data.value.sum()
@@ -969,17 +969,17 @@ class ReactionRates:
         Parameters
         ----------
         monitor : int
-            The ID of the reaction rate to be used as power
-            monitor for the reaction rate normalization.
+            The ID of the count rate to be used as power
+            monitor for the count rate normalization.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+            Positional arguments to be passed to the `CountRate.plateau()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
 
         Returns
         -------
         dict[int, pd.DataFrame]
-            with value and uncertainty of the normalized reaction rate
+            with value and uncertainty of the normalized count rate
             integrated over time. Keys are the detector IDs as in
             self.detectors.
         """
@@ -997,17 +997,17 @@ class ReactionRates:
         Parameters
         ----------
         monitor : int
-            The ID of the reaction rate to be used as power
-            monitor for the reaction rate normalization.
+            The ID of the count rate to be used as power
+            monitor for the count rate normalization.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+            Positional arguments to be passed to the `CountRate.plateau()` method.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
 
         Returns
         -------
         dict[int, pd.DataFrame]
-            with value and uncertainty of the normalized reaction rate
+            with value and uncertainty of the normalized count rate
             averaged over time. Keys are the detector IDs as in
             self.detectors.
         """
@@ -1023,7 +1023,7 @@ class ReactionRates:
                    files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
                    filetypes: Iterable[str]='infer') -> Self:
         """
-        Creates an instance of ReactionRate using data extracted from an ASCII file.
+        Creates an instance of CountRate using data extracted from an ASCII file.
 
         The ASCII file should contain columns of data including timestamps and power readings.
 
@@ -1052,8 +1052,8 @@ class ReactionRates:
 
         Returns
         -------
-        ReactionRate
-            An instance of the ReactionRate class initialized
+        CountRate
+            An instance of the CountRate class initialized
             with the data from the ASCII file.
 
         Note
@@ -1070,26 +1070,26 @@ class ReactionRates:
             match ft_:
                 case 'ads':
                     for d, d_ in zip(dets, deps):
-                        out[d] = ReactionRate.from_ascii(f,
+                        out[d] = CountRate.from_ascii(f,
                                                         filetype=ft_,
                                                         detector=d,
                                                         deposit_id=d_)
                 case 'phspa':
                     d = f.split('\\')[-1].split('.')[0].split('_')[-1]
                     d_ = deps[0]
-                    out[d] = ReactionRate.from_ascii(f,
+                    out[d] = CountRate.from_ascii(f,
                                                      filetype=ft_,
                                                      detector=d,
                                                      deposit_id=d_)
                 case 'log':
                     d = f.split('\\')[-1].split('.')[0].split('_')[-1]
                     d_ = deps[0]
-                    out[d] = ReactionRate.from_ascii(f,
+                    out[d] = CountRate.from_ascii(f,
                                                      filetype=ft_,
                                                      deposit_id=d_)
                 case 'vf':
                     for d, d_ in zip(dets, deps):
-                        out[d] = ReactionRate.from_ascii(f,
+                        out[d] = CountRate.from_ascii(f,
                                                          filetype=ft_,
                                                          detector=d,
                                                          deposit_id=d_)

@@ -2,9 +2,9 @@ import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from .fission_fragment_spectrum import FissionFragmentSpectrum
+from .pulse_height_spectrum import PulseHeightSpectrum
 from .effective_mass import EffectiveMass
-from .reaction_rate import ReactionRate, ReactionRates
+from .count_rate import CountRate, CountRates
 from .utils import ratio_v_u, product_v_u, _make_df
 from .functions import impurity_correction
 from .constants import ATOMIC_MASS
@@ -21,7 +21,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 __all__ = ['_Experimental',
-           'NormalizedFissionFragmentSpectrum',
+           'NormalizedPulseHeightSpectrum',
            'SpectralIndex',
            'Traverse']
 
@@ -55,10 +55,10 @@ class _Experimental:
 
 
 @dataclass(slots=True)
-class NormalizedFissionFragmentSpectrum(_Experimental):
-    fission_fragment_spectrum: FissionFragmentSpectrum
+class NormalizedPulseHeightSpectrum(_Experimental):
+    phs: PulseHeightSpectrum
     effective_mass: EffectiveMass
-    power_monitor: ReactionRate
+    power_monitor: CountRate
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
@@ -74,10 +74,10 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - experiment_id
             - detector_id
             - deposit_id
-        among self.fission_fragment_spectrum
+        among self.pulse_height_spectrum
         and also checks:
             - R channel
-        among self.fission_fragment_spectrum and effective_mass
+        among self.pulse_height_spectrum and effective_mass
         via _check_ch_equality(tolerance=0.01).
 
         Raises
@@ -85,20 +85,20 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         Exception
             If there are inconsistencies among the IDs or R channel values.
         """
-        if not self.fission_fragment_spectrum.detector_id == self.effective_mass.detector_id:
-            raise Exception('Inconsistent detectors among FissionFragmentSpectrum ans EffectiveMass')
-        if not self.fission_fragment_spectrum.deposit_id == self.effective_mass.deposit_id:
-            raise Exception('Inconsistent deposits among FissionFragmentSpectrum and EffectiveMass')
-        if not self.fission_fragment_spectrum.experiment_id == self.power_monitor.experiment_id:
-            raise Exception('Inconsitent experiments among FissionFragmentSpectrum and ReactionRate')
+        if not self.phs.detector_id == self.effective_mass.detector_id:
+            raise Exception('Inconsistent detectors among PulseHeightSpectrum ans EffectiveMass')
+        if not self.phs.deposit_id == self.effective_mass.deposit_id:
+            raise Exception('Inconsistent deposits among PulseHeightSpectrum and EffectiveMass')
+        if not self.phs.experiment_id == self.power_monitor.experiment_id:
+            raise Exception('Inconsitent experiments among PulseHeightSpectrum and CountRate')
         if not self._check_ch_equality():
-            ch = self.fission_fragment_spectrum.get_R(bin_kwargs={'bins': self.effective_mass.bins}).channel
+            ch = self.phs.get_R(bin_kwargs={'bins': self.effective_mass.bins}).channel
             msg = f"R channel difference: {((ch - self.effective_mass.R_channel) / self.effective_mass.R_channel * 100).iloc[0]} %"
             warnings.warn(msg)
 
     def _check_ch_equality(self, tolerance:float =0.01) -> bool:
         """
-        Checks consistency of the R channels of `self.fission_fragment_spectrum` and
+        Checks consistency of the R channels of `self.pulse_height_spectrum` and
         `self.effective_mass` within a specified tolerance.
         The check happens only if the binning of the two objects is the same.
         
@@ -106,7 +106,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ----------
         tolerance : float, optional
             The acceptable relative difference between the R channel of
-            `self.fission_fragment_spectrum` and `self.effective_mass`.
+            `self.pulse_height_spectrum` and `self.effective_mass`.
             Defaults to 0.01.
 
         Returns
@@ -114,8 +114,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         bool
             Indicating whether the relative difference between the R channels is within tolerance.
         """
-        if self.fission_fragment_spectrum.data.channel.max() == self.effective_mass.bins:
-            check = abs(self.fission_fragment_spectrum.get_R(
+        if self.phs.data.channel.max() == self.effective_mass.bins:
+            check = abs(self.phs.get_R(
                             bin_kwargs={'bins': self.effective_mass.bins}
                             ).channel.iloc[0] - self.effective_mass.R_channel
                         ) / self.effective_mass.R_channel < tolerance
@@ -126,84 +126,84 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
     @property
     def measurement_id(self) -> str:
         """
-        The measurement ID associated with the fission fragment spectrum.
+        The measurement ID associated with the pulse height spectrum.
 
         Returns
         -------
         str
-            The measurement ID attribute of the associated `FissionFragmentSpectrum`.
+            The measurement ID attribute of the associated `PulseHeightSpectrum`.
         """
-        return self.fission_fragment_spectrum.measurement_id
+        return self.phs.measurement_id
     
     @property
     def campaign_id(self) -> str:
         """
-        The campaign ID associated with the fission fragment spectrum.
+        The campaign ID associated with the pulse height spectrum.
 
         Returns
         -------
         str
-            The campaign ID attribute of the associated `FissionFragmentSpectrum`.
+            The campaign ID attribute of the associated `PulseHeightSpectrum`.
         """
-        return self.fission_fragment_spectrum.campaign_id
+        return self.phs.campaign_id
     
     @property
     def experiment_id(self) -> str:
         """
-        The experiment ID associated with the fission fragment spectrum.
+        The experiment ID associated with the pulse height spectrum.
 
         Returns
         -------
         str
-            The experiment ID attribute of the associated `FissionFragmentSpectrum`.
+            The experiment ID attribute of the associated `PulseHeightSpectrum`.
         """
-        return self.fission_fragment_spectrum.experiment_id
+        return self.phs.experiment_id
     
     @property
     def location_id(self) -> str:
         """
-        The location ID associated with the fission fragment spectrum.
+        The location ID associated with the pulse height spectrum.
 
         Returns
         -------
         str
-            The location ID attribute of the associated `FissionFragmentSpectrum`.
+            The location ID attribute of the associated `PulseHeightSpectrum`.
         """
-        return self.fission_fragment_spectrum.location_id
+        return self.phs.location_id
 
     @property
     def deposit_id(self) -> str:
         """
-        The deposit ID associated with the fission fragment spectrum.
+        The deposit ID associated with the pulse height spectrum.
 
         Returns
         -------
         str
-            The deposit ID attribute of the associated `FissionFragmentSpectrum`.
+            The deposit ID attribute of the associated `PulseHeightSpectrum`.
         """
-        return self.fission_fragment_spectrum.deposit_id
+        return self.phs.deposit_id
 
     @property
     def _time_normalization(self) -> pd.DataFrame:
         """
         The time normalization and correction to be multiplied by the
-        fission fragment spectrum per unit mass.
+        pulse height spectrum per unit mass.
 
         Returns
         -------
         pd.DataFrame
             with normalization value and uncertainty
         """
-        l = self.fission_fragment_spectrum.life_time
+        l = self.phs.life_time
         v = 1 / l
-        u = np.sqrt((1 / self.fission_fragment_spectrum.life_time **2 \
-                     * self.fission_fragment_spectrum.life_time_uncertainty)**2)
+        u = np.sqrt((1 / self.phs.life_time **2 \
+                     * self.phs.life_time_uncertainty)**2)
         return _make_df(v, u)
 
     @property
     def _power_normalization(self) -> pd.DataFrame:
         """
-        The power normalization to be multiplied by the fission fragment
+        The power normalization to be multiplied by the pulse height
         spectrum per unit mass.
 
         Returns
@@ -211,8 +211,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             with normalization value and uncertainty
         """
-        start_time = self.fission_fragment_spectrum.start_time
-        duration = self.fission_fragment_spectrum.real_time
+        start_time = self.phs.start_time
+        duration = self.phs.real_time
         pm = self.power_monitor.average(start_time, duration)
         return _make_df(*ratio_v_u(_make_df(1, 0), pm))
 
@@ -239,7 +239,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 - bins : int (enforced to be same as EM.bins)
                 - smooth : bool
             - max_kwargs : dict, optional
-                kwargs for self.fission_fragment_spectrum.max().
+                kwargs for self.pulse_height_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
             - r : bool
@@ -258,7 +258,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         kwargs['bins'] = self.effective_mass.bins
 
         ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
-        ffs = self.fission_fragment_spectrum.integrate(**kwargs).query("channel==@ch_ffs")
+        ffs = self.phs.integrate(**kwargs).query("channel==@ch_ffs")
         em = self.effective_mass.integral.query("channel==@ch_em")
 
         val_ffs, var_ffs = ffs.value.iloc[0], ffs.uncertainty.iloc[0] **2
@@ -338,7 +338,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 - bins : int (enforced to be same as EM.bins)
                 - smooth : bool
             - max_kwargs : dict, optional
-                kwargs for self.fission_fragment_spectrum.max().
+                kwargs for self.pulse_height_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
             - r : bool
@@ -356,7 +356,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
 
-        ffs = self.fission_fragment_spectrum.integrate(**kwargs)
+        ffs = self.phs.integrate(**kwargs)
         em = self.effective_mass.integral
         if np.isnan(em.R).all() and np.isnan(ffs.R).all():
             data = self._per_unit_mass_ch(ffs, em)
@@ -379,7 +379,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         - max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
+            kwargs for self.pulse_height_spectrum.max().
             - fst_ch : int
         - llds : Iterable[int|float]
         - r : bool
@@ -414,7 +414,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
             - bins : int (enforced to be same as EM.bins)
             - smooth : bool
         - max_kwargs : dict, optional
-            kwargs for self.fission_fragment_spectrum.max().
+            kwargs for self.pulse_height_spectrum.max().
             - fst_ch : int
         - llds : Iterable[int|float]
         - r : bool
@@ -432,7 +432,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
 
-        # ffs, em = self.fission_fragment_spectrum, self.effective_mass
+        # ffs, em = self.pulse_height_spectrum, self.effective_mass
         pum = self.per_unit_mass(**kwargs)
         pum.index = ['value'] * pum.shape[0]
         power = pd.concat([self._power_normalization] * pum.shape[0])
@@ -446,7 +446,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         Parameters
         ----------
-        **kwargs for self.fission_fragment_spectrum.integrate()
+        **kwargs for self.pulse_height_spectrum.integrate()
         bin_kwargs : dict, optional
             - bins : int
             - smooth : bool
@@ -472,7 +472,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         pd.DataFrame
             DataFrame with the information of the power- and time- normalized spectrum.
         """
-        phspa_int = self.fission_fragment_spectrum.integrate(**kwargs).set_index(['channel', 'R'])
+        phspa_int = self.phs.integrate(**kwargs).set_index(['channel', 'R'])
         idx = phspa_int.index
         return _make_df(*product_v_u([phspa_int.reset_index(drop=True),
                                       pd.concat([self._time_normalization] * phspa_int.shape[0], ignore_index=True),
@@ -481,7 +481,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
     def plateau(self, int_tolerance: float=.01, ch_tolerance: float=.01, **kwargs) -> pd.DataFrame:
         """
-        Computes the reaction rate per unit mass.
+        Computes the count rate per unit mass.
 
         Parameters
         ----------
@@ -495,7 +495,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 - bins : int
                 - smooth : bool
             - max_kwargs : dict, optional
-                kwargs for self.fission_fragment_spectrum.max().
+                kwargs for self.pulse_height_spectrum.max().
                 - fst_ch : int
             - llds : Iterable[int|float]
             - r : bool
@@ -503,7 +503,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         Returns
         -------
         pd.DataFrame
-            DataFrame containing the reaction rate per unit mass.
+            DataFrame containing the count rate per unit mass.
 
         Raises
         ------
@@ -545,7 +545,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
     def process(self, long_output: bool=False, visual: bool=False,
                 savefig: str='', **kwargs) -> pd.DataFrame:
         """
-        Computes the reaction rate.
+        Computes the count rate.
 
         Parameters
         ----------
@@ -566,7 +566,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
                 - bins : int (enforced to be same as EM.bins)
                 - smooth : bool
             - max_kwargs : dict, optional
-                kwargs for self.fission_fragment_spectrum.max().
+                kwargs for self.pulse_height_spectrum.max().
                 - fst_ch : int
             - int_tolerance: float
             - ch_tolerance: float
@@ -577,7 +577,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         Returns
         -------
         pd.DataFrame
-            DataFrame containing the reaction rate.
+            DataFrame containing the count rate.
         
         Note
         ----
@@ -585,12 +585,12 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         Examples
         --------
-        >>> ffs = FissionFragmentSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
+        >>> ffs = PulseHeightSpectrum(data=pd.DataFrame({'value': [1.0, 2.0, 3.0], 'uncertainty': [0.1, 0.2, 0.3]}),
         ...                               detector_id='D1', deposit_id='Dep1', experiment_id='Exp1')
         >>> em = EffectiveMass(data=pd.DataFrame({'value': [0.5, 0.6, 0.7], 'uncertainty': [0.05, 0.06, 0.07]}),
         ...                    detector_id='D1', deposit_id='Dep1')
-        >>> pm = ReactionRate(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
-        >>> rr = NormalizedFissionFragmentSpectrum(fission_fragment_spectrum=ffs, effective_mass=em, power_monitor=pm)
+        >>> pm = CountRate(data=pd.DataFrame({'value': [10, 20, 30], 'uncertainty': [1, 2, 3]}), experiment_id='Exp1')
+        >>> rr = NormalizedPulseHeightSpectrum(pulse_height_spectrum=ffs, effective_mass=em, power_monitor=pm)
         >>> rr.process()
             value  uncertainty
         0  35.6    2.449490
@@ -630,7 +630,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
         ---------
         discri: int, optional
             The discrimination level to highilight in the plots.
-            It is in units of channel of self.fission_fragment_spectrum.
+            It is in units of channel of self.pulse_height_spectrum.
             Default is None.
         phs_kwargs: dict
             Parameters to process the spectrum before plotting.
@@ -660,11 +660,11 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         ## plot Power Monitor
         self.power_monitor.plot(ax=axs[0][1],
-                                start_time=self.fission_fragment_spectrum.start_time,
-                                duration=self.fission_fragment_spectrum.real_time)
+                                start_time=self.phs.start_time,
+                                duration=self.phs.real_time)
 
         ## plot PHS
-        self.fission_fragment_spectrum.plot(ax=axs[1][0], **kwargs)
+        self.phs.plot(ax=axs[1][0], **kwargs)
         axs[1][0].set_xlabel("Measurement channel")
         axs[1][0].set_ylabel("Counts [-]")
 
@@ -690,7 +690,7 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
         # highlight discrimination level if passed
         if discri is not None:
-            discri_r = self.fission_fragment_spectrum.integrate(
+            discri_r = self.phs.integrate(
                     **kwargs).query("channel == @discri").R.iloc[0]
             axs[0][0].scatter(x=self.effective_mass.data.query("R == @discri_r")['channel'].iloc[0],
                               y=self.effective_mass.data.query("R == @discri_r")['value'].iloc[0],
@@ -703,8 +703,8 @@ class NormalizedFissionFragmentSpectrum(_Experimental):
 
 @dataclass
 class SpectralIndex(_Experimental):
-    numerator: NormalizedFissionFragmentSpectrum
-    denominator: NormalizedFissionFragmentSpectrum
+    numerator: NormalizedPulseHeightSpectrum
+    denominator: NormalizedPulseHeightSpectrum
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
@@ -744,9 +744,9 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.ReactionRate import ReactionRate
-        >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
-        >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
+        >>> from REPTILE.CountRate import CountRate
+        >>> ffs_num = CountRate(..., deposit_id='Dep1')
+        >>> ffs_den = CountRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
         >>> spectral_index.deposit_ids
         ['Dep1', 'Dep2']
@@ -836,7 +836,7 @@ class SpectralIndex(_Experimental):
                 numerator_kwargs: dict={},
                 denominator_kwargs: dict={}) -> pd.DataFrame:
         """
-        Computes the ratio of two reaction rates.
+        Computes the ratio of two count rates.
 
         Parameters
         ----------
@@ -852,7 +852,7 @@ class SpectralIndex(_Experimental):
             with its cross section calculation in `one_g_xs_file`.
         **kwargs : Any
             Keyword arguments to be passed to the
-            `NormalizedFissionFragmentSpectrum.process()` method.
+            `NormalizedPulseHeightSpectrum.process()` method.
 
         Returns
         -------
@@ -861,9 +861,9 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.ReactionRate import ReactionRate
-        >>> ffs_num = ReactionRate(..., deposit_id='Dep1')
-        >>> ffs_den = ReactionRate(..., deposit_id='Dep2')
+        >>> from REPTILE.CountRate import CountRate
+        >>> ffs_num = CountRate(..., deposit_id='Dep1')
+        >>> ffs_den = CountRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
         >>> spectral_index.process()
             value  uncertainty
@@ -910,7 +910,7 @@ class SpectralIndex(_Experimental):
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
-    reaction_rates: dict[str, ReactionRate | ReactionRates]
+    count_rates: dict[str, CountRate | CountRates]
     _enable_checks: bool = True
     
     def __post_init__(self):
@@ -918,27 +918,27 @@ class Traverse(_Experimental):
         Runs consistency checks.
         """
         if self._enable_checks:
-            for item in self.reaction_rates.values():
+            for item in self.count_rates.values():
                 if not self._first.campaign_id == item.campaign_id:
                         warnings.warn("Not matching campaign ids.")
                 if not self._first.deposit_id == item.deposit_id:
                         warnings.warn("Not matching deposit ids.")
 
     @property
-    def _first(self) -> ReactionRate:
+    def _first(self) -> CountRate:
         """
-        The first element of `self.reaction_rates`.
+        The first element of `self.count_rates`.
 
         Returns
         -------
-        nerea.ReactionRate
+        nerea.CountRate
         """
-        return list(self.reaction_rates.values())[0]
+        return list(self.count_rates.values())[0]
 
     @property
     def deposit_id(self) -> str:
         """
-        The deposit id of the first reaction rate.
+        The deposit id of the first count rate.
 
         Returns
         -------
@@ -947,25 +947,25 @@ class Traverse(_Experimental):
         return self._first.deposit_id
 
     def process(self,
-                monitors: Iterable[ReactionRate| int],
+                monitors: Iterable[CountRate| int],
                 normalization: int|str=None,
                 visual: bool=False,
                 savefig: str='',
                 palette: str='tab10',
                 **kwargs) -> pd.DataFrame:
         """
-        Normalizes all the reaction rates to the power in `monitors`
+        Normalizes all the count rates to the power in `monitors`
         and to the maximum value.
 
         Parameters
         ----------
-        monitors : Iterable[ReactionRate | int]
+        monitors : Iterable[CountRate | int]
             ordered information on the power normalization.
-            Should be `ReactionRate` when mapped to a `ReactionRate` and
-            int when mapped to `ReactionRates`. The normalization is passed to
-            `ReactionRate.per_unit_time_power()` or `ReactionRates.per_unit_time_power()`.
+            Should be `CountRate` when mapped to a `CountRate` and
+            int when mapped to `CountRates`. The normalization is passed to
+            `CountRate.per_unit_time_power()` or `CountRates.per_unit_time_power()`.
         normalization : str, optional
-            The `self.reaction_rates` ReactionRate identifier to normalize the traveres to.
+            The `self.count_rates` CountRate identifier to normalize the traveres to.
             Defaults to None, normalizing to the one with the highest counts.
         visual : bool, optional
             Plots the processed data.
@@ -977,7 +977,7 @@ class Traverse(_Experimental):
             Color palette to use for plotting.
             Default is `'tab10'`.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
         
         Returns
         -------
@@ -986,14 +986,14 @@ class Traverse(_Experimental):
 
         Notes
         -----
-        Working with `ReactionRates` instances, the first reaction rate is used.
+        Working with `CountRates` instances, the first count rate is used.
 
         """
         normalized, m = {}, 0
         # Normalize to power
-        for i, (k, rr) in enumerate(self.reaction_rates.items()):
+        for i, (k, rr) in enumerate(self.count_rates.items()):
             n = rr.per_unit_time_power(monitors[i], **kwargs)
-            normalized[k] = n if isinstance(rr, ReactionRate) else list(n.values())[0]
+            normalized[k] = n if isinstance(rr, CountRate) else list(n.values())[0]
             if normalized[k]['value'].value > m:
                 max_k, m = k, normalized[k].value[0]
         norm_k = max_k if normalization is None else normalization
@@ -1009,7 +1009,7 @@ class Traverse(_Experimental):
         return pd.concat(out, ignore_index=True)
 
     def plot(self,
-             monitors: Iterable[ReactionRate| int],
+             monitors: Iterable[CountRate| int],
              palette: str='tab10',
              **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
@@ -1017,27 +1017,27 @@ class Traverse(_Experimental):
 
         Parameters
         ----------
-        monitors : Iterable[ReactionRate | int]
+        monitors : Iterable[CountRate | int]
             ordered information on the power normalization.
-            Should be `ReactionRate` when mapped to a `ReactionRate` and
-            int when mapped to `ReactionRates`. The normalization is passed to
-            `ReactionRate.per_unit_time_power()` or `ReactionRates.per_unit_time_power()`.
+            Should be `CountRate` when mapped to a `CountRate` and
+            int when mapped to `CountRates`. The normalization is passed to
+            `CountRate.per_unit_time_power()` or `CountRates.per_unit_time_power()`.
         *args : Any
-            Positional arguments to be passed to the `ReactionRate.plateau()` method.
+            Positional arguments to be passed to the `CountRate.plateau()` method.
         palette : str, optional
             plt palette to use for plotting.
             Defaults to `'tab10'`.
         **kwargs : Any
-            Keyword arguments to be passed to the `ReactionRate.plateau()` method.
+            Keyword arguments to be passed to the `CountRate.plateau()` method.
         
         Returns
         -------
         tuple[plt.Figure, Iterable[plt.Axes]]
         """
-        fig, axs = plt.subplots(len(self.reaction_rates), 2,
-                              figsize=(15, 30 / len(self.reaction_rates)))
+        fig, axs = plt.subplots(len(self.count_rates), 2,
+                              figsize=(15, 30 / len(self.count_rates)))
         j = 0
-        for i, (k, rr) in enumerate(self.reaction_rates.items()):
+        for i, (k, rr) in enumerate(self.count_rates.items()):
             c = plt.get_cmap(palette)(j)
             plat = rr.plateau(**kwargs)
             dur = (plat.Time.max() - plat.Time.min()).total_seconds()

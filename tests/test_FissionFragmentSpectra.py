@@ -1,7 +1,7 @@
 import pytest
 import datetime
 import pandas as pd
-from nerea.fission_fragment_spectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+from nerea.pulse_height_spectrum import PulseHeightSpectrum, PulseHeightSpectra
 
 @pytest.fixture
 def sample_spectrum_data():
@@ -23,7 +23,7 @@ def sample_spectrum_data2():
 
 @pytest.fixture
 def sample_spectrum_1(sample_spectrum_data):
-    return FissionFragmentSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
+    return PulseHeightSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10,
                                    real_time=10,
                                    data=pd.DataFrame(sample_spectrum_data),
@@ -36,7 +36,7 @@ def sample_spectrum_1(sample_spectrum_data):
 
 @pytest.fixture
 def sample_spectrum_2(sample_spectrum_data2):
-    return FissionFragmentSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
+    return PulseHeightSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10,
                                    real_time=10,
                                    data=pd.DataFrame(sample_spectrum_data2),
@@ -51,7 +51,7 @@ def sample_spectrum_2(sample_spectrum_data2):
 @pytest.fixture
 def sample_ffsa(sample_spectrum_1, sample_spectrum_2):
     data = [sample_spectrum_1, sample_spectrum_2]
-    return FissionFragmentSpectra(data)
+    return PulseHeightSpectra(data)
 
 def test_best(sample_ffsa, sample_spectrum_1):
     assert sample_ffsa.best is sample_spectrum_1

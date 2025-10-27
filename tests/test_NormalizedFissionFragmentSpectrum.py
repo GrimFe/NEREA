@@ -1,8 +1,8 @@
 import pytest
-from nerea.experimental import NormalizedFissionFragmentSpectrum
-from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
+from nerea.experimental import NormalizedPulseHeightSpectrum
+from nerea.pulse_height_spectrum import PulseHeightSpectrum
 from nerea.effective_mass import EffectiveMass
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
 from nerea.utils import _make_df
 from datetime import datetime
 import pandas as pd
@@ -37,8 +37,8 @@ def sample_power_monitor_data():
     return pd.DataFrame(data)
 
 @pytest.fixture
-def fission_fragment_spectrum(sample_spectrum_data):
-    return FissionFragmentSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
+def phs(sample_spectrum_data):
+    return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C", deposit_id="D", location_id="E", measurement_id="F")
@@ -49,12 +49,12 @@ def effective_mass(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-        return ReactionRate(experiment_id="B", data=sample_power_monitor_data,
+        return CountRate(experiment_id="B", data=sample_power_monitor_data,
                             start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
 
 @pytest.fixture
-def nffs(fission_fragment_spectrum, effective_mass, power_monitor):
-    return NormalizedFissionFragmentSpectrum(fission_fragment_spectrum, effective_mass, power_monitor)
+def nffs(phs, effective_mass, power_monitor):
+    return NormalizedPulseHeightSpectrum(phs, effective_mass, power_monitor)
 
 def test_reaction_rate_measurement_id(nffs):
     assert nffs.measurement_id == "F"
@@ -75,8 +75,8 @@ def test_time_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._time_normalization, _make_df(.1, 0.))
     # test variance
     tmp = nffs
-    tmp.fission_fragment_spectrum.life_time_uncertainty = .1
-    tmp.fission_fragment_spectrum.real_time_uncertainty = .1
+    tmp.phs.life_time_uncertainty = .1
+    tmp.phs.real_time_uncertainty = .1
     pd.testing.assert_frame_equal(tmp._time_normalization, _make_df(.1, 1/10 **2 * .1))
 
 def test_power_normalization(nffs):
@@ -120,7 +120,7 @@ def test_per_unit_mass_R(nffs):
     expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
     expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
-                                  nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(
+                                  nffs._per_unit_mass_R(nffs.phs.integrate(
                                                                 raw_integral=False,
                                                                 renormalize=False),
                                                         nffs.effective_mass.integral),
@@ -146,7 +146,7 @@ def test_per_unit_mass_ch(nffs):
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     # No need to set llds as the R channels already allign absolute channels as well in this case
     pd.testing.assert_frame_equal(expected_df,
-                                  nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(
+                                  nffs._per_unit_mass_ch(nffs.phs.integrate(
                                                                     raw_integral=False,
                                                                     renormalize=False),
                                                          nffs.effective_mass.integral),
@@ -154,7 +154,7 @@ def test_per_unit_mass_ch(nffs):
 
 def test_per_unit_mass(nffs):
     # R calibration
-    pd.testing.assert_frame_equal(nffs._per_unit_mass_R(nffs.fission_fragment_spectrum.integrate(
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_R(nffs.phs.integrate(
                                                                     raw_integral=False,
                                                                     renormalize=False),
                                                         nffs.effective_mass.integral),
@@ -162,7 +162,7 @@ def test_per_unit_mass(nffs):
                                   check_exact=False, atol=0.00001)
     # channel calibration
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
-    pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.fission_fragment_spectrum.integrate(
+    pd.testing.assert_frame_equal(nffs._per_unit_mass_ch(nffs.phs.integrate(
                                                                         llds=nffs.effective_mass.integral.channel,
                                                                         r=False,
                                                                         raw_integral=False,

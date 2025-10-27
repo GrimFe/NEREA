@@ -1,8 +1,8 @@
 import pytest
-from nerea.experimental import NormalizedFissionFragmentSpectrum, SpectralIndex
-from nerea.fission_fragment_spectrum import FissionFragmentSpectrum
+from nerea.experimental import NormalizedPulseHeightSpectrum, SpectralIndex
+from nerea.pulse_height_spectrum import PulseHeightSpectrum
 from nerea.effective_mass import EffectiveMass
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
 from nerea.classes import Xs
 from datetime import datetime
 import pandas as pd
@@ -37,14 +37,14 @@ def sample_power_monitor_data():
 
 @pytest.fixture
 def sample_spectrum_1(sample_spectrum_data):
-    return FissionFragmentSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
+    return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C1", deposit_id="U238", location_id="E", measurement_id="F1")
 
 @pytest.fixture
 def sample_spectrum_2(sample_spectrum_data):
-    return FissionFragmentSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
+    return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    life_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C2", deposit_id="U235", location_id="E", measurement_id="F2")
@@ -63,15 +63,15 @@ def effective_mass_2(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-    return ReactionRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
+    return CountRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def rr_1(sample_spectrum_1, effective_mass_1, power_monitor):
-    return NormalizedFissionFragmentSpectrum(sample_spectrum_1, effective_mass_1, power_monitor)
+    return NormalizedPulseHeightSpectrum(sample_spectrum_1, effective_mass_1, power_monitor)
 
 @pytest.fixture
 def rr_2(sample_spectrum_2, effective_mass_2, power_monitor):
-    return NormalizedFissionFragmentSpectrum(sample_spectrum_2, effective_mass_2, power_monitor)
+    return NormalizedPulseHeightSpectrum(sample_spectrum_2, effective_mass_2, power_monitor)
 
 @pytest.fixture
 def si(rr_1, rr_2):

@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from nerea.control_rod import *
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -34,7 +34,7 @@ def rrs(periods):
     for h, p in periods.items():
         counts[h] = np.exp(x[10:-10] / p)
         counts[h] = np.concatenate(([counts[h][0] - 20] * 10, counts[h], [counts[h][-1]] * 10))
-        counts[h] = ReactionRate(pd.DataFrame({"Time": [datetime(2025, 5, 19, 19, 31, 20) + timedelta(seconds=i) for i in range(tend+1)],
+        counts[h] = CountRate(pd.DataFrame({"Time": [datetime(2025, 5, 19, 19, 31, 20) + timedelta(seconds=i) for i in range(tend+1)],
                                                     "value": counts[h]}),
                                     start_time=datetime(2025, 5, 19, 19, 31, 20),
                                     campaign_id="TEST",
@@ -45,27 +45,27 @@ def rrs(periods):
 
 @pytest.fixture
 def cr(rrs):
-    cr = ControlRodCalibration(reaction_rates=rrs, critical_height=0, name="CR0")
+    cr = ControlRodCalibration(count_rates=rrs, critical_height=0, name="CR0")
     return cr
 
 @pytest.fixture
 def dnc(rrs):
-    dnc = DifferentialNoCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    dnc = DifferentialNoCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return dnc
 
 @pytest.fixture
 def inc(rrs):
-    inc = IntegralNoCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    inc = IntegralNoCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return inc
 
 @pytest.fixture
 def dc(rrs):
-    dc = DifferentialCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    dc = DifferentialCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return dc
 
 @pytest.fixture
 def ic(rrs):
-    ic = IntegralCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    ic = IntegralCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return ic
 
 def test_evaluate_integral_differential_cr():

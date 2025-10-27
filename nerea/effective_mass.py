@@ -31,7 +31,7 @@ class EffectiveMass:
     @property
     def R_channel(self) -> int:
         """
-        Calculates the channel where half maximum of the fission fragment spectrum
+        Calculates the channel where half maximum of the pulse height spectrum
         was found during the calibration.
 
         Returns
