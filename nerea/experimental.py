@@ -744,7 +744,7 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.CountRate import CountRate
+        >>> from nerea.CountRate import CountRate
         >>> ffs_num = CountRate(..., deposit_id='Dep1')
         >>> ffs_den = CountRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
@@ -861,7 +861,7 @@ class SpectralIndex(_Experimental):
 
         Examples
         --------
-        >>> from REPTILE.CountRate import CountRate
+        >>> from nerea.CountRate import CountRate
         >>> ffs_num = CountRate(..., deposit_id='Dep1')
         >>> ffs_den = CountRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
