@@ -1,6 +1,9 @@
+[![codecov](https://codecov.io/gh/GrimFe/NEREA/branch/main/graph/badge.svg)](https://codecov.io/gh/GrimFe/NEREA)
+[![Tests](https://github.com/GrimFe/NEREA/actions/workflows/test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
+
 ![here](https://github.com/GrimFe/NEREA/blob/codefix/assets/logo.png)
 
-# NEREA 
+<h1 align="center" style="font-family:simplifica">NEREA</h1>
 
 NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
 

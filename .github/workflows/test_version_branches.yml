@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - 'v*'  # Matches any branch that starts with 'v'
+  pull_request:
+    branches:
+      - 'v*'  # triggers on PRs targeting any branch starting with v
 
 jobs:
   run-tests:
