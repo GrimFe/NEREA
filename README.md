@@ -1,5 +1,6 @@
 [![codecov](https://codecov.io/gh/GrimFe/NEREA/branch/main/graph/badge.svg)](https://codecov.io/gh/GrimFe/NEREA)
 [![Tests](https://github.com/GrimFe/NEREA/actions/workflows/test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
+[![PyPI version](https://img.shields.io/pypi/v/nerea.svg)](https://pypi.org/project/nerea/)
 
 ![here](https://github.com/GrimFe/NEREA/blob/codefix/assets/logo.png)
 
