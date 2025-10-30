@@ -21,13 +21,41 @@ __all__ = [
 
 @dataclass(slots=True)
 class CountRate:
+    """
+    Class storing and processing count rate data acquired as 
+    a function of time.
+
+    Attributes:
+    -----------
+    data: pd.DataFrame
+        the count rate as a function of time data.
+    start_time: datetime
+        acquisition start time.
+    campaign_id: str
+        metadatada for experimental campaign identification.
+    experiment_id: str
+        metadata for experiment identification
+    detector_id: str
+        metadata for detector identification
+    deposit_id: str
+        metadata for deposit identification
+    timebase: float, optional
+        acquisition timebase in seconds. Default is `1.0`.
+    _dead_time_corrected: bool, optional
+        flag labelling whether the count rates have been
+        corrected for dead time. Handled internally.
+        Default is `False`.
+    _vlines: Iterable[datetime], optional
+        lines to draw plotting. Handled internally.
+        Default is [].
+    """
     data: pd.DataFrame
     start_time: datetime
     campaign_id: str
     experiment_id: str
     detector_id: str
     deposit_id: str
-    timebase: int = 1 ## in seconds
+    timebase: float = 1. ## in seconds
     _dead_time_corrected: bool = False
     _vlines: Iterable[datetime] = field(default_factory=lambda: [])
 
@@ -790,6 +818,18 @@ class CountRate:
 
 @dataclass(slots=True)
 class CountRates:
+    """
+    Class storing and processing count rate data acquired as 
+    a function of time. Stores data of many detectors/acquisitions.
+
+    Attributes:
+    -----------
+    detectors: dict[int, `nerea.CountRate`]
+        Links detector id and its conunt rate.
+        `key` is the id and `value` the count rate.
+    _enable_checks: bool, optional
+        flag to enable consistency checks.
+    """
     detectors: dict[int, CountRate]
     _enable_checks: bool = True
 

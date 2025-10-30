@@ -47,6 +47,9 @@ def average_v_u(df: pd.DataFrame) -> tuple[float, float]:
 
 @dataclass(slots=True)
 class _Experimental:
+    """
+    Superclass for experimental results.
+    """
     def process(self) -> None:
         """
         Placeholder for inheriting classes.
@@ -56,6 +59,23 @@ class _Experimental:
 
 @dataclass(slots=True)
 class NormalizedPulseHeightSpectrum(_Experimental):
+    """
+    Class storing and processing the pulse height spectrum (PHS) normalization
+    per unit mass, power and time.
+    Inherits from `nerea.Experimental`.
+
+    Attributes:
+    -----------
+    phs: `nerea.PulseHeightSpectrum`
+        the pulse height spectrum to normalize.
+    effective mass: `nerea.EffectiveMass`
+        the effective mass of the fission chamber used to acquire
+        the PHS.
+    power_monitor: `nerea.CountRate`
+        the power monitor of the PHS acquisition.
+    _enable_checks: bool, optoinal
+        flag enabling consistency checks. Default is `True`.
+    """
     phs: PulseHeightSpectrum
     effective_mass: EffectiveMass
     power_monitor: CountRate
@@ -703,6 +723,19 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
 @dataclass
 class SpectralIndex(_Experimental):
+    """
+    Class storing and processing a spectral index.
+    Inherits from `nerea.Experimental`.
+
+    Attributes:
+    -----------
+    numerator: `nerea.NormalizedPulseHeightSpectrum`
+        the spectral index numerator.
+    denominator: `nerea.NormalizedPulseHeightSpectrum`
+        the spectral index denominator.
+    _enable_checks: bool, optoinal
+        flag enabling consistency checks. Default is `True`.
+    """
     numerator: NormalizedPulseHeightSpectrum
     denominator: NormalizedPulseHeightSpectrum
     _enable_checks: bool = True
@@ -910,6 +943,20 @@ class SpectralIndex(_Experimental):
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
+    """
+    Class storing and processing a traverse data.
+    Inherits from `nerea.Experimental`.
+
+    Attributes:
+    -----------
+    count_rates: dict[str, CountRate | CountRates]
+        Links traverse position to the measured count rate.
+        `key` is the position identifier, `value` is the 
+        corresponding `nerea.CountRate` or `nerea.CountRates`.
+        If `nerea.CountRates`, the first is considered.
+    _enable_checks: bool, optoinal
+        flag enabling consistency checks. Default is `True`.
+    """
     count_rates: dict[str, CountRate | CountRates]
     _enable_checks: bool = True
     

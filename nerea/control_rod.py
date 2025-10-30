@@ -84,6 +84,20 @@ def evaluate_integral_integral_cr(x: float,
 
 @dataclass(slots=True)
 class ControlRodCalibration:
+    """
+    Superclass for control rod calibration.
+
+    Attributes:
+    -----------
+    count_rates: dict[float, nerea.CountRate]
+        The count rates associated with the calibration.
+        `key` is the control rod height and `value` is
+        the associated ount rate.
+    critical_height: float
+        the critical control rod height.
+    name: int
+        metadata for control rod identification.
+    """
     count_rates: dict[float, CountRate]  # height and corresponding RR
     critical_height: float
     name: int
@@ -217,6 +231,22 @@ class ControlRodCalibration:
 
 @dataclass(slots=True)
 class DifferentialNoCompensation(ControlRodCalibration):
+    """
+    Class for differential control rod calibration
+    without compensation.
+    Inherits from `nerea.ControlRodCalibration`
+
+    Attributes:
+    -----------
+    count_rates: dict[float, nerea.CountRate]
+        The count rates associated with the calibration.
+        `key` is the control rod height and `value` is
+        the associated ount rate.
+    critical_height: float
+        the critical control rod height.
+    name: int
+        metadata for control rod identification.
+    """
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
@@ -295,6 +325,22 @@ class DifferentialNoCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class IntegralNoCompensation(ControlRodCalibration):
+    """
+    Class for integral control rod calibration
+    without compensation.
+    Inherits from `nerea.ControlRodCalibration`
+
+    Attributes:
+    -----------
+    count_rates: dict[float, nerea.CountRate]
+        The count rates associated with the calibration.
+        `key` is the control rod height and `value` is
+        the associated ount rate.
+    critical_height: float
+        the critical control rod height.
+    name: int
+        metadata for control rod identification.
+    """
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
@@ -367,6 +413,22 @@ class IntegralNoCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class DifferentialCompensation(ControlRodCalibration):
+    """
+    Class for differential control rod calibration
+    with compensation.
+    Inherits from `nerea.ControlRodCalibration`
+
+    Attributes:
+    -----------
+    count_rates: dict[float, nerea.CountRate]
+        The count rates associated with the calibration.
+        `key` is the control rod height and `value` is
+        the associated ount rate.
+    critical_height: float
+        the critical control rod height.
+    name: int
+        metadata for control rod identification.
+    """
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
@@ -447,6 +509,22 @@ class DifferentialCompensation(ControlRodCalibration):
 
 @dataclass(slots=True)
 class IntegralCompensation(ControlRodCalibration):
+    """
+    Class for integral control rod calibration
+    with compensation.
+    Inherits from `nerea.ControlRodCalibration`
+
+    Attributes:
+    -----------
+    count_rates: dict[float, nerea.CountRate]
+        The count rates associated with the calibration.
+        `key` is the control rod height and `value` is
+        the associated ount rate.
+    critical_height: float
+        the critical control rod height.
+    name: int
+        metadata for control rod identification.
+    """
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},

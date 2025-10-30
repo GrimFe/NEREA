@@ -27,6 +27,51 @@ __all__ = [
 
 @dataclass(slots=True)
 class PulseHeightSpectrum:
+    """
+    Class storing and processing pulse height spectrum (PHS) data.
+    Inherits from `nerea.Experimental`.
+
+    Attributes:
+    -----------
+    start_time: datetime
+        the PHS acquisition start date and time.
+    data: pd.DataFrame
+        the PHS data.
+    campaign_id: str
+        metadatata for expereimental campaign identification.
+    experiment_id: str
+        metadatata for experiment identification.
+    detector_id: str
+        metadatata for detector identification.
+    deposit_id: str
+        metadatata for ionization chamber deposit identification.
+    location_id: str
+        metadatata for expereimental location identification.
+    measurement_id: str
+        metadatata for acquisition identification.
+    life_time: int
+        the PHS acquisition life time.
+    real_time: int
+        the PHS acquisition real time.
+    life_time_uncertainty: float, optional
+        the PHS acquisition life time uncertainty.
+        Default is `0.`.
+    real_time_uncertainty: float, optional
+        the PHS acquisition real time uncertainty.
+        Default is `0.`.
+    __smoothing_verbose_printed: bool, optional
+        flag labelling whether the verbose message for smoothing
+        was printed. Handled internally. Default is `False`.
+    __rebin_verbose_printed: bool, optional
+        flag labelling whether the verbose message for rebinning
+        was printed. Handled internally. Default is `False`.
+    __max_verbose_printed: bool, optional
+        flag labelling whether the verbose message for maximum search
+        was printed. Handled internally. Default is `False`.
+    __r_verbose_printed: bool, optional
+        flag labelling whether the verbose message for R channel
+        was printed. Handled internally. Default is `False`.
+    """
     start_time: datetime
     data: pd.DataFrame
     campaign_id: str
@@ -607,6 +652,9 @@ class PulseHeightSpectrum:
 @dataclass(slots=True)
 class PulseHeightSpectra():
     """
+    Class storing and processing pulse height spectrum (PHS) data.
+    Inherits from `nerea.Experimental` over several acquisitions.
+
     This class works under the assumption that no measurement time was
     lost in the process of measuring the pulse height spectra.
 
@@ -615,8 +663,12 @@ class PulseHeightSpectra():
     measurement will be the minimum start time and life and real times will
     be the sum of the respective times in the listed pulse height spectra.
 
-    For a more solid behaviour, resort to the `AverageReactionRate` class.
-
+    Attributes:
+    -----------
+    spectra: Iterable[`nerea.PulseHeightSpectrum`]
+        the listed spectra included in the analysis.
+    _enable_checks: bool, optoinal
+        flag enabling consistency checks. Default is `True`.
     """
     spectra: Iterable[PulseHeightSpectrum]
     _enable_checks: bool = True

@@ -14,6 +14,9 @@ __all__ = ['_Calculated',
 
 @dataclass(slots=True)
 class _Calculated:
+    """
+    Superclass for calculated results.
+    """
     def calculate(self) -> None:
         """
         Placeholder for inheriting classes.
@@ -22,6 +25,23 @@ class _Calculated:
 
 @dataclass(slots=True)
 class CalculatedSpectralIndex(_Calculated):
+    """
+    Spectral Index calculated in any simulation.
+    Can be created from Serpent outputs.
+    Can be created from ratio of Serpent detectors or
+    from a direct tally of the ratio.
+
+    Attributes:
+    -----------
+    data: pd.DataFrame
+        the calculated spectral index value and uncertainty.
+    model_id: str
+        metadata for model identifier.
+    deposit_ids: list[str]
+        two-element list with the deposits considered
+        in the spectral index. First element for numerator,
+        second for denominator.
+    """
     data: pd.DataFrame
     model_id: str
     deposit_ids: list[str]  # 0: num, 1: den
@@ -119,6 +139,19 @@ class CalculatedSpectralIndex(_Calculated):
 
 @dataclass(slots=True)
 class CalculatedTraverse(_Calculated):
+    """
+    Traverse calculated in any simulation.
+    Can be created from Serpent outputs.
+
+    Attributes:
+    -----------
+    data: pd.DataFrame
+        the calculated traverse values and uncertainties.
+    model_id: str
+        metadata for model identifier.
+    deposit_ids: str
+        the deposits of the tally considered.
+    """
     data: pd.DataFrame
     model_id: str
     deposit_id: str

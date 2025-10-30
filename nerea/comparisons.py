@@ -61,6 +61,18 @@ def _frame_comparison(num: pd.DataFrame, den: pd.DataFrame,
 
 @dataclass(slots=True)
 class _Comparison:
+    """
+    Comparison superclass handling calculation of the
+    comparison ratio.
+
+    Attributes:
+    -----------
+    num: nerea._Calculated
+        the calculated quantity to use as numerator.
+    den: nerea._Calculated | nerea._Experimental
+        the calculated or measured quantity to use
+        as denominator.
+    """
     num: _Calculated
     den: _Experimental | _Calculated
 
@@ -209,6 +221,19 @@ class _Comparison:
 
 @dataclass(slots=True)
 class CoverE(_Comparison):
+    """
+    Calculates the C/E inheriting from `nerea._Comparison`.
+
+    Attributes:
+    -----------
+    num: nerea._Calculated
+        the calculated quantity to use as numerator.
+    den: nerea._Experimental
+        the measured quantity to use as denominator.
+    _enable_checks: bool, optional
+        flag to enable consistency checks.
+        Default is `True`.
+    """
     num: _Calculated  # calculation
     den: _Experimental  # experiment
     _enable_checks: bool = True
@@ -235,6 +260,19 @@ class CoverE(_Comparison):
 
 @dataclass(slots=True)
 class CoverC(_Comparison):
+    """
+    Calculates the C/C inheriting from `nerea._Comparison`.
+
+    Attributes:
+    -----------
+    num: nerea._Calculated
+        the calculated quantity to use as numerator.
+    den: nerea._Calculated
+        the calculated quantity to use as denominator.
+    _enable_checks: bool, optional
+        flag to enable consistency checks.
+        Default is `True`.
+    """
     num: _Calculated  # calculation
     den: _Calculated  # calculation
     _enable_checks: bool = True
@@ -259,6 +297,19 @@ class CoverC(_Comparison):
 
 @dataclass(slots=True)
 class FrameCompare:
+    """
+    A class to compute the ratio comparison of two
+    `pd.DataFrame` instances.
+    Each data frame should be nerea-formatted, with value
+    and uncertainty columns.
+
+    Attributes:
+    -----------
+    num: pd.DataFrame
+        the numerator.
+    den: pd.DataFrame
+        the denominator.
+    """
     num: pd.DataFrame
     den: pd.DataFrame
 

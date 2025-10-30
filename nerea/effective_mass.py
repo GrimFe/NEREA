@@ -6,6 +6,25 @@ __all__ = ["EffectiveMass"]
 
 @dataclass(slots=True)
 class EffectiveMass:
+    """
+    Class storing effective mass data from fission chamber calibration.
+
+    Attributes:
+    -----------
+    deposit_id: str,
+        metadata for fission chamber deposit.
+    detector_id: str
+        metadata for detector identification.
+    data: pd.DataFrame
+        effective mass data.
+    bins: int
+        number of acquisition bins used in the calibration
+        acquisition.
+    composition: pd.DataFrame, optional
+        a nerea-formatted data frame with the fission chamber
+        composition value and uncertainty. Default is `None` for
+        monoisotopic chambers.
+    """
     deposit_id: str
     detector_id: str
     data: pd.DataFrame
