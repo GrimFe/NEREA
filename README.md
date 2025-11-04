@@ -2,7 +2,7 @@
 [![Tests](https://github.com/GrimFe/NEREA/actions/workflows/test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/nerea.svg)](https://pypi.org/project/nerea/)
 
-![here](https://github.com/GrimFe/NEREA/blob/codefix/assets/logo.png)
+![here](https://github.com/GrimFe/NEREA/raw/main/img/logo.png)
 
 <h1 align="center" style="font-family:simplifica">NEREA</h1>
 
@@ -44,7 +44,7 @@ import nerea
 ```
 ## 🗺️ Structure
 
-A schematic of the main structure of NEREA: ![here](https://github.com/GrimFe/NEREA/blob/main/img/Schematic_v0.1.0.png)
+A schematic of the main structure of NEREA: ![here](https://github.com/GrimFe/NEREA/raw/main/img/Schematic_v0.1.0.png)
 Some of the main features of NEREA are:
 * DATA - dedicated to the interface with detector raw data and preprocessing:
    - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/blob/main/nerea/effective_mass.py)

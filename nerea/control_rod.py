@@ -26,8 +26,8 @@ def evaluate_integral_differential_cr(x: float,
     """
     Integrates a polynomial.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     x : float
         The point whereto evaluate the integral.
     order : int
@@ -57,8 +57,8 @@ def evaluate_integral_integral_cr(x: float,
     """
     Evaluates a olynomial.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     x : float
         The point where to evaluate the integral.
     order : int
@@ -85,19 +85,20 @@ def evaluate_integral_integral_cr(x: float,
 @dataclass(slots=True)
 class ControlRodCalibration:
     """
+    ``nerea.ControlRodCalibration``
+    ===============================
     Superclass for control rod calibration.
 
-    Attributes:
-    -----------
-    count_rates: dict[float, nerea.CountRate]
+    Attributes
+    ----------
+    **count_rates**: ``dict[float, nerea.CountRate]``
         The count rates associated with the calibration.
         `key` is the control rod height and `value` is
         the associated ount rate.
-    critical_height: float
+    **critical_height**: ``float``
         the critical control rod height.
-    name: int
-        metadata for control rod identification.
-    """
+    **name**: ``int``
+        metadata for control rod identification."""
     count_rates: dict[float, CountRate]  # height and corresponding RR
     critical_height: float
     name: int
@@ -107,24 +108,26 @@ class ControlRodCalibration:
                   dtc_kwargs: dict={},
                   ac_kwargs: dict={}) -> pd.DataFrame:
         """"
+        `nerea.ControlRodCalibration._get_rhos()`
+        -----------------------------------------
+
         Computes the reactivity associated with each count rate
         in self.count_rates.
 
         Parameters
-        ---------
-        delayed_data : EffectiveDelayedParams
+        ----------
+        **delayed_data** : ``nerea.EffectiveDelayedParams``
             effective delayed  neutron data for control rod calibration.
-        dtc_kwargs : dict, optional
+        **dtc_kwargs** : ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
-            Default is `{}`.
-        ac_kwargs : dict, optional
+            Default is ``{}``.
+        **ac_kwargs** : dict, optional
             kwargs for nerea.CountRate.asymptotic_counts.
-            Default is `{}`.
+            Default is ``{}``.
 
         Returns
         -------
-        pd.DataFrame
-        """
+        ``pd.DataFrame``"""
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
         ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         rhos = [_make_df(0, 0, False).assign(h=self.critical_height)]
@@ -152,31 +155,32 @@ class ControlRodCalibration:
                              dtc_kwargs: dict={},
                              ac_kwargs: dict={}) -> pd.DataFrame:
         """
+        `nerea.ControlRodCalibration.get_reactivity_worth()`
+        ----------------------------------------------------
         Computes the reactivity worth given by a control rod movement.
 
         Parameters
         ----------
-        x0: float
+        **x0**: ``float``
             starting control rod position.
-        x1: float
+        **x1**: ``float``
             final control rod position.
-        delayed_data: nerea.EffectiveDelayedParams
+        **delayed_data**: ``nerea.EffectiveDelayedParams``
             delayed neutron data to use to calculate the reactivity.
-        order: int
+        **order**: ``int``
             polynomial order for the control rod calibration curve.
-        dtc_kwargs: dict, optional
+        **dtc_kwargs**: ``dict``, optional
             keyword arguments for count rate dead time correction.
-            Default is `{}` taking values from nerea.defaults.py.
-        ac_kwargs: dict, optional
+            Default is ``{}`` taking values from nerea.defaults.py.
+        **ac_kwargs**: ``dict``, optional
             keyword arguments for asymptotic count rate identification.
-            Default is `{}` taking values from nerea.defaults.py.
+            Default is ``{}`` taking values from nerea.defaults.py.
 
         Returns
         -------
-        pd.DataFrame
+        ``pd.DataFrame``
             The reactivity worth associated with the chosen control
-            rod movement.
-        """    
+            rod movement."""    
         rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
         rho.columns = ['x', 'y', 'u']
         coef, coef_cov = polyfit(order, rho)
@@ -189,22 +193,24 @@ class ControlRodCalibration:
     def plot(self, dtc_kwargs: dict={}, ac_kwargs: dict={}
              ) -> tuple[plt.Figure, plt.Axes]:
         """
+        `nerea.ControlRodCalibration.plot()`
+        ------------------------------------
+        Computes the reactivity worth given by a control rod movement.
         Plots the data handled.
 
         Parameters
         ----------
-        dtc_kwargs: dict, optional
+        **dtc_kwargs**: ``dict``, optional
             keyword arguments for count rate dead time correction.
             Default is `{}` taking values from nerea.defaults.py.
-        ac_kwargs: dict, optional
+        **ac_kwargs**: ``dict``, optional
             keyword arguments for asymptotic count rate identification.
             Default is `{}` taking values from nerea.defaults.py.
 
         Returns
         -------
-        tuple[plt.Figure, plt.Axes]
-            The Figure and Axes produced.
-        """   
+        ``tuple[plt.Figure, plt.Axes]``
+            The Figure and Axes produced."""   
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
         ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
         fig, axs = plt.subplots(len(self.count_rates), 2,
@@ -232,21 +238,22 @@ class ControlRodCalibration:
 @dataclass(slots=True)
 class DifferentialNoCompensation(ControlRodCalibration):
     """
+    ``nerea.DifferentialNoCompensation``
+    ====================================
     Class for differential control rod calibration
     without compensation.
     Inherits from `nerea.ControlRodCalibration`
 
-    Attributes:
-    -----------
-    count_rates: dict[float, nerea.CountRate]
+    Attributes
+    ----------
+    **count_rates**: ``dict[float, nerea.CountRate]``
         The count rates associated with the calibration.
         `key` is the control rod height and `value` is
         the associated ount rate.
-    critical_height: float
+    **critical_height**: ``float``
         the critical control rod height.
-    name: int
-        metadata for control rod identification.
-    """
+    **name**: ``int``
+        metadata for control rod identification."""
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
@@ -254,30 +261,32 @@ class DifferentialNoCompensation(ControlRodCalibration):
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
-        Computes the differential reacitivty curve dr/dh for measurements without compensation.
+        `nerea.DifferentialNoCompensation.get_reactivity_curve()`
+        ---------------------------------------------------------
+        Computes the differential reacitivty curve dr/dh for
+        measurements without compensation.
 
         Parameters
-        ---------
-        delayed_data : EffectiveDelayedParams
-            path to the Serpent `res.m` output file to read effective delayed
+        ----------
+        **delayed_data**: ``nerea.EffectiveDelayedParams``
+            path to the Serpent 'res.m' output file to read effective delayed
             neutron data from.
-        dtc_kwargs : dict, optional
+        **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
-            Default is `{}`.
-        ac_kwargs : dict, optional
+            Default is ``{}``.
+        **ac_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.asymptotic_counts.
-            Default is `{}`.
-        visual : bool, optional
+            Default is ``{}``.
+        **visual**: ``bool``, optional
             Whether to plot the processed data.
-            Default is False.
-        savefig : str, optional
+            Default is ``False``.
+        **savefig**: ``str``, optional
             File name to save the plotted data to.
             Default is `''` for no plotting.
 
         Returns
         -------
-        pd.DataFrame
-        """
+        ``pd.DataFrame``"""
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         drho_v = (rho["value"].diff() / rho["h"].diff()).fillna(0).values
         VAR_PORT_T = rho["VAR_PORT_T"].rolling(2).sum() / rho["h"].diff() **2
@@ -302,43 +311,46 @@ class DifferentialNoCompensation(ControlRodCalibration):
                            coef: Iterable[float],
                            coef_cov: Iterable[Iterable[float]])-> pd.DataFrame:
         """
+        `nerea.DifferentialNoCompensation._evaluate_integral()`
+        -------------------------------------------------------
         Itegrates control rod data following a polynomial.
 
         Parameters
         ----------
-        x: float
+        **x**: ``float``
             The point where to evaluate the integral.
-        order: int
+        **order**: ``int``
             Fitting polynomial order.
-        coef: Iterable[float]
+        **coef**: ``Iterable[float]``
             Polynomial coefficients.
-        coef_cov: Iterable[Iterable[float]]
+        **coef_cov**: ``Iterable[Iterable[float]]``
             Polynomial coefficient covariance matrix.
 
         Returns
         -------
-        pd.DataFrame
-            The integral reactivity worth up to position `x`.
-        """
+        ``pd.DataFrame``
+            The integral reactivity worth up to position ``x``."""
         return evaluate_integral_differential_cr(x, order, coef, coef_cov)
 
 
 @dataclass(slots=True)
 class IntegralNoCompensation(ControlRodCalibration):
     """
+    ``nerea.IntegralNoCompensation``
+    ====================================
     Class for integral control rod calibration
     without compensation.
     Inherits from `nerea.ControlRodCalibration`
 
     Attributes:
     -----------
-    count_rates: dict[float, nerea.CountRate]
+    **count_rates**:`` dict[float, nerea.CountRate]``
         The count rates associated with the calibration.
         `key` is the control rod height and `value` is
         the associated ount rate.
-    critical_height: float
+    **critical_height**:`` float``
         the critical control rod height.
-    name: int
+    **name**:`` int``
         metadata for control rod identification.
     """
     def get_reactivity_curve(self,
@@ -348,34 +360,36 @@ class IntegralNoCompensation(ControlRodCalibration):
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
-        Computes the integral reacitivty curve dr/dh for measurement without compensation.
+        `nerea.IntegralNoCompensation.get_reactivity_curve()`
+        -----------------------------------------------------
+        Computes the integral reacitivty curve dr/dh for measurement
+        without compensation.
 
         Parameters
-        ---------
-        delayed_data: EffectiveDelayedParams
+        ----------
+        **delayed_data**: ``nerea.EffectiveDelayedParams``
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
-        dtc_kwargs : dict, optional
+        **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
-            Default is `{}`.
-        ac_kwargs : dict, optional
+            Default is ``{}``.
+        **ac_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.asymptotic_counts.
-            Default is `{}`.
-        visual : bool, optional
+            Default is ``{}``.
+        **visual**: ``bool``, optional
             Whether to plot the processed data.
             Default is False.
-        savefig : str, optional
+        **savefig**: ``str``, optional
             File name to save the plotted data to.
             Default is `''` for no plotting.
 
         Returns
         -------
-        pd.DataFrame
+        ``pd.DataFrame``
 
         Note
         ----
-        alias for self._get_rhos
-        """
+        alias for ``self._get_rhos``."""
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         if visual or savefig:
             fig, _ = self.plot(dtc_kwargs, ac_kwargs)
@@ -390,43 +404,46 @@ class IntegralNoCompensation(ControlRodCalibration):
                            coef: Iterable[float],
                            coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
         """
+        `nerea.IntegralNoCompensation._evaluate_integral()`
+        ---------------------------------------------------
         Itegrates control rod data following a polynomial.
 
         Parameters
         ----------
-        x: float
+        **x**: ``float``
             The point where to evaluate the integral.
-        order: int
+        **order**: ``int``
             Fitting polynomial order.
-        coef: Iterable[float]
+        **coef**: ``Iterable[float]``
             Polynomial coefficients.
-        coef_cov: Iterable[Iterable[float]]
+        **coef_cov**: ``Iterable[Iterable[float]]``
             Polynomial coefficient covariance matrix.
 
         Returns
         -------
-        pd.DataFrame
-            The integral reactivity worth up to position `x`.
-        """
+        ``pd.DataFrame``
+            The integral reactivity worth up to position ``x``."""
         return evaluate_integral_integral_cr(x, order, coef, coef_cov)
 
 
 @dataclass(slots=True)
 class DifferentialCompensation(ControlRodCalibration):
     """
+    `nerea.DifferentialCompensation`
+    ================================
     Class for differential control rod calibration
     with compensation.
     Inherits from `nerea.ControlRodCalibration`
 
-    Attributes:
-    -----------
-    count_rates: dict[float, nerea.CountRate]
+    Attributes
+    ----------
+    **count_rates**: ``dict[float, nerea.CountRate]``
         The count rates associated with the calibration.
         `key` is the control rod height and `value` is
         the associated ount rate.
-    critical_height: float
+    **critical_height**: ``float``
         the critical control rod height.
-    name: int
+    **name**: ``int``
         metadata for control rod identification.
     """
     def get_reactivity_curve(self,
@@ -436,30 +453,32 @@ class DifferentialCompensation(ControlRodCalibration):
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
-        Computes the differential reacitivty curve dr/dh for measurements with compensation.
+        `nerea.DifferentialCompensation.get_reactivity_curve()`
+        -------------------------------------------------------
+        Computes the differential reacitivty curve dr/dh for
+        measurements with compensation.
 
         Parameters
-        ---------
-        delayed_data: EffectiveDelayedParams
+        ----------
+        **delayed_data**: `nerea.E`ffectiveDelayedParams``
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
-        dtc_kwargs : dict, optional
+        **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
-        ac_kwargs : dict, optional
+        **ac_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.asymptotic_counts.
             Default is `{}`.
-        visual : bool, optional
+        **visual**: ``bool``, optional
             Whether to plot the processed data.
             Default is False.
-        savefig : str, optional
+        **savefig**: ``str``, optional
             File name to save the plotted data to.
             Default is `''` for no plotting.
 
         Returns
         -------
-        pd.DataFrame
-        """
+        ``pd.DataFrame``"""
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         # no need to differenciate rho as with compensation the measured reactivity
         # is already related with a differential movement of the control rod
@@ -486,43 +505,46 @@ class DifferentialCompensation(ControlRodCalibration):
                            coef: Iterable[float],
                            coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
         """
+        `nerea.DifferentialCompensation._evaluate_integral()`
+        -----------------------------------------------------
         Itegrates control rod data following a polynomial.
 
         Parameters
         ----------
-        x: float
+        **x**: ``float``
             The point where to evaluate the integral.
-        order: int
+        **order**: ``int``
             Fitting polynomial order.
-        coef: Iterable[float]
+        **coef**: ``Iterable[float]``
             Polynomial coefficients.
-        coef_cov: Iterable[Iterable[float]]
+        **coef_cov**: ``Iterable[Iterable[float]]``
             Polynomial coefficient covariance matrix.
 
         Returns
         -------
-        pd.DataFrame
-            The integral reactivity worth up to position `x`.
-        """
+        ``pd.DataFrame``
+            The integral reactivity worth up to position `x`."""
         return evaluate_integral_differential_cr(x, order, coef, coef_cov)
 
 
 @dataclass(slots=True)
 class IntegralCompensation(ControlRodCalibration):
     """
+    `nerea.IntegralCompensation`
+    ============================
     Class for integral control rod calibration
     with compensation.
     Inherits from `nerea.ControlRodCalibration`
 
-    Attributes:
-    -----------
-    count_rates: dict[float, nerea.CountRate]
+    Attributes
+    ----------
+    **count_rates**: ``dict[float, nerea.CountRate]``
         The count rates associated with the calibration.
         `key` is the control rod height and `value` is
         the associated ount rate.
-    critical_height: float
+    **critical_height**: ``float``
         the critical control rod height.
-    name: int
+    **name**: ``int``
         metadata for control rod identification.
     """
     def get_reactivity_curve(self,
@@ -532,34 +554,36 @@ class IntegralCompensation(ControlRodCalibration):
                              visual: bool=False,
                              savefig: str = '') -> pd.DataFrame:
         """"
-        Computes the integral reacitivty curve dr/dh for measurement with compensation.
+        `nerea.IntegralCompensation.get_reactivity_curve()`
+        ---------------------------------------------------
+        Computes the integral reacitivty curve dr/dh for
+        measurement with compensation.
 
         Parameters
-        ---------
-        delayed_data: EffectiveDelayedParams
+        ----------
+        **delayed_data**: ``nerea.EffectiveDelayedParams``
             path to the Serpent `res.m` output file to read effective delayed
             neutron data from.
-        dtc_kwargs : dict, optional
+        **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
-            Default is `{}`.
-        ac_kwargs : dict, optional
+            Default is ``{}``.
+        **ac_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.asymptotic_counts.
-            Default is `{}`.
-        visual : bool, optional
+            Default is ``{}``.
+        **visual**: ``bool``, optional
             Whether to plot the processed data.
-            Default is False.
-        savefig : str, optional
+            Default is ``False``.
+        **savefig**: ``str``, optional
             File name to save the plotted data to.
             Default is `''` for no plotting.
 
         Returns
         -------
-        pd.DataFrame
+        ``pd.DataFrame``
 
         Note
         ----
-        alias for self._get_rhos
-        """
+        alias for ``self._get_rhos``."""
         rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
         if visual or savefig:
             fig, _ = self.plot(dtc_kwargs, ac_kwargs)
@@ -574,22 +598,23 @@ class IntegralCompensation(ControlRodCalibration):
                            coef: Iterable[float],
                            coef_cov: Iterable[Iterable[float]]) -> pd.DataFrame:
         """
+        `nerea.IntegralCompensation._evaluate_integral()`
+        -------------------------------------------------
         Itegrates control rod data following a polynomial.
 
         Parameters
         ----------
-        x: float
+        **x**: ``float``
             The point where to evaluate the integral.
-        order: int
+        **order**: ``int``
             Fitting polynomial order.
-        coef: Iterable[float]
+        **coef**: ``Iterable[float]``
             Polynomial coefficients.
-        coef_cov: Iterable[Iterable[float]]
+        **coef_cov**: ``Iterable[Iterable[float]]``
             Polynomial coefficient covariance matrix.
 
         Returns
         -------
-        pd.DataFrame
-            The integral reactivity worth up to position `x`.
-        """
+        ``pd.DataFrame``
+            The integral reactivity worth up to position ``x``."""
         return evaluate_integral_integral_cr(x, order, coef, coef_cov)

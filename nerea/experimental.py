@@ -28,19 +28,20 @@ __all__ = ['_Experimental',
 
 def average_v_u(df: pd.DataFrame) -> tuple[float, float]:
     """
+    `nerea.experimental.average_v_u()`
+    ------------------------------------
     Computes average value and uncertainty.
 
     Parameters
     ----------
-    df: pd.DataFrame
+    **df** : ``pd.DataFrame``
         A data frame with `'value'` and `'uncertainty'`
         columns to take the average of.
     
     Returns
     -------
-    tuple[float, float]
-        The average value and uncertainty.
-    """
+    ``tuple[float, float]``
+        The average value and uncertainty."""
     v = df.value.mean()
     u = sum(df.uncertainty **2) / len(df.uncertainty)
     return v, u
@@ -48,6 +49,8 @@ def average_v_u(df: pd.DataFrame) -> tuple[float, float]:
 @dataclass(slots=True)
 class _Experimental:
     """
+    ``nerea._Experimental``
+    =======================
     Superclass for experimental results.
     """
     def process(self) -> None:
@@ -60,22 +63,23 @@ class _Experimental:
 @dataclass(slots=True)
 class NormalizedPulseHeightSpectrum(_Experimental):
     """
-    Class storing and processing the pulse height spectrum (PHS) normalization
-    per unit mass, power and time.
-    Inherits from `nerea.Experimental`.
+    ``nerea.NormalizedPulseHeightSpectrum``
+    =======================================
+    Class storing and processing the pulse height spectrum
+    (PHS) normalization per unit mass, power and time.
+    Inherits from ``nerea.Experimental``.
 
-    Attributes:
-    -----------
-    phs: `nerea.PulseHeightSpectrum`
+    Attributes
+    ----------
+    **phs** : ``nerea.PulseHeightSpectrum``
         the pulse height spectrum to normalize.
-    effective mass: `nerea.EffectiveMass`
+    **effective_mass** : ``nerea.EffectiveMass``
         the effective mass of the fission chamber used to acquire
         the PHS.
-    power_monitor: `nerea.CountRate`
+    **power_monitor** : ``nerea.CountRate``
         the power monitor of the PHS acquisition.
-    _enable_checks: bool, optoinal
-        flag enabling consistency checks. Default is `True`.
-    """
+    _enable_checks: ``bool``, optoinal
+        flag enabling consistency checks. Default is ``True``."""
     phs: PulseHeightSpectrum
     effective_mass: EffectiveMass
     power_monitor: CountRate
@@ -90,21 +94,22 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def _check_consistency(self) -> None:
         """
+        ``nerea.NormalizedPulseHeightSpectrum._check_consistency()``
+        ------------------------------------------------------------
         Checks the consistency of:
-            - experiment_id
-            - detector_id
-            - deposit_id
-        among self.pulse_height_spectrum
+            - ``experiment_id``
+            - ``detector_id``
+            - ``deposit_id``
+        among ``self.pulse_height_spectrum``
         and also checks:
-            - R channel
-        among self.pulse_height_spectrum and effective_mass
-        via _check_ch_equality(tolerance=0.01).
+            - ``R_channel``
+        between ``self.pulse_height_spectrum`` and ``self.effective_mass``
+        via ``_check_ch_equality(tolerance=0.01)``.
 
         Raises
         ------
         Exception
-            If there are inconsistencies among the IDs or R channel values.
-        """
+            If there are inconsistencies among the IDs or R channel values."""
         if not self.phs.detector_id == self.effective_mass.detector_id:
             raise Exception('Inconsistent detectors among PulseHeightSpectrum ans EffectiveMass')
         if not self.phs.deposit_id == self.effective_mass.deposit_id:
@@ -118,22 +123,24 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def _check_ch_equality(self, tolerance:float =0.01) -> bool:
         """
-        Checks consistency of the R channels of `self.pulse_height_spectrum` and
-        `self.effective_mass` within a specified tolerance.
+        ``nerea.NormalizedPulseHeightSpectrum._check_ch_equality()``
+        ------------------------------------------------------------
+        Checks consistency of the R channels of ``self.pulse_height_spectrum`` and
+        ``self.effective_mass`` within a specified tolerance.
         The check happens only if the binning of the two objects is the same.
         
         Parameters
         ----------
-        tolerance : float, optional
+        **tolerance** : ``float``, optional
             The acceptable relative difference between the R channel of
-            `self.pulse_height_spectrum` and `self.effective_mass`.
-            Defaults to 0.01.
+            ``self.pulse_height_spectrum`` and ``self.effective_mass``.
+            Default is ``0.01``.
 
         Returns
         -------
-        bool
-            Indicating whether the relative difference between the R channels is within tolerance.
-        """
+        ``bool``
+            Indicating whether the relative difference between the R channels
+            is within tolerance."""
         if self.phs.data.channel.max() == self.effective_mass.bins:
             check = abs(self.phs.get_R(
                             bin_kwargs={'bins': self.effective_mass.bins}
@@ -146,74 +153,84 @@ class NormalizedPulseHeightSpectrum(_Experimental):
     @property
     def measurement_id(self) -> str:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.measurement_id()``
+        ------------------------------------------------------------
         The measurement ID associated with the pulse height spectrum.
 
         Returns
         -------
-        str
-            The measurement ID attribute of the associated `PulseHeightSpectrum`.
-        """
+        ``str``
+            The measurement ID attribute of the associated PHS."""
         return self.phs.measurement_id
     
     @property
     def campaign_id(self) -> str:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.campaign_id()``
+        -----------------------------------------------------
         The campaign ID associated with the pulse height spectrum.
 
         Returns
         -------
-        str
-            The campaign ID attribute of the associated `PulseHeightSpectrum`.
-        """
+        ``str``
+            The campaign ID attribute of the associated PHS."""
         return self.phs.campaign_id
     
     @property
     def experiment_id(self) -> str:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.experiment_id()``
+        -------------------------------------------------------
         The experiment ID associated with the pulse height spectrum.
 
         Returns
         -------
-        str
-            The experiment ID attribute of the associated `PulseHeightSpectrum`.
-        """
+        ``str``
+            The experiment ID attribute of the associated PHS."""
         return self.phs.experiment_id
     
     @property
     def location_id(self) -> str:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.location_id()``
+        -----------------------------------------------------
         The location ID associated with the pulse height spectrum.
 
         Returns
         -------
-        str
-            The location ID attribute of the associated `PulseHeightSpectrum`.
-        """
+        ``str``
+            The location ID attribute of the associated PHS."""
         return self.phs.location_id
 
     @property
     def deposit_id(self) -> str:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.deposit_id()``
+        ----------------------------------------------------
         The deposit ID associated with the pulse height spectrum.
 
         Returns
         -------
-        str
-            The deposit ID attribute of the associated `PulseHeightSpectrum`.
-        """
+        ``str``
+            The deposit ID attribute of the associated PHS."""
         return self.phs.deposit_id
 
     @property
     def _time_normalization(self) -> pd.DataFrame:
         """
+        ``nerea.NormalizedPulseHeightSpectrum._time_normalization()``
+        -------------------------------------------------------------
         The time normalization and correction to be multiplied by the
         pulse height spectrum per unit mass.
 
         Returns
         -------
-        pd.DataFrame
-            with normalization value and uncertainty
-        """
+        ``pd.DataFrame``
+            with ``'value'`` and ``'uncertainty'`` columns.
+
+        Note
+        ----
+        - it corresponds to 1 / time."""
         l = self.phs.life_time
         v = 1 / l
         u = np.sqrt((1 / self.phs.life_time **2 \
@@ -223,14 +240,19 @@ class NormalizedPulseHeightSpectrum(_Experimental):
     @property
     def _power_normalization(self) -> pd.DataFrame:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.power_normalization()``
+        -------------------------------------------------------------
         The power normalization to be multiplied by the pulse height
         spectrum per unit mass.
 
         Returns
         -------
-        pd.DataFrame
-            with normalization value and uncertainty
-        """
+        ``pd.DataFrame``
+            with ``'value'`` and ``'uncertainty'`` columns.
+
+        Note
+        ----
+        - it corresponds to 1 / average(count_rate)."""
         start_time = self.phs.start_time
         duration = self.phs.real_time
         pm = self.power_monitor.average(start_time, duration)
@@ -242,37 +264,48 @@ class NormalizedPulseHeightSpectrum(_Experimental):
                          power: pd.DataFrame,
                          **kwargs) -> pd.DataFrame:
         """
+        ``nerea.NormalizedPulseHeightSpectrum._get_long_output()``
+        ----------------------------------------------------------
         The information to be included in the long output: component
         variances.
 
         Parameters
         ----------
-        plateaut : pd.DataFrame
-            output of self.plateau()
-        time : pd.DataFrame
-            output of self._time_normalization
-        power : pd.DataFrame
-            output of self._power_normalization
+        **plateau** : ``pd.DataFrame``
+            output of ``self.plateau()``
+        **time** : ``pd.DataFrame``
+            output of ``self._time_normalization``
+        **power** : ``pd.DataFrame``
+            output of ``self._power_normalization``
         **kwargs
-        Parameters for self.ffs.integrate()
-            - bin_kwargs : dict, optional
-                - bins : int (enforced to be same as EM.bins)
-                - smooth : bool
-            - max_kwargs : dict, optional
-                kwargs for self.pulse_height_spectrum.max().
-                - fst_ch : int
-            - llds : Iterable[int|float]
-            - r : bool
+            arguments for ``self.pulse_height_spectrum.integrate()``
+            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+            - **r** (``bool``): whether discriminators are absolute or fractions of R.
+            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+            additional arguments for
+
+            - ``self.pulse_height_spectrum.rebin()``
+                - **bins** (``int``): number of bins
+                - **smooth** (``bool``): whether to smooth the PHS
+
+            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+                - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+                - arguments for the chosen ``nerea.functions.smoothing``.
+
+            - ``self.pulse_height_spectrum.get_max()``
+                - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            (1 x N) DataFrame with the information.
+        ``pd.DataFrame``
+            (1 x N) DataFrame with information about variance values and variances of
+            data used in the processing.
 
         Note
         ----
-        `bins` for PHS rebinning are set to `self.effective_mass.bins`
-        """
+        - ``bins`` for PHS rebinning are set to ``self.effective_mass.bins``."""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
@@ -291,87 +324,101 @@ class NormalizedPulseHeightSpectrum(_Experimental):
                            't': val_t, 'VAR_t': var_t}, index=['value'])
         return df
     
-    def _per_unit_mass_R(self, ffsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
+    def _per_unit_mass_R(self, phsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
         """
-        The tabulated ratio of FFS.integrate() / EM.integral, integrated from
+        ``nerea.NormalizedPulseHeightSpectrum._per_unit_mass_R()``
+        ----------------------------------------------------------
+        The tabulated ratio of PHS.integrate() / EM.integral, integrated from
         discrimination levels computed as a function of the R channel.
 
         Parameters
         ----------
-        ffsi : pd.DataFrame
-            Output of self.ffs.integrate().
-        emi : pd.DataFrame
-            Output of self.em.integral.
+        **phsi** : ``pd.DataFrame``
+            Output of ``self.pulse_height_spectrum.integrate().``
+        **emi** : ``pd.DataFrame``
+            Output of ``self.effective_mass.integral``.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with the information of the mass-normalized spectrum.
-        """
-        channels = sorted(set(emi.R).intersection(set(ffsi.R)))
+        ``pd.DataFrame``
+            with information of the mass-normalized spectrum."""
+        channels = sorted(set(emi.R).intersection(set(phsi.R)))
         if len(channels) < len(emi.R): warnings.warn("Neglecting calibration channels.")
-        if len(channels) < len(ffsi.R): warnings.warn("Neglecting integration channels.")
-        return _make_df(*ratio_v_u(ffsi, emi)).reset_index(drop=True).assign(
-                            VAR_PORT_FFS = (ffsi.uncertainty / emi.value) **2,
-                            VAR_PORT_EM = (ffsi.value / emi.value**2 * emi.uncertainty) **2,
-                            CH_FFS = ffsi.channel,
+        if len(channels) < len(phsi.R): warnings.warn("Neglecting integration channels.")
+        return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
+                            VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
+                            VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
+                            CH_FFS = phsi.channel,
                             CH_EM = emi.channel,
                             R=emi.R)
 
-    def _per_unit_mass_ch(self, ffsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
+    def _per_unit_mass_ch(self, phsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:
         """
-        The tabulated ratio of FFS.integrate() / EM.integral, integrated from
+        ``nerea.NormalizedPulseHeightSpectrum._per_unit_mass_ch()``
+        ----------------------------------------------------------
+        The tabulated ratio of PHS.integrate() / EM.integral, integrated from
         discrimination levels defined as absolute channels.
 
         Parameters
         ----------
-        ffsi : pd.DataFrame
-            Output of self.ffs.integrate().
-        emi : pd.DataFrame
-            Output of self.em.integral.
+        **phsi** : ``pd.DataFrame``
+            Output of ``self.pulse_height_spectrum.integrate()``.
+        **emi** : ``pd.DataFrame``
+            Output of ``self.effectivemass.integral``.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with the information of the mass-normalized spectrum.
-        """
-        channels = sorted(set(emi.channel).intersection(set(ffsi.channel)))
+        ``pd.DataFrame``
+            with information of the mass-normalized spectrum."""
+        channels = sorted(set(emi.channel).intersection(set(phsi.channel)))
         if len(channels) < len(emi.channel): warnings.warn("Neglecting calibration channels.")
-        if len(channels) < len(ffsi.channel): warnings.warn("Neglecting integration channels.")
-        return _make_df(*ratio_v_u(ffsi, emi)).reset_index(drop=True).assign(
-                                    VAR_PORT_FFS = (ffsi.uncertainty / emi.value) **2,
-                                    VAR_PORT_EM = (ffsi.value / emi.value**2 * emi.uncertainty) **2,
-                                    CH_FFS = ffsi.channel,
+        if len(channels) < len(phsi.channel): warnings.warn("Neglecting integration channels.")
+        return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
+                                    VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
+                                    VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
+                                    CH_FFS = phsi.channel,
                                     CH_EM = emi.channel,
                                     R=np.nan)
 
     def per_unit_mass(self, **kwargs) -> pd.DataFrame:
         """
-        Normalizes the pulse height spectrum in self.ffs to the
-        effective mass in self.em based on the effective mass
+        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass()``
+        -------------------------------------------------------
+        Normalizes ``self.pulse_height_spectrum()`` to the
+        ``self.effective_mass`` based on the effective mass
         discrimination levels.
 
         Parameters
         ----------
-        **kwargs for self.ffs.integrate.
-            - bin_kwargs : dict, optional
-                - bins : int (enforced to be same as EM.bins)
-                - smooth : bool
-            - max_kwargs : dict, optional
-                kwargs for self.pulse_height_spectrum.max().
-                - fst_ch : int
-            - llds : Iterable[int|float]
-            - r : bool
+        **kwargs
+        arguments for ``self.pulse_height_spectrum.integrate()``
+
+        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+        - **r** (``bool``): whether discriminators are absolute or fractions of R.
+        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with the information of the mass-normalized spectrum.
+        ``pd.DataFrame``
+            with information of the mass-normalized spectrum.
 
         Note
         ----
-        `bins` for PHS rebinning are set to `self.effective_mass.bins`
-        """
+        - `bins` for PHS rebinning are set to `self.effective_mass.bins`."""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
@@ -389,30 +436,41 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def per_unit_mass_and_time(self, **kwargs) -> pd.DataFrame:
         """
-        The integrated FFS normalized per unit mass and time.
+        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass_and_time()``
+        -----------------------------------------------------------------
+        The integrated PHS normalized per unit mass and time.
 
         Parameters
         ----------
         **kwargs
-        Paramters for self.per_unit_mass
-        - bin_kwargs : dict, optional
-            - bins : int (enforced to be same as EM.bins)
-            - smooth : bool
-        - max_kwargs : dict, optional
-            kwargs for self.pulse_height_spectrum.max().
-            - fst_ch : int
-        - llds : Iterable[int|float]
-        - r : bool
+        arguments for ``self.per_unit_mass()``
+
+        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+        - **r** (``bool``): whether discriminators are absolute or fractions of R.
+        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
+        ``pd.DataFrame``
             DataFrame with the information of the mass- and time- normalized spectrum.
 
         Note
         ----
-        `bins` for PHS rebinning are set to `self.effective_mass.bins`
-        """
+        - `bins` for PHS rebinning are set to `self.effective_mass.bins`."""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
@@ -425,29 +483,41 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def per_unit_mass_and_power(self, **kwargs) -> pd.DataFrame:
         """
-        The integrated FFS normalized per unit mass and power.
+        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass_and_power()``
+        -----------------------------------------------------------------
+        The integrated PHS normalized per unit mass and power.
 
         Parameters
         ----------
-        **kwargs for self.per_unit_mass
-        - bin_kwargs : dict, optional
-            - bins : int (enforced to be same as EM.bins)
-            - smooth : bool
-        - max_kwargs : dict, optional
-            kwargs for self.pulse_height_spectrum.max().
-            - fst_ch : int
-        - llds : Iterable[int|float]
-        - r : bool
+        **kwargs
+        arguments for ``self.per_unit_mass()``
+
+        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+        - **r** (``bool``): whether discriminators are absolute or fractions of R.
+        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with the information of the mass- and power- normalized spectrum.
+        ``pd.DataFrame``
+            with information of the mass- and power- normalized spectrum.
 
         Note
         ----
-        `bins` for PHS rebinning are set to `self.effective_mass.bins`
-        """
+        - `bins` for PHS rebinning are set to `self.effective_mass.bins`."""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
@@ -462,36 +532,37 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def per_unit_power_and_time(self, **kwargs) -> pd.DataFrame:
         """
-        The integrated FFS normalized per unit power and time.
+        ``nerea.NormalizedPulseHeightSpectrum.per_unit_power_and_time()``
+        -----------------------------------------------------------------
+        The integrated PHS normalized per unit power and time.
 
         Parameters
         ----------
-        **kwargs for self.pulse_height_spectrum.integrate()
-        bin_kwargs : dict, optional
-            - bins : int
-            - smooth : bool
-            Defailt is empty, rading from nerea.defaults.
-        max_kwargs : dict, optional
-            Paramters for self.get_max().
-            - fst_ch : int
-            Defailt is empty, rading from nerea.defaults.
-        llds : Iterable[int|float] | int, optional
-            low level discriminator(s) to integrate from.
-            Defaults to 10 llds between [0.15, 0.6].
-        r : bool, optional
-            Defines whether the discriminators are absolute or
-            fractions of the R channel.
-            Default is True.
-        raw_integral : bool, optional
-            Defines whether to integrate the raw data or the
-            smoothed ones.
-            Default is False.
+        **kwargs
+        arguments for ``self.per_unit_mass()``
+
+        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+        - **r** (``bool``): whether discriminators are absolute or fractions of R.
+        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame with the information of the power- and time- normalized spectrum.
-        """
+        ``pd.DataFrame``
+            with information of the power- and time- normalized spectrum."""
         phspa_int = self.phs.integrate(**kwargs).set_index(['channel', 'R'])
         idx = phspa_int.index
         return _make_df(*product_v_u([phspa_int.reset_index(drop=True),
@@ -501,35 +572,47 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def plateau(self, int_tolerance: float=.01, ch_tolerance: float=.01, **kwargs) -> pd.DataFrame:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.plateau()``
+        -------------------------------------------------
         Computes the count rate per unit mass.
 
         Parameters
         ----------
-        int_tolerance : float, optional
-            Tolerance for the integration check, by default 0.01.
-        ch_tolerance : float, optional
-            Tolerance for the channel check, by default 0.01.
-        **kwargs:
-            Paramters for self.per_unit_mass
-            - bin_kwargs : dict, optional
-                - bins : int
-                - smooth : bool
-            - max_kwargs : dict, optional
-                kwargs for self.pulse_height_spectrum.max().
-                - fst_ch : int
-            - llds : Iterable[int|float]
-            - r : bool
+        **int_tolerance** : ``float``, optional
+            Tolerance for the integration check, by default ``0.01``.
+        **ch_tolerance** : ``float``, optional
+            Tolerance for the channel check, by default ``0.01``.
+        **kwargs
+        arguments for ``self.per_unit_mass()``
+
+        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+        - **r** (``bool``): whether discriminators are absolute or fractions of R.
+        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the count rate per unit mass.
+        ``pd.DataFrame``
+            containing the count rate per unit mass at convergence.
+            It has ``'value'`` and ``'uncertainty'`` columns.
 
         Raises
         ------
         ValueError
-            If the channel values differ beyond the specified tolerance.
-        """
+            If the channel values differ beyond the specified tolerance."""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         data = self.per_unit_mass(**kwargs)
 
@@ -565,43 +648,55 @@ class NormalizedPulseHeightSpectrum(_Experimental):
     def process(self, long_output: bool=False, visual: bool=False,
                 savefig: str='', **kwargs) -> pd.DataFrame:
         """
+        ``nerea.NormalizedPulseHeightSpectrum.process()``
+        ----------------------------------------------------------
         Computes the count rate.
 
         Parameters
         ----------
-        long_output : bool, optional
-            Flag to turn on/off the full ouptup information, whcih includes
-            values and variances of all the processing elements, False by default.
-        visual : bool, optional
+        **long_output** : ``bool``, optional
+            Flag to turn on/off the full output information, whcih includes
+            values and variances of all the processing elements, ``False`` by default.
+        **visual** : ``bool``, optional
             Flag to display the processed data.
-            Default is False.
-        savefig : str, optional
+            Default is ``False``.
+        **savefig** : ``str``, optional
             Filename to save the figure to.
-            Default is '' not saving.
-        *args : Any
-            Positional arguments to be passed to the `self.plateau()` method.
-        **kwargs : dict
-            Keyword arguments to be passed to the `self.plateau()` method.
-            - bin_kwargs : dict, optional
-                - bins : int (enforced to be same as EM.bins)
-                - smooth : bool
-            - max_kwargs : dict, optional
-                kwargs for self.pulse_height_spectrum.max().
-                - fst_ch : int
-            - int_tolerance: float
-            - ch_tolerance: float
-            - llds : Iterable[int|float]
-            - r : bool
-            - raw_integral : bool
+            Default is ``''`` not saving.
+        **kwargs
+        arguments for ``self.plateau()``
+
+        - **int_tolerance** (``float``): tolerance for integration check.
+        - **ch_tolerance** (``float``): tolerance for channel check.
+
+        additional arguments for
+
+        - ``self.pulse_height_spectrum.integrate()``
+            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+            - **r** (``bool``): whether discriminators are absolute or fractions of R.
+            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the count rate.
+        ``pd.DataFrame``
+            containing the count rate per unint mass and power.
+            It has ``'value'`` and ``'uncertainty'`` columns.
         
         Note
         ----
-        `bins` for PHS rebinning are set to `self.effective_mass.bins`
+        - `bins` for PHS rebinning are set to `self.effective_mass.bins`.
 
         Examples
         --------
@@ -613,8 +708,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         >>> rr = NormalizedPulseHeightSpectrum(pulse_height_spectrum=ffs, effective_mass=em, power_monitor=pm)
         >>> rr.process()
             value  uncertainty
-        0  35.6    2.449490
-        """
+        0  35.6    2.449490"""
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
@@ -643,26 +737,41 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     def plot(self, discri: int=None, **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
+        `nerea.NormalizedPulseHeightSpectrum.plot()`
+        --------------------------------------------
         Default plotting method of PHS and monitor considered.
         It also reports tabulated effective mass values.
 
         Paramters
         ---------
-        discri: int, optional
+        **discri**: ``int``, optional
             The discrimination level to highilight in the plots.
             It is in units of channel of self.pulse_height_spectrum.
             Default is None.
-        phs_kwargs: dict
-            Parameters to process the spectrum before plotting.
-            - bin_kwargs
-            - max_kwargs
-            - llds
-            - r
+        **kwargs
+        arguments for ``self.per_unit_mass()``, ``self.pulse_height_spectrum.integrate()``
+        and ``self.pulse_height_spectrum.plot()``.
+
+        -``self.per_unit_mass()``
+            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+            - **r** (``bool``): whether discriminators are absolute or fractions of R.
+            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+        - ``self.pulse_height_spectrum.rebin()``
+            - **bins** (``int``): number of bins
+            - **smooth** (``bool``): whether to smooth the PHS
+
+        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+
+        - ``self.pulse_height_spectrum.get_max()``
+            - **fst_ch** (``int | str``): channel to start max search or max search method.
 
         Returns
         -------
-        tuple[plt.Figure, Iterable[plt.Axes]]
-        """
+        ``tuple[plt.Figure, Iterable[plt.Axes]]``"""
         fig, axs = plt.subplots(2, 2, figsize=(15, 12),
                                 height_ratios=[1, 1], width_ratios=[1, 1],
                                 gridspec_kw={'wspace': 0.4})
@@ -724,17 +833,19 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 @dataclass
 class SpectralIndex(_Experimental):
     """
+    ``nerea.SpectralIndex``
+    =======================
     Class storing and processing a spectral index.
-    Inherits from `nerea.Experimental`.
+    Inherits from ``nerea.Experimental``.
 
-    Attributes:
-    -----------
-    numerator: `nerea.NormalizedPulseHeightSpectrum`
+    Attributes
+    ----------
+    **numerator** : ``nerea.NormalizedPulseHeightSpectrum``
         the spectral index numerator.
-    denominator: `nerea.NormalizedPulseHeightSpectrum`
+    **denominator** : ``nerea.NormalizedPulseHeightSpectrum``
         the spectral index denominator.
-    _enable_checks: bool, optoinal
-        flag enabling consistency checks. Default is `True`.
+    _enable_checks: ``bool``, optoinal
+        flag enabling consistency checks. Default is ``True``.
     """
     numerator: NormalizedPulseHeightSpectrum
     denominator: NormalizedPulseHeightSpectrum
@@ -749,16 +860,17 @@ class SpectralIndex(_Experimental):
 
     def _check_consistency(self) -> None:
         """
+        `nerea.SpectralIndex._check_consistency()`
+        -------------------------------------------
         Checks the consistency of:
             - campaign_id
             - location_id
-        among `self.numerator` and `self.denominator`.
+        among ``self.numerator`` and ``self.denominator``.
 
         Raises
         ------
         UserWarning
-            If there are inconsistencies among the specified attributes.
-        """
+            If there are inconsistencies among the specified attributes."""
         should = ['campaign_id', 'location_id']
         for attr in should:
             if not getattr(self.numerator, attr
@@ -768,11 +880,13 @@ class SpectralIndex(_Experimental):
     @property
     def deposit_ids(self) -> list[str]:
         """
+        `nerea.SpectralIndex.deposit_ids()`
+        -----------------------------------
         The deposit IDs associated with the numerator and denominator.
 
         Returns
         -------
-        list[str]
+        ``list[str]``
             A list containing the deposit IDs of the numerator and denominator.
 
         Examples
@@ -782,30 +896,29 @@ class SpectralIndex(_Experimental):
         >>> ffs_den = CountRate(..., deposit_id='Dep2')
         >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
         >>> spectral_index.deposit_ids
-        ['Dep1', 'Dep2']
-        """
+        ['Dep1', 'Dep2']"""
         return [self.numerator.deposit_id, self.denominator.deposit_id]
 
     def _compute_correction(self, one_g_xs: pd.DataFrame) -> pd.DataFrame:
         """
+        `nerea.SpectralIndex._compute_correction()`
+        -------------------------------------------
         Computes the impurity correction to the spectral index.
 
         Parameters
         ----------
-        one_g_xs : pd.DataFrame, optional
-            dataframe with nuclides as index, one group cross sections as `value`
-            and absolute uncertainty as `uncertainty`.
+        **one_g_xs** : ``nerea.Xs``
+            with nuclides and one group cross sections as.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the correction value and uncertainty.
+        ``pd.DataFrame``
+            with correction ``'value'`` and ``'uncertainty'`` columns.
 
         Raises
         ------
         UserWarning
-            If xs is not given for all impurities.
-        """
+            If xs is not given for all impurities."""
         comp = self.numerator.effective_mass.composition_.copy()
         # sum over impurities != self.numerator.deposit_id
         return impurity_correction(one_g_xs, comp, drop_main=True,
@@ -815,26 +928,28 @@ class SpectralIndex(_Experimental):
 
     def _get_long_output(self, num, den, k) -> pd.DataFrame:
         """
+        `nerea.SpectralIndex._get_long_output()`
+        ----------------------------------------
         The information to be included in the long output:
-        variances of numerator and denominator if those were
-        computed in the first place and variance of the
-        impurity correction (if any of the others was computed).
+        values and variances of numerator and denominator if
+        those were computed in the first place and variance
+        of the impurity correction (if any of the others was
+        computed).
 
         Parameters
         ----------
-        num : pd.DataFrame
-            output of self.numerator.process()
-        den : pd.DataFrame
-            output of self.denominator.process
-        k : pd.DataFrame
+        **num** : ``pd.DataFrame``
+            output of ``self.numerator.process()``
+        **den** : ``pd.DataFrame``
+            output of ``self.denominator.process()``
+        **k** : ``pd.DataFrame``
             impurity correction
 
         Returns
         -------
-        pd.DataFrame
-            (1 x N) DataFrame with the information or empty pd.DataFrame
-            if the varaince was not computed for none of `num` and `den`.
-        """
+        ``pd.DataFrame``
+            (1 x N) DataFrame or empty pd.DataFrame if the varaince was not
+            computed for none of `num` and `den`."""
         empty = True
         start_col = 7
         if 'VAR_FFS' in num.columns:
@@ -869,39 +984,85 @@ class SpectralIndex(_Experimental):
                 numerator_kwargs: dict={},
                 denominator_kwargs: dict={}) -> pd.DataFrame:
         """
+        `nerea.SpectralIndex.process()`
+        -------------------------------
         Computes the ratio of two count rates.
 
         Parameters
         ----------
-        one_g_xs : pd.DataFrame, optional
-            dataframe with nuclides as index, one group cross sections as `value`
-            and absolute uncertainty as `uncertainty`.
-            Defaults to None for no correction.
-        one_g_xs_file : str, optional
+        **one_g_xs** : ``nerea.Xs``, optional
+            with nuclides and one group cross sections as.
+            Defaults to ``None`` for no correction.
+        **one_g_xs_file** : ``str``, optional
             the Serpent detector file to read the one group xs from.
-            Default is None.
-        nuc_dec_from_file : dict[str, str], optional
+            Default is ``None``.
+        **nuc_dec_from_file** : ``dict[str, str]``, optional
             A dictionary mapping each nuclide with the detector associated
-            with its cross section calculation in `one_g_xs_file`.
-        **kwargs : Any
-            Keyword arguments to be passed to the
-            `NormalizedPulseHeightSpectrum.process()` method.
+            with its cross section calculation in ``one_g_xs_file``.
+        **numerator_kwargs** : dict[Any]
+            Keyword arguments for `self.numerator.process()`
+
+            - **long_output** (``bool``): whetehr to output full information
+            - **visual** (``bool``): whether to display the processed data
+            - **savefig** (``str``): filename to save the figure to.
+
+            additional arguments for
+
+            - ``self.plateau()``
+                - **int_tolerance** (``float``): tolerance for integration check.
+                - **ch_tolerance** (``float``): tolerance for channel check.
+
+            - ``self.pulse_height_spectrum.integrate()``
+                - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+                - **r** (``bool``): whether discriminators are absolute or fractions of R.
+                - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+            - ``self.pulse_height_spectrum.rebin()``
+                - **bins** (``int``): number of bins
+                - **smooth** (``bool``): whether to smooth the PHS
+
+            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+                - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+                - arguments for the chosen ``nerea.functions.smoothing``.
+
+            - ``self.pulse_height_spectrum.get_max()``
+                - **fst_ch** (``int | str``): channel to start max search or max search method.
+
+            **denominator_kwargs** : dict[Any]
+            Keyword arguments for `self.denominator.process()`
+            - **long_output** (``bool``): whetehr to output full information
+            - **visual** (``bool``): whether to display the processed data
+            - **savefig** (``str``): filename to save the figure to.
+
+            additional arguments for
+
+            - ``self.plateau()``
+                - **int_tolerance** (``float``): tolerance for integration check.
+                - **ch_tolerance** (``float``): tolerance for channel check.
+
+            - ``self.pulse_height_spectrum.integrate()``
+                - **llds** (``Iterable[int|float] | int``) low level discriminator(s).
+                - **r** (``bool``): whether discriminators are absolute or fractions of R.
+                - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.
+
+            - ``self.pulse_height_spectrum.rebin()``
+                - **bins** (``int``): number of bins
+                - **smooth** (``bool``): whether to smooth the PHS
+
+            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``
+                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.
+                - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+                - arguments for the chosen ``nerea.functions.smoothing``.
+
+            - ``self.pulse_height_spectrum.get_max()``
+                - **fst_ch** (``int | str``): channel to start max search or max search method.
+
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing the spectral index value and uncertainty.
-
-        Examples
-        --------
-        >>> from nerea.CountRate import CountRate
-        >>> ffs_num = CountRate(..., deposit_id='Dep1')
-        >>> ffs_den = CountRate(..., deposit_id='Dep2')
-        >>> spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)
-        >>> spectral_index.process()
-            value  uncertainty
-        0  0.95   0.034139
-        """
+        ``pd.DataFrame``
+            with ``'value'`` and ``'uncertainty'`` columns."""
         if numerator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
@@ -944,19 +1105,20 @@ class SpectralIndex(_Experimental):
 @dataclass(slots=True)
 class Traverse(_Experimental):
     """
+    ``nerea.Traverse``
+    ==================
     Class storing and processing a traverse data.
     Inherits from `nerea.Experimental`.
 
-    Attributes:
-    -----------
-    count_rates: dict[str, CountRate | CountRates]
+    Attributes
+    ----------
+    **count_rates** : ``dict[str, CountRate | CountRates]``
         Links traverse position to the measured count rate.
-        `key` is the position identifier, `value` is the 
-        corresponding `nerea.CountRate` or `nerea.CountRates`.
-        If `nerea.CountRates`, the first is considered.
-    _enable_checks: bool, optoinal
-        flag enabling consistency checks. Default is `True`.
-    """
+        ``key`` is the position identifier, ``value`` is the 
+        corresponding ``nerea.CountRate`` or `nerea`.CountRates``.
+        If ``nerea.CountRates``, the first is considered.
+    _enable_checks: ``bool``, optoinal
+        flag enabling consistency checks. Default is ``True``."""
     count_rates: dict[str, CountRate | CountRates]
     _enable_checks: bool = True
     
@@ -974,23 +1136,25 @@ class Traverse(_Experimental):
     @property
     def _first(self) -> CountRate:
         """
-        The first element of `self.count_rates`.
+        ``nerea.Traverse._first()``
+        ---------------------------
+        The first element of ``self.count_rates``.
 
         Returns
         -------
-        nerea.CountRate
-        """
+        ``nerea.CountRate``"""
         return list(self.count_rates.values())[0]
 
     @property
     def deposit_id(self) -> str:
         """
+        ``nerea.Traverse.deposit_id()``
+        -------------------------------
         The deposit id of the first count rate.
 
         Returns
         -------
-        str
-        """
+        ``str``"""
         return self._first.deposit_id
 
     def process(self,
@@ -1001,41 +1165,46 @@ class Traverse(_Experimental):
                 palette: str='tab10',
                 **kwargs) -> pd.DataFrame:
         """
-        Normalizes all the count rates to the power in `monitors`
+        ``nerea.Traverse.process()``
+        ----------------------------
+        Normalizes all the count rates to the power in ``monitors``
         and to the maximum value.
 
         Parameters
         ----------
-        monitors : Iterable[CountRate | int]
+        **monitors** : ``Iterable[CountRate | int]``
             ordered information on the power normalization.
-            Should be `CountRate` when mapped to a `CountRate` and
-            int when mapped to `CountRates`. The normalization is passed to
-            `CountRate.per_unit_time_power()` or `CountRates.per_unit_time_power()`.
-        normalization : str, optional
-            The `self.count_rates` CountRate identifier to normalize the traveres to.
-            Defaults to None, normalizing to the one with the highest counts.
-        visual : bool, optional
+            Should be ``nerea.CountRate`` when mapped to a
+            ``nerea.CountRate`` and int when mapped to ``nerea.CountRates``.
+            The normalization is passed to ``CountRate.per_unit_time_power()``
+            or ``CountRates.per_unit_time_power()``.
+        **normalization** : ``str``, optional
+            The ``self.count_rates`` CountRate identifier to normalize the traveres to.
+            Defaults to ``None``, normalizing to the one with the highest counts.
+        **visual** : ``bool``, optional
             Plots the processed data.
-            Default is False.
-        savefig : str, optional
+            Default is ``False``.
+        **savefig** : ``str``, optional
             File name to save the plotted data to.
             Default is `''` for not saving.
-        palette : str, optional
+        **palette** : ``str``, optional
             Color palette to use for plotting.
-            Default is `'tab10'`.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+            Default is ``'tab10'``.
+        **kwargs
+            for `nerea.CountRate.plateau()`.
+
+            - **sigma** (``int``): standard deviations for plateau finding
+            - **timebase** (``int``): time base for integration in plateau search.
         
         Returns
         -------
-        pd.DataFrame
-            with `value`, `uncertainty`, `uncertainty [%]`, `traverse` columns.
+        ``pd.DataFrame``
+            with ``'value'``, ``'uncertainty'``, ``'uncertainty [%]'`` and
+            ``'traverse'`` columns.
 
         Notes
         -----
-        Working with `CountRates` instances, the first count rate is used.
-
-        """
+        Working with ``nerea.CountRates`` instances, the first count rate is used."""
         normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.count_rates.items()):
@@ -1060,27 +1229,29 @@ class Traverse(_Experimental):
              palette: str='tab10',
              **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
+        ``nerea.Traverse.plot()``
+        -------------------------
         Plot the data processed in Traverse.
 
         Parameters
         ----------
-        monitors : Iterable[CountRate | int]
+        **monitors** : ``Iterable[CountRate | int]``
             ordered information on the power normalization.
-            Should be `CountRate` when mapped to a `CountRate` and
-            int when mapped to `CountRates`. The normalization is passed to
-            `CountRate.per_unit_time_power()` or `CountRates.per_unit_time_power()`.
-        *args : Any
-            Positional arguments to be passed to the `CountRate.plateau()` method.
-        palette : str, optional
+            Should be ``nerea.CountRate`` when mapped to a ``nerea.CountRate``
+            and ``int`` when mapped to ``nerea.CountRates``. The normalization
+            is passed to ``CountRate.per_unit_time_power()`` or
+            ``CountRates.per_unit_time_power()``.
+        **palette** : ``str``, optional
             plt palette to use for plotting.
-            Defaults to `'tab10'`.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+            Default is ``'tab10'``.
+        **kwargs
+            for `nerea.CountRate.plateau()`.
+            - **sigma** (``int``): standard deviations for plateau finding
+            - **timebase** (``int``): time base for integration in plateau search.
         
         Returns
         -------
-        tuple[plt.Figure, Iterable[plt.Axes]]
-        """
+        ``tuple[plt.Figure, Iterable[plt.Axes]]``"""
         fig, axs = plt.subplots(len(self.count_rates), 2,
                               figsize=(15, 30 / len(self.count_rates)))
         j = 0

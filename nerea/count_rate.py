@@ -22,33 +22,34 @@ __all__ = [
 @dataclass(slots=True)
 class CountRate:
     """
+    ``nerea.CountRate``
+    ===================
     Class storing and processing count rate data acquired as 
     a function of time.
 
-    Attributes:
-    -----------
-    data: pd.DataFrame
+    Attributes
+    ----------
+    **data**: ``pd.DataFrame``
         the count rate as a function of time data.
-    start_time: datetime
+    **start_time**: ``datetime``
         acquisition start time.
-    campaign_id: str
+    **campaign_id**: ``str``
         metadatada for experimental campaign identification.
-    experiment_id: str
+    **experiment_id**: ``str``
         metadata for experiment identification
-    detector_id: str
+    **detector_id**: ``int|str``
         metadata for detector identification
-    deposit_id: str
+    **deposit_id**: ``str``
         metadata for deposit identification
-    timebase: float, optional
-        acquisition timebase in seconds. Default is `1.0`.
-    _dead_time_corrected: bool, optional
+    **timebase**: ``float``, optional
+        acquisition timebase in seconds. Default is ``1.0``.
+    _dead_time_corrected: ``bool``, optional
         flag labelling whether the count rates have been
         corrected for dead time. Handled internally.
-        Default is `False`.
-    _vlines: Iterable[datetime], optional
+        Default is ``False``.
+    _vlines: ``Iterable[datetime]``, optional
         lines to draw plotting. Handled internally.
-        Default is [].
-    """
+        Default is ``[]``."""
     data: pd.DataFrame
     start_time: datetime
     campaign_id: str
@@ -62,13 +63,14 @@ class CountRate:
     @property
     def period(self) -> pd.DataFrame:
             """
-            Calculate the reactor period from a CountRate instance.
+            `nerea.CountRate.period()`
+            --------------------------
+            Calculats the reactor period from a CountRate instance.
             
             Returns
             -------
-            pd.DataFrame
-                with reactor period value and uncertainty
-            """
+            ``pd.DataFrame``
+                with reactor period value and uncertainty."""
             # Curve fitting to find the reactor period (T)
             fitted_data, popt, pcov, out = self._linear_fit()
             period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
@@ -78,16 +80,18 @@ class CountRate:
 
     def _linear_fit(self, preprocessing: str='log', nonzero: bool=True):
         """
+        `nerea.CountRate._linear_fit`
+        -----------------------------
         Linearly fits monitor data after preprocessing.
 
-        Parameters:
-        -----------
-        preprocessing : str, optional
-            numpy function to apply to self.data prior to linear fitting.
-            Default is 'log'.
-        nonzero : bool, optional
-            queries non-zero values in self.data. Default is True.
-        """
+        Parameters
+        ----------
+        **preprocessing** : ``str``, optional
+            ``numpy`` function to apply to ``self.data`` prior to
+            linear fitting. Default is ``'log'``.
+        **nonzero** : ``bool``, optional
+            queries non-zero values in ``self.data``.
+            Default is ``True``."""
         from scipy.optimize import curve_fit
         def linear_fit(x, a, b):
             return x / a + b  # Linear fit function (a = T)
@@ -108,22 +112,28 @@ class CountRate:
 
     def average(self, start_time: datetime, duration: float) -> pd.DataFrame:
         """
-        Calculate the average value and uncertainty of a time series data within a specified duration.
+        `nerea.CountRate.average()`
+        ---------------------------
+        Calculates the average value and uncertainty of
+        time series data within a specified duration.
 
         Parameters
         ----------
-        start_time : datetime
+        **start_time** : ``datetime.datetime``
             The starting time for the data to be analyzed.
-        duration : float
-            The length of time in seconds for which the average is calculated.
+        **duration** : ``float``
+            The length of time in seconds for which
+            the average is calculated.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing:
-            - 'value': The average value of the data within the specified time range.
-            - 'uncertainty': The uncertainty value, calculated as 1/sqrt(N).
+        ``pd.DataFrame``
+            data frame containing average `'value'` and `'uncertainty'` columns.
 
+        Notes
+        -----
+        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)
+            
         Examples
         --------
         >>> from datetime import datetime
@@ -132,8 +142,7 @@ class CountRate:
         >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                               campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
-        >>> print(avg_df)
-        """
+        >>> print(avg_df)"""
         # end_time should be 1 timebase after the real end time to use
         end_time = start_time + timedelta(seconds=duration + self.timebase)
         series = self.data.query("Time >= @start_time and Time < @end_time")
@@ -152,26 +161,31 @@ class CountRate:
 
     def smooth(self, **kwargs) -> Self:
         """
-        Calculates the count rate moving average.
+        `nerea.CountRate.smooth()`
+        --------------------------
+        Smooths the count rate data to ease feature recognition.
 
         Parameters
         ----------
-        **kwargs :
-            arguments to nerea.utils.smoothing()
-            - method
-            - arguments to the metod
+        **kwargs
+        Argumnents for ``nerea.functions.smoothing()``
+        
+            - **renormalize** (``bool``): Whether to renormalize the data.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
         
         Returns
         -------
-        pd.DataFrame
-            with time and counts data.
+        ``pd.DataFrame``
+            data frame with time and counts columns.
         
         Notes
         -----
-        Allowed methods are:
-            - "moving average"
-            - "savgol_filter"
-        """
+        Allowed methods are
+            - ``'moving_average'`` (requires ``window``)
+            - ``'ewm'``
+            - ``'savgol_filter'`` (requires ``window_length``, ``polyorder``)
+            - ``'fit'``(requires ``ch_before_max``, ``order``)"""
         if kwargs.get('window') or kwargs.get('window_lenght'):
             w = kwargs['window'] if kwargs['smoothing_method'] == 'moving_average' else kwargs['window_length']
             if w < self.timebase:  ## if nor window nor window_length are passed w is False
@@ -192,22 +206,27 @@ class CountRate:
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
-        Integrate data over a specified timebase starting from a given start time.
+        `nerea.CountRate.integrate()`
+        -----------------------------
+        Integrates data over a specified timebase starting
+        from a given start time.
 
         Parameters
         ----------
-        timebase : int
+        **timebase** : ``int``
             The interval of time in seconds over which to calculate the average.
             This interval is used to group the data for averaging.
-        start_time : datetime, optional
-            The starting time for the integration process. Defaults to `self.start_time`.
+        **start_time** : ``datetime``, optional
+            The starting time for the integration process. Default is ``self.start_time``.
 
         Returns
         -------
-        pd.DataFrame
-            DataFrame containing:
-            - 'value': The average value of the data within the specified time range.
-            - 'uncertainty': The uncertainty value, calculated as 1/sqrt(N).
+        ``pd.DataFrame``
+            data frame containing average `'value'` and `'uncertainty'` columns.
+
+        Notes
+        -----
+        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)
 
         Examples
         --------
@@ -217,8 +236,7 @@ class CountRate:
         >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                               campaign_id='C1', experiment_id='E1', detector_id='M1')
         >>> integrated_df = pm.integrate(10)
-        >>> print(integrated_df)
-        """
+        >>> print(integrated_df)"""
         start_time_ = self.start_time if start_time is None else start_time
         out = []
         while start_time_ < self.data.Time.max():
@@ -228,23 +246,24 @@ class CountRate:
 
     def plateau(self, sigma: int=2, timebase: int=10) -> pd.DataFrame:
         """
+        `nerea.CountRate.plateau()`
+        ---------------------------
         The plateau with the largest integral counts in the detector.
 
         Parameters
         ----------
-        sigma : int, optional
+        **sigma** : ``int``, optional
             the amount of standard deviations to consider for the
             uncertainty on the plateau.
-            Defaults to 2.
-        timebase : int, optional
+            Defaults to ``2``.
+        **timebase** : ``int``, optional
             the time base for integration in plateau search in seconds.
-            Defaults to 10 s.
+            Defaults to ``10`` s.
         
         Returns
         -------
-        pd.DataFrame
-            with a `Time` and a `value` column.
-        """
+        ``pd.DataFrame``
+            with ``'Time'`` and ``'value'`` columns."""
         time = self.data.Time.min()
         plateau_start_time, plateau_end_time = self.data.Time.min(), self.data.Time.min()
         sum, max = 1, 0
@@ -272,50 +291,55 @@ class CountRate:
             raise Exception(f"No plateau found in for detector {self.detector_id} in experiment {self.experiment_id}.")
         return self.data.query("Time > @max_plateau_start_time and Time <= @max_plateau_end_time")
 
-    def per_unit_power(self, monitor: Self, *args, **kwargs) -> pd.DataFrame:
+    def per_unit_power(self, monitor: Self, **kwargs) -> pd.DataFrame:
         """
-        Normalizes the raction rate to a power monitor.
+        `nerea.CountRate.per_unit_power()`
+        ----------------------------------
+        Normalizes the count rate to a power monitor.
 
         Parameters
         ----------
-        monitor : CountRate
+        **monitor** : ``nerea.CountRate``
             The power monitor for the count rate normalization.
-        *args : Any
-            Positional arguments to be passed to the `CountRate.plateau()` method.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+        **kwargs
+            arguments for ``self.plateau()``.
+            - **sigma** (``int``): standard deviations for plateau finding.
+            - **timebase** (``int``): integration timebase in seconds.
         
         Returns
         -------
-        pd.DataFrame
-            with value and uncertainty of the normalized count rate
-            integrated over time.
-        """
-        plateau = self.plateau(*args, **kwargs)
+        ``pd.DataFrame``
+            with ``'value'`` and ``'uncertainty'`` columns."""
+        plateau = self.plateau(**kwargs)
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
         normalization = monitor.average(plateau.Time.min(), duration) 
         return _make_df(*ratio_v_u(_make_df(*integral_v_u(plateau.value)), normalization))
 
     def per_unit_time_power(self, monitor: Self, *args, **kwargs) -> pd.DataFrame:
         """
-        Normalizes the raction rate to a power monitor and gives the conunt rate
-        per unit power.
+        `nerea.CountRate.per_unit_time_power()`
+        ---------------------------------------
+        Normalizes the count rate to a power monitor and gives
+        the conunt rate per unit power.
 
         Parameters
         ----------
         monitor : CountRate
             The power monitor for the count rate normalization.
-        *args : Any
-            Positional arguments to be passed to the `CountRate.plateau()` method.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+        
+        Parameters
+        ----------
+        **monitor** : ``nerea.CountRate``
+            The power monitor for the count rate normalization.
+        **kwargs
+            arguments for ``self.plateau()``.
+            - **sigma** (``int``): standard deviations for plateau finding.
+            - **timebase** (``int``): integration timebase in seconds.
         
         Returns
         -------
-        pd.DataFrame
-            with value and uncertainty of the normalized count rate
-            averaged over time.
-        """
+        ``pd.DataFrame``
+            with ``'value'`` and ``'uncertainty'`` columns."""
         plateau = self.plateau(*args, **kwargs)
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
         unit_p = self.per_unit_power(monitor, *args, **kwargs)
@@ -323,22 +347,23 @@ class CountRate:
 
     def dead_time_corrected(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
         """
+        `nerea.CountRate.dead_time_corrected()`
+        ---------------------------------------
         Apply dead time correction to the count rate data.
         
         Parameters
         ----------
-        tau_p : float, optional
-            prompt dead time constant.
-            Defaults to 88e-9.
-        tau_np : float, optional
-            non-prompt dead time constant.
-            Defaults to 108e-9.
+        **tau_p** : ``float``, optional
+            paralizable dead time constant.
+            Defaults to ``88e-9``.
+        **tau_np** : ``float``, optional
+            non-paralizable dead time constant.
+            Defaults to ``108e-9``.
         
         Returns
         -------
-        self.__class__
-            instance with corrected data
-        """
+        ``nerea.CountRate``
+            instance with dead time corrected data."""
         if self._dead_time_corrected:
             pm = self.data.copy()
         else:
@@ -364,19 +389,21 @@ class CountRate:
 
     def get_reactivity(self, delayed_data: EffectiveDelayedParams) -> pd.DataFrame:
         """
+        `nerea.CountRate.get_reactivity()`
+        ----------------------------------
         Calculates the reactor reactivity based on the Count Rate-estimated
         reactor period and on effective nuclear data computed by Serpent.
         
         Parameters
         ----------
-        delayed_data_file : nerea.EffectiveDelayedParams
-            effective delayed neutron paramters to use for reactivity calculation
+        **delayed_data** : ``nerea.EffectiveDelayedParams``
+            effective delayed neutron paramters to use for
+            reactivity calculation.
 
         Returns
         -------
-        pd.DataFrame
-            with reactivity value and uncertainty
-        """
+        ``pd.DataFrame``
+            data frame with ``'value'`` and ``'uncertainty'`` columns."""
         bi = delayed_data.beta_i
         li = delayed_data.lambda_i
 
@@ -395,34 +422,35 @@ class CountRate:
     def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2,
                               smooth_kwargs: dict={}, dtc_kwargs: dict={}) -> Self:
         """
-        Cut the power monitor data based on specific conditions to find the
+        `nerea.CountRate.get_asymptotic_counts()`
+        -----------------------------------------
+        Cuts the power monitor data based on specific conditions to find the
         asymptotic exponential (after all harmonics have decayed).
         
         Parameters
         ----------
-        t_left : float, optional
+        **t_left** : ``float``, optional
             tolerance to find the beginning of the asymptotic
-            exponential counts. Default is 3e-2.
-        t_right : float, optional
+            exponential counts. Default is ``3e-2``.
+        **t_right** : ``float``, optional
             tolerance to find the end of the asymptotic
-            exponential counts. Default is 1e-2.
-        smooth_kwargs: dict, optional
-            arguments to pass to `self.smooth`.
-            Default is `{}`.
-        dtc_kwargs : dict, optional
-            arguments to pass to `self.dead_time_corrected`.
-            Default is `{}`.
+            exponential counts. Default is ``1e-2``.
+        **smooth_kwargs** : ``dict``, optional
+            arguments to pass to ``self.smooth``.
+            Default is ``{}``.
+        **dtc_kwargs** : ``dict``, optional
+            arguments to pass to ``self.dead_time_corrected``.
+            Default is ``{}``.
             
         Returns
         -------
-        self.__class__
-            instance with truncated data
+        ``nerea.CountRate``
+            instance with truncated data.
 
         Notes
         -----
-        Inherently uses dead time corrected counts
-        Inherently uses smoothed data to ease the search
-        """
+        - inherently uses dead time corrected counts
+        - inherently uses smoothed data to ease the search."""
         smt_kw = DEFAULT_SMOOTH_KWARGS | smooth_kwargs
         if not self._dead_time_corrected:
             dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
@@ -465,29 +493,31 @@ class CountRate:
              c: str='k',
              **kwargs) -> plt.Axes:
         """
-        Plot data in CountRate.
+        `nerea.CountRate.plot()`
+        ------------------------
+        Plot data in this CountRate instance.
 
         Parameters
         ----------
-        start_time : datetime, optional
+        **start_time** : ``datetime.datetime``, optional
             The time the count rate is considered from.
-            Default is None for first acquisition time.
-        duration : int, optional
+            Default is ``None`` for first acquisition time.
+        **duration** : ``int``, optional
             The time-span the count rate is considered for.
-            Default is None for until last acquisition time.
-        ax : plt.Axes, optional
+            Default is ``None`` for until last acquisition time.
+        **ax** : ``plt.Axes``, optional
             The ax where the plot is drawn.
-            Defauls is None for a new axes.
-        c : str, optional
+            Defauls is ``None`` for a new axes.
+        **c** : ``str``, optional
             The color of the plotted seriese.
-            Default is `'k'`.
-        kwargs : optional
-            Keyword arguments for `pd.DataFrame.plot()`
+            Default is ``'k'``.
+        **kwargs
+            Additional arguments for ``pd.DataFrame.plot()``
         
         Returns
         -------
-        plt.Axes
-        """
+        ``plt.Axes``
+            with the plotted data."""
         start_time_ = start_time if start_time is not None else self.start_time
         duration_ = duration if duration is not None else (
             self.data.Time.max() - start_time_).total_seconds()
@@ -515,32 +545,31 @@ class CountRate:
     @classmethod
     def _from_formatted_ads(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate._from_formatted_ads()`
+        ---------------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file generated by ADS DAQ.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        kwargs to the class creation
-            detector : int
-                Detector number in the ASCII file.
-            deposit_id : str
-                Deposit of the detector.
+        **kwargs
+            Additional arguments for class creation
+            **detector_id** (``int|str``): metadata for detector identification
+            **deposit_id** (``str``): metadata for detector deposit.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
+        ``nerea.CountRate``
+            A new ``nerea.CountRate`` instance.
 
         Note
         ----
-        Infers `campaign_id` and `experiment_id`
-        from file name.
-
-        File format: `'CAMP_EXP.ads'`
-        """
-        detector = kwargs.pop('detector', None)
+        - infers ``campaign_id`` and ``experiment_id`` from file name.
+        - file format: ``'CAMP_EXP.ads'``.
+        - ``detector_id`` kwarg is also used to select the detector to read."""
+        detector = kwargs.pop('detector_id', None)
         if detector is None:
             raise ValueError("`'detector'` kwarg required to read CountRate.")
         start_time = datetime.strptime(linecache.getline(file, 1), "%d-%m-%Y %H:%M:%S\n")
@@ -559,28 +588,26 @@ class CountRate:
     @classmethod
     def _from_phspa(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate._from_phspa()`
+        -------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file generated by PHSPA DAQ.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        kwargs to the class creation
-            detector : int
-                Detector number in the ASCII file.
-            deposit_id : str
-                Deposit of the detector.
-            campaign_id : str
-                ID of experimental campaign
-            experiment_id : str
-                ID of experiment in the campaign
+        **kwargs
+            additional arguments for class creation
+            **detector_id** (``int``): metadata for detector identification
+            **deposit_id** (``str``): metadata for detector deposit
+            **campaign_id** (``str``): metadata for experimental campaign identification
+            **experiment_id** (``str``): metadata for experiment identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
-        """
+        ``nerea.CountRate``
+            A new ``nerea.CountRate`` instance."""
         detector = kwargs.pop('detector', None)
         if detector is None:
             raise ValueError("`'detector'` kwarg required to read CountRate.")
@@ -598,33 +625,30 @@ class CountRate:
     @classmethod
     def _from_formatted_phspa(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate._from_formatted_phspa()`
+        -----------------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file generated by PHSPA DAQ.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        kwargs to the class creation
-            deposit_id : str
-                Deposit of the detector.
-            campaign_id : str
-                ID of experimental campaign
-            experiment_id : str
-                ID of experiment in the campaign
+        **kwargs
+            additional arguments for class creation
+            **deposit_id** (``str``): metadata for detector deposit
+            **campaign_id** (``str``): metadata for experimental campaign identification
+            **experiment_id** (``str``): metadata for experiment identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
+        ``nerea.CountRate``
+            A new ``nerea.CountRate`` instance.
 
         Note
         ----
-        Infers `detector_id`, `campaign_id` and
-        `experiment_id` from file name.
-        
-        File format: `'CAMP_EXP_DET.log'`
-        """
+        - infers ``detector_id``, ``campaign_id`` and ``experiment_id`` from file name.
+        - file format: ``'CAMP_EXP_DET.log'``."""
         metadata = file.split('\\')[-1].split('.')[0]
         campaign_id, experiment_id, det = metadata.split('_')
         return cls._from_phspa(file,
@@ -636,28 +660,28 @@ class CountRate:
     @classmethod
     def _from_formatted_br1(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate._from_formatted_br1()`
+        ---------------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file generated by the NBS chamber
         DAQ at BR1.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        kwargs to the class creation
-            experiment_id : str
-                ID of experiment in the campaign
+        **kwargs
+            additional arguments for class creation
+            **experiment_id** (``str``): metadata for experiment identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
+        ``nerea.CountRate``
+            A new ``nerea.CountRate`` instance.
 
         Note
         ----
-        Sets `detector_id` to `'NBS'`, deposit_id to `'U235'`
-        and `campaign_id` to `'CAL'`
-        """
+        - sets ``detector_id`` to ``'NBS'``, ``deposit_id`` to ``'U235'`` and ``campaign_id`` to `'CAL'`."""
         read = pd.read_csv(file, sep=';', header=None)[[0,4]]
         read.columns = ["Time", "value"]
         read["Time"] = pd.to_datetime(read["Time"])
@@ -675,38 +699,36 @@ class CountRate:
     @classmethod
     def _from_formatted_vf(cls, file: str, **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate._from_formatted_vf()`
+        --------------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file generated by the VENUS-F
         monitoring system.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        kwargs to the class creation
-            experiment_id : str
-                ID of experiment in the campaign
-            detector : str
-                ID of detector to use
+        **kwargs
+            additional arguments for class creation
+            **deposit_id** (``str``): metadata for detector deposit
+            **detector_id** (``str``): metadata for detector identification
+            **experiment_id** (``str``): metadata for experiment identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
+        ``nerea.CountRate``
+            A new ``nerea.CountRate`` instance.
 
         Note
         ----
-        Infers `campaign_id` and `experiment_id`
-        from file name.
-        
-        File format: `'CAMP_EXP_DATE.vf'`
-
-        Reads experiment date from file name.
-        DATE format: %Y-%m-%d
-        """
-        detector = kwargs.pop('detector', None)
+        - infers ``campaign_id`` and ``experiment_id`` from file name.
+        - file format: ``'CAMP_EXP_DATE.vf'``
+        - reads experiment date from file name.
+        - DATE format: %Y-%m-%d."""
+        detector = kwargs.pop('detector_id', None)
         if detector is None:
-            raise ValueError("`'detector'` kwarg required to read CountRate.")
+            raise ValueError("`'detector_id'` kwarg required to read CountRate.")
         data = pd.read_csv(file, encoding='unicode_escape', sep=r'\s+', index_col=False)
         md = file.split('\\')[-1].split('.')[0]
         cmp, exp, time = md.split('_')[0], md.split('_')[1], md.split('_')[2]
@@ -725,32 +747,30 @@ class CountRate:
     @classmethod
     def from_ascii(cls, file: str, filetype: str='infer', **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate.from_ascii()`
+        ------------------------------
+        Method to create a ``nerea.CountRate`` instance
         from an ASCII file.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        filetype : str, optional
+        **filetype** : ``str``, optional
             Type of ASCII file to process.
-            Default is `'infer'` to infer it from
+            Default is ``'infer'`` to infer it from
             file extension.
-        kwargs to the class creation
-            detector : int
-                Detector number in the ASCII file.
-            deposit_id : str
-                Deposit of the detector.
-            campaign_id : str
-                ID of experimental campaign
-            experiment_id : str
-                ID of experiment in the campaign
+        **kwargs
+            additional arguments for class creation
+            **deposit_id** (``str``): metadata for detector deposit
+            **detector_id** (``str``): metadata for detector identification
+            **experiment_id** (``str``): metadata for experiment identification
+            **campaign_id** (``str``): metadata for experimental campaign identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
-        """
+        ``nerea.CountRate``
+            A new ``CountRate`` instance."""
         ft = file.split('.')[-1] if filetype == 'infer' else filetype
         match ft:
             case 'ads':
@@ -770,32 +790,30 @@ class CountRate:
     @classmethod
     def from_files(cls, files: Iterable[str], filetype: str='infer', **kwargs) -> Self:
         """
-        Method to create a `CountRate` instance
+        `nerea.CountRate.from_files()`
+        ------------------------------
+        Method to create a ``nerea.CountRate`` instance
         joing data from ASCII files of the same type.
 
         Parameters
         ----------
-        file : str
+        **file** : ``str``
             Path to the ASCII file.
-        filetype : str, optional
+        **filetype** : ``str``, optional
             Type of ASCII file to process.
-            Default is `'infer'` to infer it from
+            Default is ``'infer'`` to infer it from
             file extension.
-        kwargs to the class creation
-            detector : int
-                Detector number in the ASCII file.
-            deposit_id : str
-                Deposit of the detector.
-            campaign_id : str
-                ID of experimental campaign
-            experiment_id : str
-                ID of experiment in the campaign
+        **kwargs
+            additional arguments for class creation
+            **deposit_id** (``str``): metadata for detector deposit
+            **detector_id** (``str``): metadata for detector identification
+            **experiment_id** (``str``): metadata for experiment identification
+            **campaign_id** (``str``): metadata for experimental campaign identification.
 
         Returns
         -------
-        CountRate
-            A new `CountRate` instance.
-        """
+        ``nerea.CountRate``
+            A new ``CountRate`` instance."""
         data = []
         vlines = []
         for i, f in enumerate(files):
@@ -819,17 +837,18 @@ class CountRate:
 @dataclass(slots=True)
 class CountRates:
     """
+    ``nerea.CountRates``
+    =============================
     Class storing and processing count rate data acquired as 
     a function of time. Stores data of many detectors/acquisitions.
 
-    Attributes:
-    -----------
-    detectors: dict[int, `nerea.CountRate`]
+    Attributes
+    ----------
+    **detectors** : ``dict[int, nerea.CountRate]``
         Links detector id and its conunt rate.
-        `key` is the id and `value` the count rate.
-    _enable_checks: bool, optional
-        flag to enable consistency checks.
-    """
+        ``key`` is the id and ``value`` the count rate.
+    _enable_checks: ``bool``, optional
+        flag to enable consistency checks. Default is ``True``."""
     detectors: dict[int, CountRate]
     _enable_checks: bool = True
 
@@ -843,16 +862,18 @@ class CountRates:
     def _check_consistency(self, time_tolerance: timedelta=timedelta(seconds=60),
                            timebase: int=100, sigma=1) -> None:
         """
+        `nerea.CountRates._check_consistency()`
+        ---------------------------------------
         Check the consistency of time and curve data with specified parameters.
 
         Parameters
         ----------
-        time_tolerance : timedelta, optional
-            Parameter for `self._check_time_consistency`. Defaults to 60 seconds.
-        timebase : int, optional
-            Parameter for `self._check_curve_consistency`. Defaults to 100.
-        sigma : int, optional
-            Parameter for `self._check_curve_consistency`. Defaults to 1.
+        **time_tolerance** : ``datetime.timedelta``, optional
+            Parameter for ``self._check_time_consistency``. Defaults to ``60`` seconds.
+        **timebase** : ``int``, optional
+            Parameter for ``self._check_curve_consistency``. Defaults to ``100``.
+        **sigma** : int, optional
+            Parameter for ``self._check_curve_consistency``. Defaults to ``1``.
 
         Examples
         --------
@@ -863,8 +884,7 @@ class CountRates:
         >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
         >>> pms = CountRates(detectors={1: pm1, 2: pm2})
-        >>> pms._check_consistency()
-        """
+        >>> pms._check_consistency()"""
         must = ['campaign_id', 'experiment_id']
         for attr in must:
             if not all([getattr(m, attr) == getattr(list(self.detectors.values())[0], attr)
@@ -880,13 +900,16 @@ class CountRates:
 
     def _check_time_consistency(self, time_tolerance: timedelta) -> None:
         """
-        Check if the start times of power detectors are consistent within a given time tolerance.
+        `nerea.CountRates._check_time_consistency()`
+        --------------------------------------------
+        Check if the start times of power detectors are
+        consistent within a given time tolerance.
 
         Parameters
         ----------
-        time_tolerance : timedelta
-            The maximum allowable difference in time between the start times of the power detectors
-            in `self.detectors`.
+        **time_tolerance** : ``datetime.timedelta``
+            The maximum allowable difference in time between
+            the start times of the power detectors in ``self.detectors``.
 
         Examples
         --------
@@ -897,8 +920,7 @@ class CountRates:
         >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
         >>> pms = CountRates(detectors={1: pm1, 2: pm2})
-        >>> pms._check_time_consistency(timedelta(seconds=60))
-        """
+        >>> pms._check_time_consistency(timedelta(seconds=60))"""
         ref = list(self.detectors.values())[0].start_time
         for monitor in self.detectors.values():
             if not abs(monitor.start_time - ref) < time_tolerance:
@@ -906,18 +928,24 @@ class CountRates:
 
     def _check_curve_consistency(self, timebase: int, sigma: int=1) -> None:
         """
-        Compare data from multiple detectors to check for consistency within a sigma-uncertainty tolerance,
-        based on a specified timebase.
+        `nerea.CountRates._check_curve_consistency()`
+        ---------------------------------------------
+        Compare data from multiple detectors to check for consistency
+        within a sigma-uncertainty tolerance, based on a specified
+        timebase.
 
         Parameters
         ----------
-        timebase : int
-            The time interval in seconds for grouping the data. This parameter determines how the data are
-            aggregated and compared between different detectors.
-        sigma : int, optional
-            The uncertainty associated with the measurements. It is used to calculate the tolerance for
-            checking the consistency between different power detectors. The tolerance is computed as the
-            average uncertainty on the ratio of values between two detectors. Defaults to 1.
+        **timebase** : ``int``
+            The time interval in seconds for grouping the data.
+            This parameter determines how the data are aggregated
+            and compared between different detectors.
+        **sigma** : ``int``, optional
+            The uncertainty associated with the measurements. It
+            is used to calculate the tolerance for checking the
+            consistency between different power detectors. The
+            tolerance is computed as the average uncertainty on the
+            ratio of values between two detectors. Defaults to ``1``.
 
         Examples
         --------
@@ -928,8 +956,7 @@ class CountRates:
         >>> pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), 
                                campaign_id='C1', experiment_id='E1', detector_id='M2')
         >>> pms = CountRates(detectors={1: pm1, 2: pm2})
-        >>> pms._check_curve_consistency(10, 1)
-        """
+        >>> pms._check_curve_consistency(10, 1)"""
         ref = list(self.detectors.values())[0].data.groupby(
                                                     pd.Grouper(key="Time", freq=f'{timebase}s', closed='right'),
                                                     observed=False
@@ -955,46 +982,66 @@ class CountRates:
     @property
     def _first(self) -> CountRate:
         """
-        The first count rate in `self.detectors`.
-        """
+        `nerea.CountRates._first()`
+        ---------------------------
+        The first count rate in ``self.detectors``.
+
+        Returns
+        -------
+        ``nerea.CountRate``
+            the first count rate."""
         return list(self.detectors.values())[0]
 
     @property
     def campaign_id(self) -> str:
         """
-        Campaign id of thefirst count rate in `self.detectors`.
-        """
+        `nerea.CountRates.campaign_id()`
+        --------------------------------
+        Campaign id of the first count rate in ``self.detectors``.
+
+        Returns
+        -------
+        ``str``
+            the campaign id of the first detector."""
         return self._first.campaign_id
 
     @property
-    def experiment_id(self) -> str:
+    def experiment_id(self) -> str | int:
         """
-        Experiment id of thefirst count rate in `self.detectors`.
-        """
+        `nerea.CountRates.experiment_id()`
+        ----------------------------------
+        Experiment id of the first count rate in ``self.detectors``.
+
+        Returns
+        -------
+        ``str``
+            the campaign id of the first detector."""
         return self._first.experiment_id
 
     @property
     def deposit_id(self) -> str:
         """
+        `nerea.CountRates.deposit_id()`
+        -------------------------------
         The deposit id of the first element of `self.detectors`.
-        """
+        
+        Returns
+        -------
+        ``str``
+            the deposit id of the first detector."""
         return self._first.deposit_id
 
     @property
     def best(self) -> CountRate:
         """
-        Returns the power monitor with the highest sum value.
+        `nerea.CountRates.best()`
+        -------------------------
+        Returns the count rate with the highest sum value.
 
         Returns
         -------
-        CountRate
-            Power monitor with the highest integral count.
-
-        Examples
-        --------
-        >>> pm = CountRate(...)
-        >>> best_pm = pm.best
-        """
+        ``nerea.CountRate``
+            Count rate with the highest integral count."""
         max = list(self.detectors.values())[0].data.value.sum()
         out = list(self.detectors.values())[0]
         for monitor in list(self.detectors.values())[1:]:
@@ -1002,60 +1049,60 @@ class CountRates:
                 out = monitor
         return out
 
-    def per_unit_power(self, monitor: int, *args, **kwargs) -> dict[int, pd.DataFrame]:
+    def per_unit_power(self, monitor: int, **kwargs) -> dict[int, pd.DataFrame]:
         """
+        `nerea.CountRates.per_unit_power()`
+        -----------------------------------
         Normalizes the raction rate to a power monitor.
 
         Parameters
         ----------
-        monitor : int
+        **monitor** : ``int``
             The ID of the count rate to be used as power
             monitor for the count rate normalization.
-        *args : Any
-            Positional arguments to be passed to the `CountRate.plateau()` method.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+        **kwargs
+            arguments for ``CountRate.plateau()``.
+            - **sigma** (``int``): standard deviations for plateau finding.
+            - **timebase** (``int``): integration timebase in seconds.
 
         Returns
         -------
-        dict[int, pd.DataFrame]
+        ``dict[int, pd.DataFrame]``
             with value and uncertainty of the normalized count rate
             integrated over time. Keys are the detector IDs as in
-            self.detectors.
-        """
+            self.detectors."""
         out = {}
         for key, detector in self.detectors.items():
             if key != monitor:
-                out[key] = detector.per_unit_power(self.detectors[monitor],
-                                                   *args, **kwargs)
+                out[key] = detector.per_unit_power(self.detectors[monitor], **kwargs)
         return out
 
-    def per_unit_time_power(self, monitor: int, *args, **kwargs) -> dict[int, pd.DataFrame]:
+    def per_unit_time_power(self, monitor: int, **kwargs) -> dict[int, pd.DataFrame]:
         """
+        `nerea.CountRates.per_unit_time_power()`
+        ----------------------------------------
         Normalizes the raction rate to a power monitor and takes the average over time.
 
         Parameters
         ----------
-        monitor : int
+        **monitor** : ``int``
             The ID of the count rate to be used as power
             monitor for the count rate normalization.
-        *args : Any
-            Positional arguments to be passed to the `CountRate.plateau()` method.
-        **kwargs : Any
-            Keyword arguments to be passed to the `CountRate.plateau()` method.
+        **kwargs
+            arguments for ``CountRate.plateau()``.
+            - **sigma** (``int``): standard deviations for plateau finding.
+            - **timebase** (``int``): integration timebase in seconds.
 
         Returns
         -------
-        dict[int, pd.DataFrame]
+        ``dict[int, pd.DataFrame]``
             with value and uncertainty of the normalized count rate
             averaged over time. Keys are the detector IDs as in
-            self.detectors.
-        """
+            self.detectors."""
         out = {}
         for key, detector in self.detectors.items():
             if key != monitor:
-                out[key] = detector.per_unit_time_power(self.detectors[monitor],
-                                                        *args, **kwargs)
+                out[key] = detector.per_unit_time_power(self.detectors[monitor], **kwargs)
         return out
 
     @classmethod
@@ -1063,7 +1110,9 @@ class CountRates:
                    files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
                    filetypes: Iterable[str]='infer') -> Self:
         """
-        Creates an instance of CountRate using data extracted from an ASCII file.
+        `nerea.CountRates.from_ascii()`
+        -------------------------------
+        Creates an instance of ``nerea.CountRates`` using data extracted from an ASCII file.
 
         The ASCII file should contain columns of data including timestamps and power readings.
 
@@ -1073,36 +1122,33 @@ class CountRates:
 
         Parameters
         ----------
-        files : dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]]
+        **files** : ``dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]]``
             Maps each file to the detectors to read there and
             the corresponding deposit id.
-            - key: str
+
+            - key: ``str``
                 Path to the ASCII files containing the power monitor data.
-            -values: tuple
-                first: Iterable[str]|Iterable[int]
+            - values: ``tuple``
+                first: ``Iterable[str]|Iterable[int]``
                     detector ids for ADS files
-                    or None
-                    for PHSPA file (detector id inferred from filename)
-                second: Iterable[str]
+                    or ``None`` for PHSPA file (detector id inferred from filename)
+                second: ``Iterable[str]``
                     deposit ids
-        filetype : Iterable[str], optional
+        **filetype** : ``Iterable[str]``, optional
             Type of ASCII file to process.
-            Default is `'infer'` to infer it from
+            Default is ``'infer'`` to infer it from
             file extension for each file.
 
         Returns
         -------
-        CountRate
-            An instance of the CountRate class initialized
-            with the data from the ASCII file.
+        ``nerea.CountRates``
+            initialized with the data from the ASCII file.
 
         Note
         ----
-        Allowed only for formatted source files.
-
-        ADS files requires detectors to be passed as an iterable
-        in the same order as the ADS processed files.
-        """
+        - allows only for formatted source files.
+        - ADS files requires detectors to be passed as an iterable
+            in the same order as the ADS processed files."""
         ft = ['infer'] * len(files) if filetypes == 'infer' else filetypes
         out = {}
         for i, (f, (dets, deps)) in enumerate(files.items()):
