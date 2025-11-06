@@ -658,7 +658,7 @@ class PulseHeightSpectrum:
         return cls(**kwargs)
 
     @classmethod
-    def from_formatted_TKA(cls, file: str) -> Self:
+    def from_formatted_TKA(cls, file: str, **kwargs) -> Self:
         """
         `nerea.PulseHeightSpectrum.from_formatted_TKA()`
         ------------------------------------------------
@@ -698,7 +698,7 @@ class PulseHeightSpectrum:
             'deposit_id': deposit_id,
             'location_id': location_id,
             'measurement_id': measurement_id.replace(".TKA", ""),
-        }
+        } | kwargs
         return cls.from_TKA(file, **dct)
 
 
@@ -777,7 +777,7 @@ class PulseHeightSpectra():
         return out
 
     @classmethod
-    def from_formatted_TKA(cls, files: Iterable[str]) -> Self:
+    def from_formatted_TKA(cls, files: Iterable[str], **kwargs) -> Self:
         """
         `nerea.PulseHeightSpectra.from_formatted_TKA()`
         -----------------------------------------------
@@ -790,11 +790,16 @@ class PulseHeightSpectra():
         ----------
         **files** : ``Iterable[str]``
             List of file paths.
+        **kwargs
+            Keyword arguments for class initialization
+            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
+            The same is passed to all instances.
 
         Returns
         -------
         ``nerea.PulseHeightSpectra``"""
         data = []
         for file in files:
-            data.append(cls.from_formatted_TKA(file))
+            data.append(cls.from_formatted_TKA(file, **kwargs))
         return cls(data)

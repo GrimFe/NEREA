@@ -1134,6 +1134,7 @@ class CountRates:
                     or ``None`` for PHSPA file (detector id inferred from filename)
                 second: ``Iterable[str]``
                     deposit ids
+
         **filetype** : ``Iterable[str]``, optional
             Type of ASCII file to process.
             Default is ``'infer'`` to infer it from
