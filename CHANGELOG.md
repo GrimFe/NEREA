@@ -12,7 +12,10 @@ All notable changes to this project will be documented in this file.
 [#36](https://github.com/GrimFe/NEREA/pull/36),
 [#37](https://github.com/GrimFe/NEREA/pull/37),
 [#38](https://github.com/GrimFe/NEREA/pull/38)
-- User-defined LLDs for PHS analysis, [#40](https://github.com/GrimFe/NEREA/pull/40)
-- Visual option for plotting, [#43](https://github.com/GrimFe/NEREA/pull/43)
+- User-defined LLDs for PHS analysis, [#40](https://github.com/GrimFe/NEREA/pull/40), [#49](https://github.com/GrimFe/NEREA/pull/49)
+- Visual option for plotting, [#43](https://github.com/GrimFe/NEREA/pull/43), [#49](https://github.com/GrimFe/NEREA/pull/49)
 - PHS smoothing and fitting, [#45](https://github.com/GrimFe/NEREA/pull/45), [#46](https://github.com/GrimFe/NEREA/pull/46),
 [#47](https://github.com/GrimFe/NEREA/pull/47)
+- Requirements, README, Documentation and installation stuff, [#49](https://github.com/GrimFe/NEREA/pull/49)
+- Class name refactor, [#49](https://github.com/GrimFe/NEREA/pull/49)
+- New class methods for ``nerea.ReactionRate`` and ``nerea.ReactionRates``, [#49](https://github.com/GrimFe/NEREA/pull/49)
