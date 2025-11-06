@@ -368,7 +368,7 @@ class PulseHeightSpectrum:
         out = []
         for ch in llds:
             out.append(int(np.floor(ch * self.get_R(**kwargs).channel.iloc[0])) if r else int(np.round(ch)))
-        return np.array(out)
+        return np.array(out, dtype=np.int32)
 
     def integrate(self,
                   llds: Iterable[int | float]=[.15, .2, .25, .3, .35, .4, .45, .5, .55, .6],
