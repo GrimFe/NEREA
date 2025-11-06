@@ -44,7 +44,7 @@ import nerea
 ```
 ## 🗺️ Structure
 
-A schematic of the main structure of NEREA: ![here](https://github.com/GrimFe/NEREA/raw/main/img/Schematic_v0.1.0.png)
+A schematic of the main structure of NEREA: ![here](https://github.com/GrimFe/NEREA/blob/v0.1/img/Schematic_v0.1.0.png)
 Some of the main features of NEREA are:
 * DATA - dedicated to the interface with detector raw data and preprocessing:
    - `EffectiveMass` or [`EM`](https://github.com/GrimFe/NEREA/blob/main/nerea/effective_mass.py)
