@@ -1,8 +1,10 @@
+<h1 align="center"
 [![codecov](https://codecov.io/gh/GrimFe/NEREA/branch/v0.1/graph/badge.svg)](https://codecov.io/gh/GrimFe/NEREA)
 [![Tests](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/nerea.svg)](https://pypi.org/project/nerea/)
 
 ![here](https://github.com/GrimFe/NEREA/blob/v0.1/img/logo.png)
+</h1>
 
 <h1 align="center" style="font-family:simplifica">NEREA</h1>
 
