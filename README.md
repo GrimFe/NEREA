@@ -2,7 +2,7 @@
 [![Tests](https://github.com/GrimFe/NEREA/actions/workflows/test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/nerea.svg)](https://pypi.org/project/nerea/)
 
-![here](https://github.com/GrimFe/NEREA/raw/main/img/logo.png)
+![here](https://github.com/GrimFe/NEREA/blob/v0.1/img/logo.png)
 
 <h1 align="center" style="font-family:simplifica">NEREA</h1>
 
