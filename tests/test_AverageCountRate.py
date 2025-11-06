@@ -1,8 +1,8 @@
 # import pytest
-# from REPTILE.ReactionRate import ReactionRate, AverageReactionRate
-# from REPTILE.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
-# from REPTILE.EffectiveMass import EffectiveMass
-# from REPTILE.PowerMonitor import PowerMonitor
+# from nerea.ReactionRate import ReactionRate, AverageReactionRate
+# from nerea.FissionFragmentSpectrum import FissionFragmentSpectrum, FissionFragmentSpectra
+# from nerea.EffectiveMass import EffectiveMass
+# from nerea.PowerMonitor import PowerMonitor
 # import pandas as pd
 
 # def test_average_reaction_rate_initialization(fission_fragment_spectrum, effective_mass, power_monitor):

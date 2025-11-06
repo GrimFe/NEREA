@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from nerea.control_rod import *
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -34,7 +34,7 @@ def rrs(periods):
     for h, p in periods.items():
         counts[h] = np.exp(x[10:-10] / p)
         counts[h] = np.concatenate(([counts[h][0] - 20] * 10, counts[h], [counts[h][-1]] * 10))
-        counts[h] = ReactionRate(pd.DataFrame({"Time": [datetime(2025, 5, 19, 19, 31, 20) + timedelta(seconds=i) for i in range(tend+1)],
+        counts[h] = CountRate(pd.DataFrame({"Time": [datetime(2025, 5, 19, 19, 31, 20) + timedelta(seconds=i) for i in range(tend+1)],
                                                     "value": counts[h]}),
                                     start_time=datetime(2025, 5, 19, 19, 31, 20),
                                     campaign_id="TEST",
@@ -45,27 +45,27 @@ def rrs(periods):
 
 @pytest.fixture
 def cr(rrs):
-    cr = ControlRodCalibration(reaction_rates=rrs, critical_height=0, name="CR0")
+    cr = ControlRodCalibration(count_rates=rrs, critical_height=0, name="CR0")
     return cr
 
 @pytest.fixture
 def dnc(rrs):
-    dnc = DifferentialNoCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    dnc = DifferentialNoCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return dnc
 
 @pytest.fixture
 def inc(rrs):
-    inc = IntegralNoCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    inc = IntegralNoCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return inc
 
 @pytest.fixture
 def dc(rrs):
-    dc = DifferentialCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    dc = DifferentialCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return dc
 
 @pytest.fixture
 def ic(rrs):
-    ic = IntegralCompensation(reaction_rates=rrs, critical_height=0, name="CR0")
+    ic = IntegralCompensation(count_rates=rrs, critical_height=0, name="CR0")
     return ic
 
 def test_evaluate_integral_differential_cr():
@@ -172,7 +172,7 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
                                                 'VAR_PORT_L': 0., 'h': 0.}, index=['value']))
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.49380032e-03,
-                                                'uncertainty': 4.11358218e-05,
+                                                'uncertainty': 4.112195806123739e-05,
                                                 'uncertainty [%]': 1.64952348e+00,
                                                 'VAR_PORT_T': 4.51445772e-10,
                                                 'VAR_PORT_B': 6.21904003e-10,

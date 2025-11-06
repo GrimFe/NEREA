@@ -1,7 +1,10 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 from .utils import _make_df
+
+BASE_DATE = datetime.datetime(1899, 12, 30)  # Excel epoch
 
 AVOGADRO = _make_df(6.02214076e23, 0)
 
@@ -11,7 +14,6 @@ AVOGADRO = _make_df(6.02214076e23, 0)
 # WHEN AVAILABLE, nucleon number otherwise.
 ATOMIC_MASS = pd.DataFrame(
     {"Th232": [232.038050, 0.0],
-     "U233": [233.0, 0.0],
      "U233": [233.0, 0.0],
      "U234": [234.040916, 0.0],
      "U235": [235.043923, 0.0],
@@ -25,7 +27,7 @@ ATOMIC_MASS = pd.DataFrame(
      "Pu242": [242.0, 0.0],
      "Pu244": [244.0, 0.0],
      "Am241": [241.0, 0.0]
-     }, index=['value', 'uncertainty'])
+     }, index=['value', 'uncertainty']).T
 
 KNBS = {"BR1-MARK3": _make_df(8720., 0.02 * 8720.), #_make_df(8703., 0.02 * 8703.),
         "BR1-EMPTY CAVITY": _make_df(25456., 0.021 * 25456.)}
@@ -48,17 +50,6 @@ XS_FAST = pd.DataFrame({"Th232": np.array([69.9, 2.11 / 100 * 69.9]) * 1e-27,
                         "Am242": np.array([1024, 0.98 / 100 * 1024]) * 1e-27,
                         "Am243": np.array([0, 0]) * 1e-27
                         }, index=['value', 'uncertainty']).T
-
-# ## MISSING UNCERTAINTIES
-# XS_FAST_test = pd.DataFrame({"value": np.array([72.88, 1133.12, 1489.03, 572.23, 284.95, 1264.48,
-#                                    1971.88, 2132.61, 1308.2, np.nan, 1115.87, 1321.81,
-#                                    1024.24]) * 1e-27,   ## fast xs JEFF-3.1.1 [mb] then converted to cm^2
-#                          "uncertainty": [0., 0., 0., 0., 0., 0.,
-#                                    0., 0., 0., 0., 0., 0.,
-#                                    0.]   ## to be computed [b]
-#                          }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
-#                                    "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
-#                                    "Am243"])
 
 XS_TH = pd.DataFrame({"value": [np.nan, 0.0669646, 584.977, 0.0613027, 2.65118E-05, 0.0180149,
                                 17.8823, 746.995, 0.0591624, 1012.26, 2.55745E-03, 3.15064,

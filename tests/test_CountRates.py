@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.reaction_rate import ReactionRate, ReactionRates
+from nerea.count_rate import CountRate, CountRates
 
 @pytest.fixture
 def sample_data1():
@@ -22,17 +22,17 @@ def sample_data2():
 
 @pytest.fixture
 def power_monitor_1(sample_data1):
-    return ReactionRate(data=sample_data1, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data1, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def power_monitor_2(sample_data2):
-    return ReactionRate(data=sample_data2, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data2, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
 def pms(power_monitor_1, power_monitor_2):
-    return ReactionRates({1: power_monitor_1, 2: power_monitor_2})
+    return CountRates({1: power_monitor_1, 2: power_monitor_2})
 
 @pytest.fixture
 def plateau_data():
@@ -78,7 +78,7 @@ def plateau_data():
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return ReactionRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=1, deposit_id='dep')
 
@@ -86,7 +86,7 @@ def rr_plateau(plateau_data):
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
     data_.value = data_.value.apply(lambda x: 600 if x > 3000 else 1)
-    return ReactionRate(data_, data_.Time.min(),
+    return CountRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
@@ -103,6 +103,6 @@ def test_per_unit_power(rr_plateau, plateau_monitor):
                                 'uncertainty [%]': 0.29155317},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df,
-                                  ReactionRates({1: rr_plateau,
+                                  CountRates({1: rr_plateau,
                                                  2: plateau_monitor}
-                                                 ).per_unit_power(2)[1])
+                                                 ).per_unit_power(2)[1])   

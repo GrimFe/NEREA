@@ -2,7 +2,9 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate
+from nerea.classes import EffectiveDelayedParams
+from nerea.utils import _make_df
 
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
@@ -17,7 +19,7 @@ def sample_data():
 
 @pytest.fixture
 def power_monitor(sample_data):
-    return ReactionRate(data=sample_data, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
@@ -31,7 +33,7 @@ def sample_data_02s():
 
 @pytest.fixture
 def power_monitor_02s(sample_data_02s):
-    return ReactionRate(data=sample_data_02s, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data_02s, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=0.2)
 
 @pytest.fixture
@@ -44,7 +46,7 @@ def sample_data_uncertain_time_binning():
 
 @pytest.fixture
 def power_monitor_uncertain_time_binning(sample_data_uncertain_time_binning):
-    return ReactionRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
+    return CountRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
 
 @pytest.fixture
@@ -91,7 +93,7 @@ def plateau_data():
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return ReactionRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=1, deposit_id='dep')
 
@@ -99,14 +101,14 @@ def rr_plateau(plateau_data):
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
     data_.value = [15000] * len(data_.value)
-    return ReactionRate(data_, data_.Time.min(),
+    return CountRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
 @pytest.fixture
 def dtc_monitor():
     t_start = datetime(2025, 4, 3, 15, 33, 20)
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": [t_start, t_start + timedelta(seconds=1)], "value": [1e6, 1e6]}),
         start_time=t_start,
         campaign_id="TEST",
@@ -119,7 +121,90 @@ def dtc_monitor():
 @pytest.fixture
 def linear_monitor():
     t_start = datetime(2025, 4, 3, 15, 33, 20)
-    return ReactionRate(
+    return CountRate(
+        data=pd.DataFrame({"Time": [t_start] + [t_start + timedelta(seconds=i) for i in range(1, 5)], "value": [1, 2, 3, 4, 5]}),
+        start_time=t_start,
+        campaign_id="TEST",
+        experiment_id="TEST_LINEAR_MONITOR",
+        detector_id="A",
+        deposit_id="U235",
+        timebase=1
+    )
+
+
+@pytest.fixture
+def exponential_monitor():
+    counts = [10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10050.        ,  9700.        , 10300.        ,  9908.        ,
+       10205.26539385, 10190.06030508, 10534.60638164, 10605.70617995,
+       10749.44020793, 10968.52419814, 11370.74649383, 11545.7363885 ,
+       11663.6458216 , 12017.20722169, 12249.82576268, 12412.21968879,
+       12778.52915873, 12937.47377821, 13299.53833755, 13536.52111918,
+       13874.96052003, 14262.61344635, 14454.27778699, 14743.5494138 ,
+       15079.18223329, 15034.02672851, 15436.24714356, 15823.1206704 ,
+       16141.47220188, 16713.00383297, 16772.88364406, 17209.66305423,
+       17583.26350302, 17936.62315281, 18268.0000186 , 18998.50345006,
+       19250.20044118, 19651.98517352, 19696.98781926, 20283.29362904,
+       20808.51131891, 21163.77208409, 21392.5437547 , 21862.62045796,
+       22444.97352695, 22781.21682144, 23403.77726871, 24027.84237773,
+       23849.65310135, 24793.52836332, 25482.98225099, 25875.30626789,
+       26457.86940532, 26836.09209241, 27262.94393846, 27725.79359112,
+       28583.51038749, 29091.75735898, 29670.36202313, 30283.67543766,
+       31031.28478653, 31719.91231029, 31970.9090208 , 32900.54447419,
+       33437.39156945, 34246.14436673, 35235.63850054, 35595.09969342,
+       36451.57508   , 37187.51010199, 37831.10078657, 38801.97217786,
+       39627.13826139, 40303.0429204 , 41510.99759457, 41930.87449026,
+       43145.95066861, 43489.62613014, 44603.28665924, 45173.50764359,
+       46948.36420313, 47144.43376751, 48169.99529848, 49446.52244024,
+       49790.41053071, 51507.49109536, 52366.8190593 , 53246.05149746,
+       54230.21762011, 56163.98465553, 56907.51125403, 58071.36205947,
+       59560.62009647, 60358.49641309, 61656.70563861, 62539.88815849,
+       64547.34469704, 65631.03518449, 66641.72355218, 68251.04979896,
+       69226.06006311, 71208.31568526, 72576.15641079, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504,
+       74503.61794504, 74495.61794504, 74515.61794504, 74500.61794504]
+    # data generated with period T = 50s
+    t_start = datetime(2025, 4, 3, 15, 33, 20)
+    times = [t_start + timedelta(seconds=i) for i in range(180)]
+    return CountRate(
+        data=pd.DataFrame({"Time": times, "value": counts}),
+        start_time=t_start,
+        campaign_id="TEST",
+        experiment_id="TEST_EXPONENTIAL_MONITOR",
+        detector_id="A",
+        deposit_id="U235",
+        timebase=10,
+        _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
+    )
+
+def test_average(power_monitor):
+    expected_df = pd.DataFrame({'value': 11.66666667,
+                                'uncertainty': 1.9720265943665387,
+                                'uncertainty [%]': 16.903085094570333},
+                                index=['value'])
+    pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
+                                                                     3), check_exact=False, atol=0.00001)
+
+@pytest.fixture
+def linear_monitor():
+    t_start = datetime(2025, 4, 3, 15, 33, 20)
+    return CountRate(
         data=pd.DataFrame({"Time": [t_start] + [t_start + timedelta(seconds=i) for i in range(1, 5)], "value": [1, 2, 3, 4, 5]}),
         start_time=t_start,
         campaign_id="TEST",
@@ -179,7 +264,7 @@ def exponential_monitor():
     # data generated with period T = 50s
     t_start = datetime(2025, 4, 3, 15, 33, 20)
     times = [t_start + timedelta(seconds=i) for i in range(180)]
-    return ReactionRate(
+    return CountRate(
         data=pd.DataFrame({"Time": times, "value": counts}),
         start_time=t_start,
         campaign_id="TEST",

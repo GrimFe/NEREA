@@ -1,9 +1,12 @@
-name: Run Tests on Versioned Branches
+name: Run Tests merging to Versioned Branches
 
 on:
   push:
     branches:
       - 'v*'  # Matches any branch that starts with 'v'
+  pull_request:
+    branches:
+      - 'v*'  # triggers on PRs targeting any branch starting with v
 
 jobs:
   run-tests:
