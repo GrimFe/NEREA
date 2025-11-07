@@ -1,5 +1,5 @@
-[![codecov](https://codecov.io/gh/GrimFe/NEREA/branch/main/graph/badge.svg)](https://codecov.io/gh/GrimFe/NEREA)
-[![Tests](https://github.com/GrimFe/NEREA/actions/workflows/test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
+[![codecov](https://codecov.io/gh/GrimFe/NEREA/branch/v0.1/graph/badge.svg)](https://codecov.io/gh/GrimFe/NEREA)
+[![Tests](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml/badge.svg)](https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml)
 [![PyPI version](https://img.shields.io/pypi/v/nerea.svg)](https://pypi.org/project/nerea/)
 
 ![here](https://github.com/GrimFe/NEREA/blob/v0.1/img/logo.png)
@@ -137,7 +137,7 @@ The authors thank Agnese Carlotti for designing the logo of NEREA.
 
 ## 📋 Reference
 ### The NEREA package
-- F. Grimaldi, F. Di Corce, A. Krása, J. Wagemans, G. Vittiglio, [*The NEREA Python Package for Integral Experiment Analysis: a Fission Chamber Calibration Case Study*]
+- F. Grimaldi, F. Di Croce, A. Krása, J. Wagemans, G. Vittiglio, [*The NEREA Python Package for Integral Experiment Analysis: a Fission Chamber Calibration Case Study*]
 
 ### Spectral Indices (first use) 
 - F. Grimaldi F. Di Croce, A. Krása, G. de Izarra, L. Barbot, P. Blaise, P.E. Labeau, L. Fiorito. G. Vittiglio, J. Wagemans, [*The CoRREx neutron spectrum filtering campaign at VENUS-F for calculation-to-experiment discrepancy interpretation*](https://doi.org/10.1016/j.anucene.2025.111425),     Annals of Nuclear Energy, Volume 219, 2025, 111425, ISSN 0306-4549.
