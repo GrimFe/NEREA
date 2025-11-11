@@ -15,6 +15,10 @@ from .defaults import *
 from .classes import EffectiveDelayedParams
 from .constants import BASE_DATE
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "CountRate",
     "CountRates"]
@@ -75,7 +79,7 @@ class CountRate:
             fitted_data, popt, pcov, out = self._linear_fit()
             period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
             r2 = get_fit_R2(fitted_data, out['fvec'])
-            warnings.warn(f"Reactor period fit R^2 = {r2}")
+            logger.info(f"Reactor period fit R^2 = {r2}")
             return period
 
     def _linear_fit(self, preprocessing: str='log', nonzero: bool=True):
@@ -372,7 +376,7 @@ class CountRate:
                 # Equation for dead time correction
                 return n / ((1 - tp / tnp) * n * tp + np.exp(tp * n)) - m
             if self._dead_time_corrected:
-                warnings.warn("Dead time correction already applied to this detector.")
+                logger.info("Dead time correction already applied to this detector.")
             pm = self.data.copy()
             pm["value"] = pm.value.apply(lambda x:
                                         optimize.newton(lambda n:
@@ -458,7 +462,7 @@ class CountRate:
         else:
             data = self.smooth(**smt_kw).data
             if dtc_kwargs is not None:
-                warnings.warn("Dead time corection already applied, ignoring kwargs.")
+                logger.info("Dead time corection already applied, ignoring kwargs.")
         log_double_derivative = np.log(data.value).diff().diff()
         max_ = data.value.idxmax()
         ## Right discrimination

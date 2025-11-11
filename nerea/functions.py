@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 
 import warnings
+import logging
+
+logger = logging.getLogger(__name__)
 
 from inspect import signature
 from .classes import Xs
@@ -160,7 +163,7 @@ def polyfit(order: int, data: pd.DataFrame) -> tuple[np.array, np.array, Callabl
                                           p0=[1] * (order + 1)  ## needed to set number of fit params
                                           )
     r2 = get_fit_R2(data_.y, out["fvec"], weight=1 / data_.u **2)
-    warnings.warn(f"CR reactivity curve fit R^2 = {r2}")
+    logger.info(f"CR reactivity curve fit R^2 = {r2}")
     return coef, coef_cov
 
 def smoothing(data: pd.Series,
@@ -358,7 +361,7 @@ def impurity_correction(one_group_xs: Xs,
     ogxs = one_group_xs.copy().data
     if composition.shape[0] <= 1 and drop_main:
         # one cannot remove main if there is one nuclide ony
-        warnings.warn(f"Removing main from processing of mono-isotopic deposit.")
+        warnings.warn(f"Cannot remove main from processing of mono-isotopic deposit.")
         out = _make_df(0, 0, relative=False)
     else:
         one_over_xsd = 1 / ogxs.loc[xs_den].value if xs_den else 1

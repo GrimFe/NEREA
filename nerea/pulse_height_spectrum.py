@@ -676,6 +676,7 @@ class PulseHeightSpectrum:
             Keyword arguments for class initialization
             - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
+            Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
 
         Returns
         -------
@@ -794,6 +795,7 @@ class PulseHeightSpectra():
             Keyword arguments for class initialization
             - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
+            Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
             The same is passed to all instances.
 
         Returns

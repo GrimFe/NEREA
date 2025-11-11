@@ -343,8 +343,8 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         ``pd.DataFrame``
             with information of the mass-normalized spectrum."""
         channels = sorted(set(emi.R).intersection(set(phsi.R)))
-        if len(channels) < len(emi.R): warnings.warn("Neglecting calibration channels.")
-        if len(channels) < len(phsi.R): warnings.warn("Neglecting integration channels.")
+        if len(channels) < len(emi.R): warnings.warn("Neglecting some calibration channels.")
+        if len(channels) < len(phsi.R): warnings.warn("Neglecting some integration channels.")
         return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
                             VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
                             VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
@@ -371,8 +371,8 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         ``pd.DataFrame``
             with information of the mass-normalized spectrum."""
         channels = sorted(set(emi.channel).intersection(set(phsi.channel)))
-        if len(channels) < len(emi.channel): warnings.warn("Neglecting calibration channels.")
-        if len(channels) < len(phsi.channel): warnings.warn("Neglecting integration channels.")
+        if len(channels) < len(emi.channel): warnings.warn("Neglecting some calibration channels.")
+        if len(channels) < len(phsi.channel): warnings.warn("Neglecting some integration channels.")
         return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
                                     VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
                                     VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
