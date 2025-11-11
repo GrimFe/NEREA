@@ -1158,26 +1158,26 @@ class CountRates:
                 case 'ads':
                     for d, d_ in zip(dets, deps):
                         out[d] = CountRate.from_ascii(f,
-                                                        filetype=ft_,
-                                                        detector=d,
-                                                        deposit_id=d_)
+                                                      filetype=ft_,
+                                                      detector_id=d,
+                                                      deposit_id=d_)
                 case 'phspa':
                     d = f.split('\\')[-1].split('.')[0].split('_')[-1]
                     d_ = deps[0]
                     out[d] = CountRate.from_ascii(f,
-                                                     filetype=ft_,
-                                                     detector=d,
-                                                     deposit_id=d_)
+                                                  filetype=ft_,
+                                                  detector_id=d,
+                                                  deposit_id=d_)
                 case 'log':
                     d = f.split('\\')[-1].split('.')[0].split('_')[-1]
                     d_ = deps[0]
                     out[d] = CountRate.from_ascii(f,
-                                                     filetype=ft_,
-                                                     deposit_id=d_)
+                                                  filetype=ft_,
+                                                  deposit_id=d_)
                 case 'vf':
                     for d, d_ in zip(dets, deps):
                         out[d] = CountRate.from_ascii(f,
-                                                         filetype=ft_,
-                                                         detector=d,
-                                                         deposit_id=d_)
+                                                      filetype=ft_,
+                                                      detector_id=d,
+                                                      deposit_id=d_)
         return cls(out)
