@@ -16,6 +16,7 @@ from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
 from .count_rate import CountRate
 from .defaults import *
+from .classes import Xs
 
 import logging
 
@@ -422,7 +423,8 @@ class PulseHeightSpectrum:
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs | {'llds': llds_, 'r': r}
 
         out = []
-        data = self.data if raw_integral else self.rebin(**kwargs).data
+        data2integrate_kw = kwargs | {'smooth': not raw_integral}
+        data = self.rebin(**data2integrate_kw).data.copy()
         data.value = data.value.astype('float64')
         discri = self.discriminators(**kwargs)
         for ch in discri:
@@ -437,7 +439,7 @@ class PulseHeightSpectrum:
                                   )[['channel', 'value', 'uncertainty', 'uncertainty [%]', 'R']]
 
     @staticmethod
-    def _get_calibration_coefficient(one_group_xs: dict[str, float],
+    def _get_calibration_coefficient(one_group_xs: Xs,
                                      composition: dict[str, float] | pd.DataFrame) -> pd.DataFrame:
         """
         `nerea.PulseHeightSpectrum._get_calibration_coefficient()`
@@ -446,7 +448,7 @@ class PulseHeightSpectrum:
 
         Paramters
         ---------
-        **one_group_xs** : ``dict[str, float]``
+        **one_group_xs** : ``nerea.Xs``
             the one group cross sections of the fission
             chamber components. `key` is the nuclide
             string identifier (e.g., `'U235'`), and `value`
@@ -480,7 +482,7 @@ class PulseHeightSpectrum:
                   k: pd.DataFrame,
                   composition: dict[str, float] | pd.DataFrame,
                   monitor: CountRate,
-                  one_group_xs: dict[str, float],
+                  one_group_xs: Xs,
                   visual: bool=False,
                   savefig: str='',
                   **kwargs) -> EffectiveMass:
@@ -498,7 +500,7 @@ class PulseHeightSpectrum:
             pulse mode: interlaboratory comparison at
             the SCK CEN BR1 and CEA CALIBAN reactors".
             Has columns for its value and uncertainty.
-        **composition**: ``dict[str, float] | pd.DataFrame``
+        **composition**: ``nerea.Xs``
             the fission chamber composition relative to
             the total. `key` is the nuclide string identifier
             (e.g., `'U235'`), and `value` is its atomic

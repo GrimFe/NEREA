@@ -111,7 +111,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         Exception
             If there are inconsistencies among the IDs or R channel values."""
         if not self.phs.detector_id == self.effective_mass.detector_id:
-            raise Exception('Inconsistent detectors among PulseHeightSpectrum ans EffectiveMass')
+            raise Exception('Inconsistent detectors among PulseHeightSpectrum and EffectiveMass')
         if not self.phs.deposit_id == self.effective_mass.deposit_id:
             raise Exception('Inconsistent deposits among PulseHeightSpectrum and EffectiveMass')
         if not self.phs.experiment_id == self.power_monitor.experiment_id:
