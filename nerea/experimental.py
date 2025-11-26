@@ -982,7 +982,8 @@ class SpectralIndex(_Experimental):
                 one_g_xs_file: str = None,
                 nuc_dec_from_file : dict[str, str] = None,
                 numerator_kwargs: dict={},
-                denominator_kwargs: dict={}) -> pd.DataFrame:
+                denominator_kwargs: dict={},
+                mass_normalized: bool=False) -> pd.DataFrame:
         """
         `nerea.SpectralIndex.process()`
         -------------------------------
@@ -1058,11 +1059,24 @@ class SpectralIndex(_Experimental):
             - ``self.pulse_height_spectrum.get_max()``
                 - **fst_ch** (``int | str``): channel to start max search or max search method.
 
+        **mass_normalized** : ``bool``, optional
+            defines whether the result is the ratio of fission rates or of
+            fission rates per unit mass.
+            Default is ``False``.
 
         Returns
         -------
         ``pd.DataFrame``
-            with ``'value'`` and ``'uncertainty'`` columns."""
+            with ``'value'`` and ``'uncertainty'`` columns.
+            
+        Note
+        ----
+        - Working in the effective mass framework, it is assumed that all cross sections
+        for impurities are mass-normalized (nerea.Xs.normalized). Then the processed 
+        spectral index result is multiplied by the ratio between numerator and denominator
+        atomic mass to be consistent with the definition of one-group cross section ratio.
+        Else the ``mass_normalized`` argument should be used passing consistent one group
+        cross sections for impurity correction."""
         if numerator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
@@ -1085,20 +1099,30 @@ class SpectralIndex(_Experimental):
             v = v - k.value
             u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None
-        df = _make_df(v, u)
+
+        # atomic mass ratio for EM renormalization
+        # see docstring note
+        # assumed to have no uncertainty
+        if not mass_normalized:
+            an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
+            ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
+            mass_ratio = an / ad
+        else:
+            mass_ratio = 1
+        df = _make_df(v * mass_ratio, u * mass_ratio)
 
         # compute fraction of variance
         var_cols = [c for c in num.columns if c.startswith("VAR_PORT")]
         
-        var_num = num[var_cols] / den['value'].value **2
+        var_num = num[var_cols] / den['value'].value **2 * mass_ratio **2
         var_num.columns = [f"{c}_n" for c in var_cols]
 
-        var_den = den[var_cols] * (num['value'] / den['value'] **2).value **2
+        var_den = den[var_cols] * (num['value'] / den['value'] **2).value **2 * mass_ratio **2
         var_den.columns = [f"{c}_d" for c in var_cols]
 
         # concatenate variances to `df`
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
-                                    VAR_PORT_1GXS=k.uncertainty **2 if k is not None else 0.
+                                    VAR_PORT_1GXS=(k.uncertainty * mass_ratio) **2 if k is not None else 0.
                                     )
         return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
 
@@ -1202,9 +1226,9 @@ class Traverse(_Experimental):
             with ``'value'``, ``'uncertainty'``, ``'uncertainty [%]'`` and
             ``'traverse'`` columns.
 
-        Notes
-        -----
-        Working with ``nerea.CountRates`` instances, the first count rate is used."""
+        Note
+        ----
+        - Working with ``nerea.CountRates`` instances, the first count rate is used."""
         normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.count_rates.items()):
