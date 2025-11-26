@@ -126,7 +126,7 @@ def test_integrate(sample_spectrum):
                                 'uncertainty [%]': [1.592324388246205, 1.6129032258064515],
                                 'R': [np.nan, np.nan]})
     pd.testing.assert_frame_equal(expected_df,
-                                  sample_spectrum.integrate(bins=10,
+                                  sample_spectrum.integrate(bins=None,
                                                             llds=[1., 2.],
                                                             r=False,
                                                             raw_integral=True,
@@ -137,6 +137,18 @@ def test_integrate(sample_spectrum):
                                 'value': [3844.],
                                 'uncertainty': [62.],
                                 'uncertainty [%]': [1.6129032258064515],
+                                'R': [np.nan]})
+    pd.testing.assert_frame_equal(expected_df,
+                                  sample_spectrum.integrate(bins=20,
+                                                            llds=[2.],
+                                                            r=False,
+                                                            raw_integral=True,
+                                                            renormalize=False),
+                                  check_exact=False, atol=0.00001)
+    expected_df = pd.DataFrame({'channel':  np.int32([2]),
+                                'value': [3694.],
+                                'uncertainty': [60.778285596090974],
+                                'uncertainty [%]': [1.6453244611827553],
                                 'R': [np.nan]})
     pd.testing.assert_frame_equal(expected_df,
                                   sample_spectrum.integrate(bins=10,
@@ -151,7 +163,7 @@ def test_integrate(sample_spectrum):
                                 'uncertainty [%]': [1.6129032258064515],
                                 'R': [np.nan]})
     pd.testing.assert_frame_equal(expected_df,
-                                  sample_spectrum.integrate(bins=10,
+                                  sample_spectrum.integrate(bins=20,
                                                             llds=2.,
                                                             r=False,
                                                             raw_integral=True,
@@ -163,7 +175,7 @@ def test_integrate(sample_spectrum):
                                 'uncertainty [%]': [1.6129032258064515],
                                 'R': [np.nan]})
     pd.testing.assert_frame_equal(expected_df,
-                                  sample_spectrum.integrate(bins=10,
+                                  sample_spectrum.integrate(bins=20,
                                                             llds=2,
                                                             r=False,
                                                             raw_integral=True,
