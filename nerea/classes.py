@@ -105,7 +105,7 @@ class Xs:
         Parameters
         ----------
         **file**: ``str``
-            The file path from which data will be read.
+            Serpent output file path from which data will be read.
         **read**: ``dict[str, str]``
             The nuclide (`key`) associated with each
             detector (`value`).
