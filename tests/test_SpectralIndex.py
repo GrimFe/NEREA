@@ -140,7 +140,31 @@ def test_process(si):
                                 'VAR_PORT_1GXS': 0.}, index= ['value'])
     pd.testing.assert_frame_equal(expected_df,
                                   si.process(numerator_kwargs={'raw_integral': False, 'renormalize': False},
-                                             denominator_kwargs={'raw_integral': False, 'renormalize': False}),
+                                             denominator_kwargs={'raw_integral': False, 'renormalize': False},
+                                             mass_normalized=True),
+                                  check_exact=False, atol=0.00001)
+    # check that sum(VAR_PORT) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
+    
+    # test mass_normalized=False
+    m = 238.050783 / 235.043923
+    expected_df = pd.DataFrame({'value': 1.0 * m,
+                                'uncertainty': 0.06588712284729072 * m,
+                                'uncertainty [%]': 6.5887122847290716,
+                                'VAR_PORT_FFS_n': 0.001138 * m **2,
+                                'VAR_PORT_EM_n': 0.000033 * m **2,
+                                'VAR_PORT_PM_n': 0.001000 * m **2,
+                                'VAR_PORT_t_n': 0.0 * m **2,
+                                'VAR_PORT_FFS_d': 0.001138 * m **2,
+                                'VAR_PORT_EM_d': 0.000033 * m **2,
+                                'VAR_PORT_PM_d': 0.001000 * m **2,
+                                'VAR_PORT_t_d': 0.0 * m **2,
+                                'VAR_PORT_1GXS': 0.0 * m **2}, index= ['value'])
+    pd.testing.assert_frame_equal(expected_df,
+                                  si.process(numerator_kwargs={'raw_integral': False, 'renormalize': False},
+                                             denominator_kwargs={'raw_integral': False, 'renormalize': False},
+                                             mass_normalized=False),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
@@ -184,7 +208,8 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     data = pd.DataFrame({'value': [v_], 'uncertainty': [u_], 'uncertainty [%]': u_ / v_ * 100}, index=['value'])
     nerea_ = si.process(synthetic_one_g_xs_data,
                         numerator_kwargs={'raw_integral': False, 'renormalize': False},
-                        denominator_kwargs={'raw_integral': False, 'renormalize': False})
+                        denominator_kwargs={'raw_integral': False, 'renormalize': False},
+                        mass_normalized=True)
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_[['value', 'uncertainty', 'uncertainty [%]']].columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=4)

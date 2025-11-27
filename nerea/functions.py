@@ -358,7 +358,7 @@ def impurity_correction(one_group_xs: Xs,
     are variable. This also covers for the setting of u(N_main)
     to 0 in ``get_relative_composition`` when renormalization
     is required."""
-    ogxs = one_group_xs.copy().data
+    ogxs = one_group_xs.data.copy()
     if composition.shape[0] <= 1 and drop_main:
         # one cannot remove main if there is one nuclide ony
         warnings.warn(f"Cannot remove main from processing of mono-isotopic deposit.")

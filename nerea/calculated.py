@@ -7,6 +7,7 @@ import pandas as pd
 
 from .utils import _make_df, ratio_v_u
 from .constants import ATOMIC_MASS
+from .classes import Xs
 
 __all__ = ['_Calculated',
            'CalculatedSpectralIndex',
@@ -82,7 +83,12 @@ class CalculatedSpectralIndex(_Calculated):
         return cls(**kwargs)
 
     @classmethod
-    def from_sts_detectors(cls, file: str, detector_names: dict[str, str], **kwargs) -> Self:
+    def from_sts_detectors(cls,
+                           file: str,
+                           detector_names: dict[str, str],
+                           normalize=False,
+                           xs_kwargs: dict={},
+                           **kwargs) -> Self:
         """
         `nerea.CalculatedSpectralIndex.from_sts_detectors()`
         ----------------------------------------------------
@@ -96,24 +102,38 @@ class CalculatedSpectralIndex(_Calculated):
         **detector_names** : ``dict[str, str]``
             Keys can be ``'numerator'`` or ``'denominator'``, while values are the names of
             the detectors from which data will be extracted.
+        **xs_kwargs** : ``dict``
+            Additional arguments for ``nerea.Xs`` instance creation
+                
+                - **mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.
+                - **volume_normalized** (``bool``, optional), whether the cross section is volume-normalized.
+                - **volume** (``float``, optional), volume for volume normalization.
+        *kwargs
+            Additional arguments for instance creation
+            
+                - **model_id** (``str``), model identity
+                - **deposit_ids** (``list[str]``), nuclide identifiers
 
         Returns
         -------
         `nerea.CalculatedSpectralIndex`
             An instance of the `CalculatedSpectralIndex` class created from
             the specified file."""
-        v1, u1_ = sts.read(file).detectors[detector_names['numerator']].bins[0][-2:]
-        v2, u2_ = sts.read(file).detectors[detector_names['denominator']].bins[0][-2:]
-        # Serpent detector uncertainty is relative
-        u1, u2 = u1_ * v1, u2_ * v2
-        n, d = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
-        v, u = ratio_v_u(_make_df(v=v1 / ATOMIC_MASS.loc[n]['value'],
-                                  u=u1 / ATOMIC_MASS.loc[n]['value']),
-                         _make_df(v=v2 / ATOMIC_MASS.loc[d]['value'],
-                                  u=u2 / ATOMIC_MASS.loc[d]['value']))
-        S1, S2= 1 / v2, v1 / v2 **2
-        kwargs['data'] = _make_df(v, u).assign(VAR_PORT_C_n=(S1 * u1) **2,
-                                               VAR_PORT_C_d=(S2 * u2) **2)
+        n_, d_ = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
+        n = Xs.from_file(file, {n_: detector_names['numerator']}, **xs_kwargs)
+        d = Xs.from_file(file, {d_: detector_names['denominator']}, **xs_kwargs)
+        if normalize:
+            n, d = n.normalized.data, d.normalized.data
+        else:
+            n, d = n.data, d.data
+        n.index = ['value']
+        d.index = ['value']
+
+        S1 = 1 / d['value'].value
+        S2 = n['value'].value / d['value'].value **2
+        kwargs['data'] = _make_df(*ratio_v_u(n, d)).assign(
+            VAR_PORT_C_n=(S1 * n['uncertainty'].value) **2,
+            VAR_PORT_C_d=(S2 * d['uncertainty'].value) **2)
         return cls(**kwargs)
 
     def calculate(self):
