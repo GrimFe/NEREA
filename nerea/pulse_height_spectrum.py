@@ -8,7 +8,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 
 from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .functions import smoothing, get_relative_array, impurity_correction
@@ -686,7 +686,7 @@ class PulseHeightSpectrum:
 
         Examples
         --------
-        >>> ffs = PulseHeightSpectrum.from_TKA(
+        >>> ffs = PulseHeightSpectrum.from_formatted_TKA(
         f'{Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.TKA')"""
         with open(file.replace('.TKA', '.txt'), 'r') as f:
             start, life, real = f.readlines()
@@ -704,6 +704,132 @@ class PulseHeightSpectrum:
         } | kwargs
         return cls.from_TKA(file, **dct)
 
+    @classmethod
+    def from_CNF(cls, file: str, **kwargs) -> Self:
+        """
+        `nerea.PulseHeightSpectrum.from_CNF()`
+        --------------------------------------
+        Reads data from a CNF file to create a `PulseHeightSpectrum` instance.
+
+        Parameters
+        ----------
+        **file** : ``str``
+            CNF file path.
+        **kwargs
+            Keyword arguments for class initialization.
+
+            - **campaign_id** (``str``) expereimental campaign identifier.
+            - **experiment_id** (``str``) experiment identifier.
+            - **detector_id** (``str``) detector identifier.
+            - **deposit_id** (``str``) ionization chamber deposit identifier.
+            - **location_id** (``str``) expereimental location identifier.
+            - **measurement_id** (``str``) acquisition identifier.
+            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
+
+        Returns
+        -------
+        ``nerea.PulseHeightSpectrum``
+        
+        Notes
+        -----
+        **start_time**, **life_time**, **real_time** are read from the file."""
+        def uint8_at(f, pos):
+            f.seek(pos)
+            return np.fromfile(f, dtype=np.dtype('<u1'), count=1)[0]
+
+        def uint32_at(f, pos, count=1):
+            f.seek(pos)
+            if count == 1:
+                return np.fromfile(f, dtype=np.dtype('<u4'), count=count)[0]
+            else:
+                return np.fromfile(f, dtype=np.dtype('<u4'), count=count)
+
+        def uint64_at(f, pos):
+            f.seek(pos)
+            return np.fromfile(f, dtype=np.dtype('<u8'), count=1)[0]
+
+        def uint16_at(f, pos):
+            f.seek(pos)
+            return np.fromfile(f, dtype=np.dtype('<u2'), count=1)[0]
+
+        def time_at(f, pos):
+            return ~uint64_at(f, pos)*1e-7
+
+        def datetime_at(f, pos):
+            return uint64_at(f, pos) / 10000000 - 3506716800
+        
+        with open(file, 'rb') as f:
+            i = 0
+            leave = False
+            while not leave:
+                # List of available section headers
+                sec_header = 0x70 + i*0x30
+                i += 1
+                sec_id = uint32_at(f, sec_header)
+                match sec_id:
+                    case 73728:  # reads time data
+                        offs_p = uint32_at(f, sec_header + 0x0a)
+                        offs_t = offs_p + 0x30 + uint16_at(f, offs_p + 0x24)        
+                        st = datetime.fromtimestamp(datetime_at(f, offs_t + 0x01),
+                                                    tz=timezone.utc).replace(tzinfo=None)
+                        rt = time_at(f, offs_t + 0x09)
+                        lt = time_at(f, offs_t + 0x11)                
+                    case 73733:  # reads counts
+                        offs_c = uint32_at(f, sec_header + 0x0a)
+                        n_channels = uint8_at(f, offs_p + 0x00ba) * 256
+                        # Data in each channel
+                        value = uint32_at(f, offs_c + 0x200, n_channels)
+                        channel = np.arange(1, n_channels+1, 1)
+                    case 0:  # leaves the loop
+                        leave = True
+                    case _:
+                        pass
+        return cls(start_time=st,
+                   data=pd.DataFrame({'value': value, 'channel': channel}),
+                   life_time=lt,
+                   real_time=rt,
+                   **kwargs)
+
+    @classmethod
+    def from_formatted_CNF(cls, file: str, **kwargs) -> Self:
+        """
+        `nerea.PulseHeightSpectrum.from_formatted_CNF()`
+        ------------------------------------------------
+        Reads data from a formatted CNF file and extracts metadata from the
+        file name to create a `PulseHeightSpectrum` instance.
+        The filename is expected to be formatted as:
+        {Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.CNF
+        Requires a text file with the same name with time information.
+
+        Parameters
+        ----------
+        **file** : ``str``
+            CNF file path.
+        **kwargs
+            Keyword arguments for class initialization
+            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
+            Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
+
+        Returns
+        -------
+        ``nerea.PulseHeightSpectrum``
+
+        Examples
+        --------
+        >>> ffs = PulseHeightSpectrum.from_formatted_CNF(
+        f'{Campaign}_{Experiment}_{Detector}_{Deposit}_{Location}_{Measurement}.CNF')"""
+        campaign_id, experiment_id, detector_id, deposit_id, location_id, measurement_id = file.split('\\')[-1].split('_')
+        dct = {
+            'campaign_id':campaign_id,
+            'experiment_id': experiment_id,
+            'detector_id': detector_id,
+            'deposit_id': deposit_id,
+            'location_id': location_id,
+            'measurement_id': measurement_id.replace(".CNF", ""),
+        } | kwargs
+        return cls.from_CNF(file, **dct)
 
 @dataclass(slots=True)
 class PulseHeightSpectra():
