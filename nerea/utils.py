@@ -92,7 +92,7 @@ def ratio_uncertainty(n, un, d, ud) -> tuple[float, float]:
     >>> u_ratio = ratio_uncertainty(n, un, d, ud)
     >>> print(f"Uncertainty of the ratio: {u_ratio}")
     Uncertainty of the ratio: 0.1118033988749895"""
-    return np.sqrt(((1 / d * un)**2 + (n / d**2 * ud)**2).astype(float))
+    return np.sqrt(((1 / d * un)**2 + (n / d**2 * ud)**2))
 
 def ratio_v_u(n: pd.DataFrame, d: pd.DataFrame) -> tuple[float, float]:
     """
