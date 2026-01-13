@@ -616,32 +616,36 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         kwargs = DEFAULT_MAX_KWARGS | DEFAULT_BIN_KWARGS | kwargs
         data = self.per_unit_mass(**kwargs)
 
-        if kwargs.get('verbose', False):
-            msg = f"Normalized PHS plateau found with integral tolerance {int_tolerance} and channel tolerance {ch_tolerance}."
-            logger.info(msg)
-        
-        # check where the values in the mass-normalized count rate converge withing tolerance
-        vals = data.value.values
-        mask_value = np.isclose(vals[1:], vals[:-1], rtol=int_tolerance)
-        close_values = data.iloc[1:][mask_value]
-        if close_values.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the integral.", ValueError)
+        if data.shape[0] < 3:
+            warnings.warn(f"No plateau can be found with {data.shape[0]} points. Considering last.")
+            out = data.iloc[-1].to_frame().T
+        else:
+            if kwargs.get('verbose', False):
+                msg = f"Normalized PHS plateau search with integral tolerance {int_tolerance} and channel tolerance {ch_tolerance}."
+                logger.info(msg)
+            
+            # check where the values in the mass-normalized count rate converge withing tolerance
+            vals = data.value.values
+            mask_value = np.isclose(vals[1:], vals[:-1], rtol=int_tolerance)
+            close_values = data.iloc[1:][mask_value]
+            if close_values.shape[0] == 0:
+                raise Exception("No convergence found with the given tolerance on the integral.", ValueError)
 
-        # and where close values were found in successive rows 
-        idx = close_values.index.values
-        mask_successive = np.isclose(idx, np.roll(idx, shift=1), atol=1)
-        plateau = close_values[mask_successive]
-        if plateau.shape[0] == 0:
-            raise Exception("No convergence found in neighbouring channels.", ValueError)
+            # and where close values were found in successive rows 
+            idx = close_values.index.values
+            mask_successive = np.isclose(idx, np.roll(idx, shift=1), atol=1)
+            plateau = close_values[mask_successive]
+            if plateau.shape[0] == 0:
+                raise Exception("No convergence found in neighbouring channels.", ValueError)
 
-        # test if the channels are within tolerance
-        mask_channel = np.abs(plateau['CH_FFS'] - plateau['CH_EM']) / plateau['CH_EM'] < ch_tolerance
-        plateau = plateau[mask_channel]
-        if plateau.shape[0] == 0:
-            raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
+            # test if the channels are within tolerance
+            mask_channel = np.abs(plateau['CH_FFS'] - plateau['CH_EM']) / plateau['CH_EM'] < ch_tolerance
+            plateau = plateau[mask_channel]
+            if plateau.shape[0] == 0:
+                raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
 
-        # return first value of the plateau
-        out = plateau.iloc[0].to_frame().T
+            # return first value of the plateau
+            out = plateau.iloc[0].to_frame().T
         out.index = ['value']
         return out
 
@@ -802,7 +806,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         pum.plot(x='CH_FFS', y='value', ax=axs[1][1], kind='scatter', c='k')
         axs[1][1].set_xticks(pum['CH_FFS'])
         axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_FFS']])
-        axs[1][1].set_ylabel("Fission rate per unit mass [1/ug]")
+        axs[1][1].set_ylabel("Integral counts per unit mass [1/ug]")
 
         ax_top = axs[1][1].twiny()
         ax_top.set_xlim(axs[1][1].get_xlim())
