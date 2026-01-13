@@ -8,7 +8,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .functions import smoothing, get_relative_array, impurity_correction
@@ -554,9 +554,22 @@ class PulseHeightSpectrum:
                                      R=integral.R.values)
         data = _make_df(*ratio_v_u(integral, kmc)).assign(channel=integral.channel, R=integral.R)
         if visual or savefig:
-            ax = self.plot(**kwargs)
+            fig, axs = plt.subplots(1, 2, figsize=(15, 6), gridspec_kw={'wspace': 0.4})
+            # PHS plot
+            self.plot(ax=axs[0], **kwargs)
+            # EM table
+            cell_text = [['{:.0f}'.format(r.channel),
+                          '{:.2f}'.format(r.value)
+                          ] for _, r in data.iterrows()]
+            tab = axs[0].table(cellText=cell_text, colLabels=['ch', 'm [ug]'],
+                               bbox=[1.01, 0, 0.275, 1])
+            tab.auto_set_font_size(False)
+            # Power monitor plot
+            monitor.plot(ax=axs[1], start_time=self.start_time, duration=self.real_time)
+            axs[1].set_xlim([self.start_time - timedelta(seconds=60),
+                             self.start_time + timedelta(seconds=60 + self.real_time)])
             if savefig:
-                ax.figure.savefig(savefig)
+                fig.savefig(savefig)
                 plt.close()
         return EffectiveMass(data=data[["channel", "value", "uncertainty", "uncertainty [%]", "R"]].reset_index(drop=True),
                              composition=composition_.reset_index(names='nuclide'),

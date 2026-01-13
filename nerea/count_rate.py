@@ -526,7 +526,7 @@ class CountRate:
         duration_ = duration if duration is not None else (
             self.data.Time.max() - start_time_).total_seconds()
         if not experiment_time:
-            ax = self.data.plot(x="Time", y='value', ax=ax, color=c, **kwargs)
+            ax = self.data.plot(x="Time", y='value', ax=ax, color=c, kind='scatter', **kwargs)
             # vspans and vlines plotted only when x is real time
             ax.axvspan(self.start_time, start_time_, alpha=0.5, color='gray')
             ax.axvspan(start_time_ + timedelta(seconds=duration_),
@@ -537,13 +537,14 @@ class CountRate:
         else:
             data = self.data.copy()
             data.Time = range(data.Time.shape[0])
-            ax = data.plot(x="Time", y='value', ax=ax, color=c, **kwargs)
+            ax = data.plot(x="Time", y='value', ax=ax, color=c, kind='scatter', **kwargs)
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         ax.set_ylabel("Power monitor count rate [1/s]")
         ax.tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
         ax.yaxis.set_label_position("right")
         t = ax.yaxis.get_offset_text()
         t.set_x(1.01)
+        ax.legend()
         return ax
     
     @classmethod
