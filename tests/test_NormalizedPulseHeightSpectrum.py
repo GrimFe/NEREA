@@ -20,10 +20,21 @@ def sample_spectrum_data():
 @pytest.fixture
 def sample_integral_data():
     data = pd.DataFrame({
-        "channel": [ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        "channel": [ 6,  8,   10,  12,  14,  16,  18,  20,  22,  24],
         "value":   [60,  80,  88,  87,  87,  88,  86,  85,  82,  78],
         "uncertainty": [.1, .2, .3, .4, .5, .6, .7, .8, .9, .1],
         "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]
+    })
+    data['channel'] = data['channel'].astype('int32')
+    return data
+
+@pytest.fixture
+def sample_integral_data_one_lld():
+    data = pd.DataFrame({
+        "channel": [14],
+        "value":   [87],
+        "uncertainty": [.5],
+        "R": [.35]
     })
     data['channel'] = data['channel'].astype('int32')
     return data
@@ -48,6 +59,10 @@ def effective_mass(sample_integral_data):
     return EffectiveMass(deposit_id="D", detector_id="C", data=sample_integral_data, bins=42)
 
 @pytest.fixture
+def effective_mass_one_lld(sample_integral_data_one_lld):
+    return EffectiveMass(deposit_id="D", detector_id="C", data=sample_integral_data_one_lld, bins=42)
+
+@pytest.fixture
 def power_monitor(sample_power_monitor_data):
         return CountRate(experiment_id="B", data=sample_power_monitor_data,
                             start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
@@ -55,6 +70,10 @@ def power_monitor(sample_power_monitor_data):
 @pytest.fixture
 def nffs(phs, effective_mass, power_monitor):
     return NormalizedPulseHeightSpectrum(phs, effective_mass, power_monitor)
+
+@pytest.fixture
+def nffs_one_lld(phs, effective_mass_one_lld, power_monitor):
+    return NormalizedPulseHeightSpectrum(phs, effective_mass_one_lld, power_monitor)
 
 def test_reaction_rate_measurement_id(nffs):
     assert nffs.measurement_id == "F"
@@ -229,7 +248,7 @@ def test_per_unit_power_and_time(nffs):
                                   nffs.per_unit_power_and_time(llds=[ 6,  8, 10, 12, 14, 16, 18, 20, 22, 24], r=False),
                                   check_exact=False, atol=0.00001)
 
-def test_plateau(nffs):
+def test_plateau(nffs, nffs_one_lld):
     expected_df = pd.Series({'value': 10.104598,
                              'uncertainty': 0.345713,
                              'uncertainty [%]': 3.421340,
@@ -241,6 +260,20 @@ def test_plateau(nffs):
     expected_df.index = ['value']
     pd.testing.assert_frame_equal(expected_df, nffs.plateau(raw_integral=False, renormalize=False))
     # check that sum(VAR_PORT) == uncertainty **2
+    np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
+                                   expected_df['uncertainty'].iloc[0] **2, decimal=5)
+    
+    # Test with set llds
+    expected_df = pd.Series({'value': 10.104598,
+                             'uncertainty': 0.345713,
+                             'uncertainty [%]': 3.421340,
+                             'VAR_PORT_FFS': 0.1161448,
+                             'VAR_PORT_EM': 0.0033724,
+                             'CH_FFS': 14.000000,
+                             'CH_EM': 14.000000,
+                             'R': 0.35}, name=4).to_frame().T
+    expected_df.index = ['value']
+    pd.testing.assert_frame_equal(expected_df, nffs_one_lld.plateau(raw_integral=False, renormalize=False, llds=[14.], r=False))
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
 
