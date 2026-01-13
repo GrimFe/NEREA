@@ -39,7 +39,7 @@ def sample_power_monitor_data():
 @pytest.fixture
 def phs(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
-                                   life_time=10, real_time=10,
+                                   live_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C", deposit_id="D", location_id="E", measurement_id="F")
 
@@ -75,7 +75,7 @@ def test_time_normalization(nffs):
     pd.testing.assert_frame_equal(nffs._time_normalization, _make_df(.1, 0.))
     # test variance
     tmp = nffs
-    tmp.phs.life_time_uncertainty = .1
+    tmp.phs.live_time_uncertainty = .1
     tmp.phs.real_time_uncertainty = .1
     pd.testing.assert_frame_equal(tmp._time_normalization, _make_df(.1, 1/10 **2 * .1))
 

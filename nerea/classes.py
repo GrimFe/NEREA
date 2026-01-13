@@ -142,7 +142,9 @@ class Xs:
             self.data /= self.volume
         if not self.mass_normalized:
             idx = self.data.index.copy()
-            self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS)).dropna()
+            self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS),
+                                 relative=False)[['value', 'uncertainty']
+                                                 ].dropna()
             self.data.index = idx
         self.volume_normalized = True
         self.mass_normalized = True

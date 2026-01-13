@@ -231,10 +231,10 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         Note
         ----
         - it corresponds to 1 / time."""
-        l = self.phs.life_time
+        l = self.phs.live_time
         v = 1 / l
-        u = np.sqrt((1 / self.phs.life_time **2 \
-                     * self.phs.life_time_uncertainty)**2)
+        u = np.sqrt((1 / self.phs.live_time **2 \
+                     * self.phs.live_time_uncertainty)**2)
         return _make_df(v, u)
 
     @property

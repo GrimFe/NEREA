@@ -26,11 +26,12 @@ ATOMIC_MASS = pd.DataFrame(
      "Pu241": [241.0, 0.0],
      "Pu242": [242.0, 0.0],
      "Pu244": [244.0, 0.0],
-     "Am241": [241.0, 0.0]
+     "Am241": [241.0, 0.0],
+     "Am243": [243.0, 0.0]
      }, index=['value', 'uncertainty']).T
 
 KNBS = {"BR1-MARK3": _make_df(8720., 0.02 * 8720.), #_make_df(8703., 0.02 * 8703.),
-        "BR1-EMPTY CAVITY": _make_df(25456., 0.021 * 25456.)}
+        "BR1-EMPTY CAVITY": _make_df(25800., 0.021 * 25800.)}
 
 # 10.1051/epjconf/201610606003
 XS_FAST = pd.DataFrame({"Th232": np.array([69.9, 2.11 / 100 * 69.9]) * 1e-27,
@@ -51,9 +52,9 @@ XS_FAST = pd.DataFrame({"Th232": np.array([69.9, 2.11 / 100 * 69.9]) * 1e-27,
                         "Am243": np.array([0, 0]) * 1e-27
                         }, index=['value', 'uncertainty']).T
 
-XS_TH = pd.DataFrame({"value": [np.nan, 0.0669646, 584.977, 0.0613027, 2.65118E-05, 0.0180149,
+XS_TH = pd.DataFrame({"value": np.array([0, 0.0669646, 584.977, 0.0613027, 2.65118E-05, 0.0180149,
                                 17.8823, 746.995, 0.0591624, 1012.26, 2.55745E-03, 3.15064,
-                                0.0813315],  ## thermal xs JEFF-3.1.1 [b]
+                                0.0813315]) * 1e-24,  ## thermal xs JEFF-3.1.1 [b]
                       "uncertainty": [0., 0., 0., 0., 0., 0.,
                                       0., 0., 0., 0., 0., 0.,
                                       0.]   ## to be computed [b]
@@ -62,9 +63,9 @@ XS_TH = pd.DataFrame({"value": [np.nan, 0.0669646, 584.977, 0.0613027, 2.65118E-
                                "Am243"])
 
 XS_MAXWELIAN = pd.DataFrame({"value": XS_TH.value * 
-                             [np.nan, 0.99044, 0.97648, 1.00239, 1.00127, 0.98419,
+                             np.array([0, 0.99044, 0.97648, 1.00239, 1.00127, 0.98419,
                               0.95731, 1.05023, 1.033, 1.04697, 1.00605, 1.05867,
-                              1.01289],  ## Westcott factor
+                              1.01289]),  ## Westcott factor
                              "uncertainty": [0., 0., 0., 0., 0., 0.,
                                              0., 0., 0., 0., 0., 0.,
                                              0.]   ## to be computed [b]

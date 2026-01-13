@@ -52,12 +52,12 @@ class PulseHeightSpectrum:
         metadatata for expereimental location identification.
     **measurement_id**: ``str``
         metadatata for acquisition identification.
-    **life_time**: ``int``
-        the PHS acquisition life time.
+    **live_time**: ``int``
+        the PHS acquisition live time.
     **real_time**: ``int``
         the PHS acquisition real time.
-    **life_time_uncertainty**: ``float``, optional
-        the PHS acquisition life time uncertainty.
+    **live_time_uncertainty**: ``float``, optional
+        the PHS acquisition live time uncertainty.
         Default is ``0.0``.
     **real_time_uncertainty**: ``float``, optional
         the PHS acquisition real time uncertainty.
@@ -82,9 +82,9 @@ class PulseHeightSpectrum:
     deposit_id: str
     location_id: str
     measurement_id: str
-    life_time: int
+    live_time: int
     real_time: int
-    life_time_uncertainty: float = 0.0
+    live_time_uncertainty: float = 0.0
     real_time_uncertainty: float = 0.0
     __smoothing_verbose_printed: bool=False
     __rebin_verbose_printed: bool=False
@@ -135,9 +135,9 @@ class PulseHeightSpectrum:
             deposit_id = self.deposit_id,
             location_id = self.location_id,
             measurement_id = self.measurement_id,
-            life_time = self.life_time,
+            live_time = self.live_time,
             real_time = self.real_time,
-            life_time_uncertainty = self.life_time_uncertainty,
+            live_time_uncertainty = self.live_time_uncertainty,
             real_time_uncertainty = self.real_time_uncertainty
         )        
         return out
@@ -190,9 +190,9 @@ class PulseHeightSpectrum:
                 deposit_id = self.deposit_id,
                 location_id = self.location_id,
                 measurement_id = self.measurement_id,
-                life_time = self.life_time,
+                live_time = self.live_time,
                 real_time = self.real_time,
-                life_time_uncertainty = self.life_time_uncertainty,
+                live_time_uncertainty = self.live_time_uncertainty,
                 real_time_uncertainty = self.real_time_uncertainty
             )        
         return out
@@ -548,7 +548,7 @@ class PulseHeightSpectrum:
         kmc = _make_df(*product_v_u([k, pm, c]))
         integral = self.integrate(**kwargs)
         integral.index = ['value'] * integral.shape[0]
-        time = pd.concat([_make_df(self.life_time, self.life_time_uncertainty)
+        time = pd.concat([_make_df(self.live_time, self.live_time_uncertainty)
                           ] * integral.shape[0])
         integral = _make_df(*ratio_v_u(integral, time)).assign(channel=integral.channel.values,
                                      R=integral.R.values)
@@ -639,9 +639,9 @@ class PulseHeightSpectrum:
             - **deposit_id** (``str``) ionization chamber deposit identifier.
             - **location_id** (``str``) expereimental location identifier.
             - **measurement_id** (``str``) acquisition identifier.
-            - **life_time** (``int``) the PHS acquisition life time.
+            - **live_time** (``int``) the PHS acquisition life time.
             - **real_time** (``int``) the PHS acquisition real time.
-            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **live_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
 
         Returns
@@ -676,7 +676,7 @@ class PulseHeightSpectrum:
             TKA file path.
         **kwargs
             Keyword arguments for class initialization
-            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **live_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
             Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
 
@@ -693,7 +693,7 @@ class PulseHeightSpectrum:
         campaign_id, experiment_id, detector_id, deposit_id, location_id, measurement_id = file.split('\\')[-1].split('_')
         dct = {
             'start_time': datetime.strptime(start, "%Y-%m-%d %H:%M:%S\n"),
-            'life_time': float(life),
+            'live_time': float(life),
             'real_time': float(real),
             'campaign_id':campaign_id,
             'experiment_id': experiment_id,
@@ -724,7 +724,7 @@ class PulseHeightSpectrum:
             - **deposit_id** (``str``) ionization chamber deposit identifier.
             - **location_id** (``str``) expereimental location identifier.
             - **measurement_id** (``str``) acquisition identifier.
-            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **live_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
 
         Returns
@@ -733,7 +733,7 @@ class PulseHeightSpectrum:
         
         Notes
         -----
-        **start_time**, **life_time**, **real_time** are read from the file."""
+        **start_time**, **live_time**, **real_time** are read from the file."""
         def uint8_at(f, pos):
             f.seek(pos)
             return np.fromfile(f, dtype=np.dtype('<u1'), count=1)[0]
@@ -787,7 +787,7 @@ class PulseHeightSpectrum:
                         pass
         return cls(start_time=st,
                    data=pd.DataFrame({'value': value, 'channel': channel}),
-                   life_time=lt,
+                   live_time=lt,
                    real_time=rt,
                    **kwargs)
 
@@ -808,7 +808,7 @@ class PulseHeightSpectrum:
             CNF file path.
         **kwargs
             Keyword arguments for class initialization
-            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **live_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
             Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
 
@@ -921,7 +921,7 @@ class PulseHeightSpectra():
             List of file paths.
         **kwargs
             Keyword arguments for class initialization
-            - **life_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
+            - **live_time_uncertainty**: (``float``, optional) life time uncertainty. Default is `0.0`.
             - **real_time_uncertainty**: (``float``, optional) real time uncertainty. Default is `0.0`.
             Other nerea.PulseHeightSpectrum initialization kwargs can be overwritten.
             The same is passed to all instances.
