@@ -267,7 +267,8 @@ def _normalize_array(a: pd.DataFrame,
     a_ = a.copy()
     idx = a_.index
     den = pd.concat([a_.loc[d]] * a_.shape[0],
-                    axis=1).T.reset_index()
+                    axis=1).T.reset_index(
+                        )[['value', 'uncertainty']].astype(float)
     a_ = _make_df(*ratio_v_u(a_.reset_index(),
                              den))[['value', 'uncertainty']]
     a_.index = idx

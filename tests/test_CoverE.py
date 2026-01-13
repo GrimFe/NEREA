@@ -39,14 +39,14 @@ def sample_power_monitor_data():
 @pytest.fixture
 def fission_fragment_spectrum_1(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
-                                   life_time=10, real_time=10,
+                                   live_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C1", deposit_id="D1", location_id="E", measurement_id="F1")
 
 @pytest.fixture
 def fission_fragment_spectrum_2(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
-                                   life_time=10, real_time=10,
+                                   live_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
                                    detector_id="C2", deposit_id="D2", location_id="E", measurement_id="F2")
 

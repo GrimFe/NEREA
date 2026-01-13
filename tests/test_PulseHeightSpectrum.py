@@ -29,7 +29,7 @@ def sample_spectrum_data():
 @pytest.fixture
 def sample_spectrum(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime.datetime(2024, 5, 18, 20, 30, 15),
-                                   life_time=10,
+                                   live_time=10,
                                    real_time=10,
                                    data=pd.DataFrame(sample_spectrum_data),
                                    campaign_id="campaign",
