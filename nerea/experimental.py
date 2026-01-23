@@ -310,7 +310,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
 
-        ch_ffs, ch_em = plateau['CH_FFS'].value, plateau['CH_EM'].value
+        ch_ffs, ch_em = plateau['CH_PHS'].value, plateau['CH_EM'].value
         ffs = self.phs.integrate(**kwargs).query("channel==@ch_ffs")
         em = self.effective_mass.integral.query("channel==@ch_em")
 
@@ -318,7 +318,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         val_em, var_em = em.value.iloc[0], em.uncertainty.iloc[0] **2
         val_pm, var_pm = 1 / power.value, power.uncertainty **2 / power.value **4
         val_t, var_t = 1 / time.value,  time.uncertainty **2 / time.value **4
-        df = pd.DataFrame({'FFS': val_ffs, 'VAR_FFS': var_ffs,
+        df = pd.DataFrame({'PHS': val_ffs, 'VAR_PHS': var_ffs,
                            'EM': val_em, 'VAR_EM': var_em,
                            'PM': val_pm, 'VAR_PM': var_pm,
                            't': val_t, 'VAR_t': var_t}, index=['value'])
@@ -346,9 +346,9 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         if len(channels) < len(emi.R): warnings.warn("Neglecting some calibration channels.")
         if len(channels) < len(phsi.R): warnings.warn("Neglecting some integration channels.")
         return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
-                            VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
+                            VAR_PORT_PHS = (phsi.uncertainty / emi.value) **2,
                             VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
-                            CH_FFS = phsi.channel,
+                            CH_PHS = phsi.channel,
                             CH_EM = emi.channel,
                             R=emi.R)
 
@@ -374,9 +374,9 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         if len(channels) < len(emi.channel): warnings.warn("Neglecting some calibration channels.")
         if len(channels) < len(phsi.channel): warnings.warn("Neglecting some integration channels.")
         return _make_df(*ratio_v_u(phsi, emi)).reset_index(drop=True).assign(
-                                    VAR_PORT_FFS = (phsi.uncertainty / emi.value) **2,
+                                    VAR_PORT_PHS = (phsi.uncertainty / emi.value) **2,
                                     VAR_PORT_EM = (phsi.value / emi.value**2 * emi.uncertainty) **2,
-                                    CH_FFS = phsi.channel,
+                                    CH_PHS = phsi.channel,
                                     CH_EM = emi.channel,
                                     R=np.nan)
 
@@ -478,8 +478,8 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         pum.index = ['value'] * pum.shape[0]
         time = pd.concat([self._time_normalization] * pum.shape[0])
         data = _make_df(*product_v_u([pum, time])).assign(
-            CH_FFS=pum.CH_FFS, CH_EM=pum.CH_EM).reset_index(drop=True)
-        return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
+            CH_PHS=pum.CH_PHS, CH_EM=pum.CH_EM).reset_index(drop=True)
+        return data[['CH_PHS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def per_unit_mass_and_power(self, **kwargs) -> pd.DataFrame:
         """
@@ -527,8 +527,8 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         pum.index = ['value'] * pum.shape[0]
         power = pd.concat([self._power_normalization] * pum.shape[0])
         data = _make_df(*product_v_u([pum, power])).assign(
-            CH_FFS=pum.CH_FFS, CH_EM=pum.CH_EM).reset_index(drop=True)
-        return data[['CH_FFS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
+            CH_PHS=pum.CH_PHS, CH_EM=pum.CH_EM).reset_index(drop=True)
+        return data[['CH_PHS', 'CH_EM', 'value', 'uncertainty', 'uncertainty [%]']]
 
     def per_unit_power_and_time(self, **kwargs) -> pd.DataFrame:
         """
@@ -639,7 +639,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
                 raise Exception("No convergence found in neighbouring channels.", ValueError)
 
             # test if the channels are within tolerance
-            mask_channel = np.abs(plateau['CH_FFS'] - plateau['CH_EM']) / plateau['CH_EM'] < ch_tolerance
+            mask_channel = np.abs(plateau['CH_PHS'] - plateau['CH_EM']) / plateau['CH_EM'] < ch_tolerance
             plateau = plateau[mask_channel]
             if plateau.shape[0] == 0:
                 raise Exception("No convergence found with the given tolerance on the channel.", ValueError)
@@ -717,18 +717,18 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         # I always want to integrate over the same channels and binning as EM
         kwargs['bins'] = self.effective_mass.bins
 
-        plateau = self.plateau(**kwargs)        # FFS / EM @plateau and relative variance fractions
+        plateau = self.plateau(**kwargs)        # PHS / EM @plateau and relative variance fractions
         power = self._power_normalization       # this is 1/PM
         time = self._time_normalization         # this is 1/t
         # compute variance fractions
         S_PLAT, S_PM, S_T = power.value * time.value, plateau.value * time.value, plateau.value * power.value
         df = _make_df(*product_v_u([plateau, power, time])
-                      ).assign(VAR_PORT_FFS=plateau["VAR_PORT_FFS"] * S_PLAT **2,
+                      ).assign(VAR_PORT_PHS=plateau["VAR_PORT_PHS"] * S_PLAT **2,
                                VAR_PORT_EM=plateau["VAR_PORT_EM"] * S_PLAT **2,
                                VAR_PORT_PM=(S_PM * power.uncertainty) **2,
                                VAR_PORT_t=(S_T * time.uncertainty) **2)
         if visual or savefig:
-            fig, _ = self.plot(plateau['CH_FFS'].value, **kwargs)
+            fig, _ = self.plot(plateau['CH_PHS'].value, **kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -803,9 +803,9 @@ class NormalizedPulseHeightSpectrum(_Experimental):
 
     	## plot fission rate per unit mass
         pum = self.per_unit_mass(**kwargs)
-        pum.plot(x='CH_FFS', y='value', ax=axs[1][1], kind='scatter', c='k')
-        axs[1][1].set_xticks(pum['CH_FFS'])
-        axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_FFS']])
+        pum.plot(x='CH_PHS', y='value', ax=axs[1][1], kind='scatter', c='k')
+        axs[1][1].set_xticks(pum['CH_PHS'])
+        axs[1][1].set_xticklabels([f"{x:.0f}" for x in pum['CH_PHS']])
         axs[1][1].set_ylabel("Integral counts per unit mass [1/ug]")
 
         ax_top = axs[1][1].twiny()
@@ -829,7 +829,7 @@ class NormalizedPulseHeightSpectrum(_Experimental):
                               y=self.effective_mass.data.query("R == @discri_r")['value'].iloc[0],
                               c='b', marker='s', label="Discriminator")
             axs[1][0].axvline(discri, c='b', label='Discriminator')
-            axs[1][1].scatter(discri, pum.query("CH_FFS == @discri").value.iloc[0],
+            axs[1][1].scatter(discri, pum.query("CH_PHS == @discri").value.iloc[0],
                           c='b', marker='s', label='Discriminator')
         return fig, axs
 
@@ -956,7 +956,7 @@ class SpectralIndex(_Experimental):
             computed for none of `num` and `den`."""
         empty = True
         start_col = 7
-        if 'VAR_FFS' in num.columns:
+        if 'VAR_PHS' in num.columns:
             num_ = num.rename(columns=dict(zip(num.columns[start_col:],
                                           [f'{c}_n' for c in num.columns[start_col:]]))
                                           ).iloc[:, start_col:]
@@ -964,7 +964,7 @@ class SpectralIndex(_Experimental):
         else:
             num_ = pd.DataFrame()
 
-        if 'VAR_FFS' in den.columns:
+        if 'VAR_PHS' in den.columns:
             den_ = den.rename(columns=dict(zip(num.columns[start_col:],
                                           [f'{c}_d' for c in num.columns[start_col:]]))
                                           ).iloc[:, start_col:]
