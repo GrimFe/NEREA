@@ -103,10 +103,11 @@ def test_power_normalization(nffs):
                                   _make_df(.01, 0.00031622776601683794))
 
 def test_get_long_output(nffs):
-    expected_df = pd.DataFrame({'FFS': 879.0999999999999, 'VAR_FFS': 879.0999999999999,
+    expected_df = pd.DataFrame({'PHS': 879.0999999999999, 'VAR_PHS': 879.0999999999999,
                                 'EM': 87, 'VAR_EM': .5 **2,
                                 'PM': 1 / .01, 'VAR_PM': 0.00031622776601683794 **2 / .01 **4,
-                                't': 1 / .1, 'VAR_t': 0.}, index=['value'])
+                                't': 1 / .1, 'VAR_t': 0., 'lld_ch_PHS': 14.,
+                                'lld_ch_EM': 14., 'lld_R': 0.35}, index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                                   nffs._get_long_output(nffs.plateau(raw_integral=False, renormalize=False),
                                                         nffs._time_normalization,
@@ -129,14 +130,14 @@ def test_per_unit_mass_R(nffs):
                         0.34266489, 0.35237775, 0.3567267 , 0.36549703, 0.35720442],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858],
-        'VAR_PORT_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
+        'VAR_PORT_PHS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
         'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
-        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_PHS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "R": [.15, .2, .25, .3, .35, .4, .45, .5, .55, .6]})
-    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_PHS"] = expected_df["CH_PHS"].astype("int32")
     expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                   nffs._per_unit_mass_R(nffs.phs.integrate(
@@ -153,14 +154,14 @@ def test_per_unit_mass_ch(nffs):
                         0.34266489, 0.35237775, 0.3567267 , 0.36549703, 0.35720442],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858],
-        'VAR_PORT_FFS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
+        'VAR_PORT_PHS': [0.24622222, 0.1385    , 0.11446281, 0.1166997 , 0.1161448 ,
                     0.11283574, 0.11741482, 0.11829758, 0.12160916, 0.12743261],
         'VAR_PORT_EM': [0.00060625, 0.00076729, 0.00117916, 0.00217901, 0.0033724 ,
                    0.00458349, 0.00675526, 0.00895636, 0.01197892, 0.00016239],
-        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_PHS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         "R": [np.nan] * 10})
-    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_PHS"] = expected_df["CH_PHS"].astype("int32")
     expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     nffs.effective_mass.integral.R = [np.nan] * len(nffs.effective_mass.integral.R)
     # No need to set llds as the R channels already allign absolute channels as well in this case
@@ -195,7 +196,7 @@ def test_per_unit_mass(nffs):
 
 def test_per_unit_mass_and_time(nffs):
     expected_df = pd.DataFrame({
-        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_PHS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'value': [1.47733333, 1.108     , 1.00727273, 1.01528736, 1.01045977,
                   0.99295455, 1.00976744, 1.00552941, 0.99719512, 0.99397436],
@@ -203,7 +204,7 @@ def test_per_unit_mass_and_time(nffs):
                         0.03426649, 0.03523777, 0.03567267, 0.0365497 , 0.03572044],
         'uncertainty [%]': [3.36294012, 3.36809864, 3.3760639 , 3.39596385, 3.42133962,
                             3.45096254, 3.4896921 , 3.54765061, 3.66525089, 3.59369858]})
-    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_PHS"] = expected_df["CH_PHS"].astype("int32")
     expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                    nffs.per_unit_mass_and_time(raw_integral=False, renormalize=False),
@@ -211,7 +212,7 @@ def test_per_unit_mass_and_time(nffs):
 
 def test_per_unit_mass_and_power(nffs):
     expected_df = pd.DataFrame({
-        'CH_FFS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
+        'CH_PHS': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'CH_EM': [6,  8, 10, 12, 14, 16, 18, 20, 22, 24],
         'value': [0.14773333, 0.1108    , 0.10072727, 0.10152874, 0.10104598,
                   0.09929545, 0.10097674, 0.10055294, 0.09971951, 0.09939744],
@@ -219,7 +220,7 @@ def test_per_unit_mass_and_power(nffs):
                         0.00464774, 0.00475535, 0.00477873, 0.0048273 , 0.00475808],
         'uncertainty [%]': [4.61620691, 4.61996628, 4.62577642, 4.64032008, 4.65892314,
                             4.68072029, 4.70934719, 4.75245461, 4.84087431, 4.78692694]})
-    expected_df["CH_FFS"] = expected_df["CH_FFS"].astype("int32")
+    expected_df["CH_PHS"] = expected_df["CH_PHS"].astype("int32")
     expected_df["CH_EM"] = expected_df["CH_EM"].astype("int32")
     pd.testing.assert_frame_equal(expected_df,
                                    nffs.per_unit_mass_and_power(raw_integral=False, renormalize=False),
@@ -252,9 +253,9 @@ def test_plateau(nffs, nffs_one_lld):
     expected_df = pd.Series({'value': 10.104598,
                              'uncertainty': 0.345713,
                              'uncertainty [%]': 3.421340,
-                             'VAR_PORT_FFS': 0.1161448,
+                             'VAR_PORT_PHS': 0.1161448,
                              'VAR_PORT_EM': 0.0033724,
-                             'CH_FFS': 14.000000,
+                             'CH_PHS': 14.000000,
                              'CH_EM': 14.000000,
                              'R': 0.35}, name=4).to_frame().T
     expected_df.index = ['value']
@@ -267,9 +268,9 @@ def test_plateau(nffs, nffs_one_lld):
     expected_df = pd.Series({'value': 10.104598,
                              'uncertainty': 0.345713,
                              'uncertainty [%]': 3.421340,
-                             'VAR_PORT_FFS': 0.1161448,
+                             'VAR_PORT_PHS': 0.1161448,
                              'VAR_PORT_EM': 0.0033724,
-                             'CH_FFS': 14.000000,
+                             'CH_PHS': 14.000000,
                              'CH_EM': 14.000000,
                              'R': 0.35}, name=4).to_frame().T
     expected_df.index = ['value']
@@ -281,7 +282,7 @@ def test_process(nffs):
     expected_df = pd.DataFrame({'value': 0.010104597701149425,
                                 'uncertainty': 0.0004707654400802892,
                                 'uncertainty [%]': 4.658923135819038,
-                                'VAR_PORT_FFS':  1.161448e-7,
+                                'VAR_PORT_PHS':  1.161448e-7,
                                 'VAR_PORT_EM': 0.0033724e-7,
                                 'VAR_PORT_PM': 1.0210289470207425e-07,
                                 'VAR_PORT_t': 0.}, index=['value'])

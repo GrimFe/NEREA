@@ -314,6 +314,13 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         ffs = self.phs.integrate(**kwargs).query("channel==@ch_ffs")
         em = self.effective_mass.integral.query("channel==@ch_em")
 
+        r_ffs, r_em = ffs.R.iloc[0], em.R.iloc[0]
+        if r_ffs is not None and r_em is not None:
+            assert r_ffs == r_em
+            r = r_ffs
+        else:
+            r = None
+
         val_ffs, var_ffs = ffs.value.iloc[0], ffs.uncertainty.iloc[0] **2
         val_em, var_em = em.value.iloc[0], em.uncertainty.iloc[0] **2
         val_pm, var_pm = 1 / power.value, power.uncertainty **2 / power.value **4
@@ -321,7 +328,9 @@ class NormalizedPulseHeightSpectrum(_Experimental):
         df = pd.DataFrame({'PHS': val_ffs, 'VAR_PHS': var_ffs,
                            'EM': val_em, 'VAR_EM': var_em,
                            'PM': val_pm, 'VAR_PM': var_pm,
-                           't': val_t, 'VAR_t': var_t}, index=['value'])
+                           't': val_t, 'VAR_t': var_t,
+                           'lld_ch_PHS': ch_ffs, 'lld_ch_EM': ch_em,
+                           'lld_R': r}, index=['value'])
         return df
     
     def _per_unit_mass_R(self, phsi: pd.DataFrame, emi: pd.DataFrame) -> pd.DataFrame:

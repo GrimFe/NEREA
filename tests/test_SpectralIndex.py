@@ -91,28 +91,34 @@ def test_deposit_ids(si):
 def test_get_long_output(si):
     n_proc = si.numerator.process(raw_integral=False, renormalize=False, long_output=True)
     d_proc = si.denominator.process(raw_integral=False, renormalize=False, long_output=True)
-    expected_df = pd.DataFrame({'FFS_n': 8.79100000e+02,
-                                'VAR_FFS_n': 8.79100000e+02,
+    expected_df = pd.DataFrame({'PHS_n': 8.79100000e+02,
+                                'VAR_PHS_n': 8.79100000e+02,
                                 'EM_n': 87,
                                 'VAR_EM_n': 2.50000000e-01,
                                 'PM_n': 1.00000000e+02,
                                 'VAR_PM_n': 1.00000000e+01,
                                 't_n': 10.,
                                 'VAR_t_n': 0.,
-                                'FFS_d': 8.79100000e+02,
-                                'VAR_FFS_d': 8.79100000e+02,
+                                'lld_ch_PHS_n': 14.,
+                                'lld_ch_EM_n': 14.,
+                                'lld_R_n': 0.35,
+                                'PHS_d': 8.79100000e+02,
+                                'VAR_PHS_d': 8.79100000e+02,
                                 'EM_d': 87,
                                 'VAR_EM_d': 2.50000000e-01,
                                 'PM_d': 1.00000000e+02,
                                 'VAR_PM_d': 1.00000000e+01,
                                 't_d': 10.,
                                 'VAR_t_d': 0.,
+                                'lld_ch_PHS_d': 14.,
+                                'lld_ch_EM_d': 14.,
+                                'lld_R_d': 0.35,
                                 '1GXS': 0,
                                 'VAR_1GXS': None}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, si._get_long_output(n_proc, d_proc, None))
     # check that the variances are unchanged when relate to numerator and denominator
-    assert n_proc["VAR_FFS"].value == expected_df["VAR_FFS_n"].value
-    assert d_proc["VAR_FFS"].value == expected_df["VAR_FFS_d"].value
+    assert n_proc["VAR_PHS"].value == expected_df["VAR_PHS_n"].value
+    assert d_proc["VAR_PHS"].value == expected_df["VAR_PHS_d"].value
     assert n_proc["VAR_EM"].value == expected_df["VAR_EM_n"].value
     assert d_proc["VAR_EM"].value == expected_df["VAR_EM_d"].value
     assert n_proc["VAR_PM"].value == expected_df["VAR_PM_n"].value
@@ -129,11 +135,11 @@ def test_process(si):
     expected_df = pd.DataFrame({'value': 1.,
                                 'uncertainty': 0.06588712284729072,
                                 'uncertainty [%]': 6.5887122847290716,
-                                'VAR_PORT_FFS_n': 0.001138,
+                                'VAR_PORT_PHS_n': 0.001138,
                                 'VAR_PORT_EM_n': 0.000033,
                                 'VAR_PORT_PM_n': 0.001000,
                                 'VAR_PORT_t_n': 0.,
-                                'VAR_PORT_FFS_d': 0.001138,
+                                'VAR_PORT_PHS_d': 0.001138,
                                 'VAR_PORT_EM_d': 0.000033,
                                 'VAR_PORT_PM_d': 0.001000,
                                 'VAR_PORT_t_d': 0.,
@@ -152,11 +158,11 @@ def test_process(si):
     expected_df = pd.DataFrame({'value': 1.0 * m,
                                 'uncertainty': 0.06588712284729072 * m,
                                 'uncertainty [%]': 6.5887122847290716,
-                                'VAR_PORT_FFS_n': 0.001138 * m **2,
+                                'VAR_PORT_PHS_n': 0.001138 * m **2,
                                 'VAR_PORT_EM_n': 0.000033 * m **2,
                                 'VAR_PORT_PM_n': 0.001000 * m **2,
                                 'VAR_PORT_t_n': 0.0 * m **2,
-                                'VAR_PORT_FFS_d': 0.001138 * m **2,
+                                'VAR_PORT_PHS_d': 0.001138 * m **2,
                                 'VAR_PORT_EM_d': 0.000033 * m **2,
                                 'VAR_PORT_PM_d': 0.001000 * m **2,
                                 'VAR_PORT_t_d': 0.0 * m **2,
