@@ -4,8 +4,6 @@ import numpy as np
 from datetime import datetime, timedelta
 from nerea.count_rate import CountRate
 from nerea.classes import EffectiveDelayedParams
-from nerea.utils import _make_df
-
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -130,7 +128,6 @@ def linear_monitor():
         deposit_id="U235",
         timebase=1
     )
-
 
 @pytest.fixture
 def exponential_monitor():
@@ -369,14 +366,14 @@ def test_linear_fit(linear_monitor):
     fitted_data, popt, pcov, out = linear_monitor._linear_fit(preprocessing=None)
     np.testing.assert_array_equal(fitted_data, linear_monitor.data.value.values)
     np.testing.assert_almost_equal(popt, np.array([1., 1.]))
-    np.testing.assert_almost_equal(pcov, np.array([[0.1, 0.2],
-                                                  [0.2, 0.6]]))
+    np.testing.assert_almost_equal(pcov, np.array([[0.] * 2,
+                                                   [0.] * 2]))
     np.testing.assert_almost_equal(out['fvec'], np.array([0.] * 5))
 
 def test_period(exponential_monitor):
     target = pd.DataFrame({"value": [49.61310925],
-                           "uncertainty": [8.27759428],
-                           "uncertainty [%]": [16.68428849]},
+                           "uncertainty": [0.0782238021328435],
+                           "uncertainty [%]": [0.15766760704316415]},
                            index=["value"])
     pd.testing.assert_frame_equal(exponential_monitor.get_asymptotic_counts(t_left=0.012).period, target)
 
@@ -384,7 +381,7 @@ def test_get_reactivity(exponential_monitor):
     dd = EffectiveDelayedParams(_make_df(np.array([1, 2]), np.array([0.01, 0.01]), relative=True),
                                 _make_df(np.array([10, 20]), np.array([0.1, 0.1]), relative=True))
     T = 49.61310925
-    uT = 8.27759428
+    uT = 0.0782238021328435
     data = exponential_monitor.get_asymptotic_counts(t_left=0.012).get_reactivity(dd)
 
     a = (1 / (1 + T) * 0.1)**2

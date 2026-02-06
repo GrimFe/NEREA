@@ -115,7 +115,7 @@ def test_differential_curve_no_compensation(dnc, edd_low_uncertainty):
                                      ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T[cols],
                                   pd.DataFrame({'value': 4.15633386e-05,
-                                                'uncertainty': 6.85597030e-07,
+                                                'uncertainty': 5.870619089163414e-07,
                                                 'uncertainty [%]': 1.64952348e+00,
                                                 'VAR_PORT_T': 1.25401603e-13,
                                                 'VAR_PORT_B': 1.72751112e-13,
@@ -143,7 +143,7 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
                                     ac_kwargs={'smooth_kwargs': {'smoothing_method': 'savgol_filter', 'polyorder': 3, 'window_length': 10}})
     pd.testing.assert_frame_equal(curve.iloc[0].to_frame().T[cols],
                                   pd.DataFrame({'value': 4.15633386e-05,
-                                                'uncertainty': 6.85597030e-07,
+                                                'uncertainty': 5.870619089163414e-07,
                                                 'uncertainty [%]': 1.64952348e+00,
                                                 'VAR_PORT_T': 1.25401603e-13,
                                                 'VAR_PORT_B': 1.72751112e-13,
@@ -151,7 +151,7 @@ def test_differential_curve_compensation(dc, edd_low_uncertainty):
                                                 'h': 3.000000e+01}, index=['value'])[cols])
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.37329788e-05,
-                                                'uncertainty': 3.67662065e-07,
+                                                'uncertainty': 3.35077879938129e-07,
                                                 'uncertainty [%]': 1.54916105e+00,
                                                 'VAR_PORT_T': 2.28982109e-14,
                                                 'VAR_PORT_B': 5.63254285e-14,
@@ -172,7 +172,7 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
                                                 'VAR_PORT_L': 0., 'h': 0.}, index=['value']))
     pd.testing.assert_frame_equal(curve.iloc[1].to_frame().T[cols],
                                   pd.DataFrame({'value': 2.49380032e-03,
-                                                'uncertainty': 4.112195806123739e-05,
+                                                'uncertainty': 3.5223714534980485e-05,
                                                 'uncertainty [%]': 1.64952348e+00,
                                                 'VAR_PORT_T': 4.51445772e-10,
                                                 'VAR_PORT_B': 6.21904003e-10,
@@ -184,8 +184,8 @@ def test_integral_curve_compensation(ic, edd_low_uncertainty):
 def test_get_reactivity_worth(inc, edd_low_uncertainty):
     cols = ['value', 'uncertainty', 'VAR_PORT_X1', 'VAR_PORT_X0']
     # not testing uncertainty [%] as there differences with GitHub PC are more visible
-    target = pd.DataFrame({'value': 2.49450213e-03,
-                           'uncertainty': 3.55392057e-05,
+    target = pd.DataFrame({'value': 0.0025289068832157974,
+                           'uncertainty': 3.268116800922615e-05,
                            'uncertainty [%]': 1.42470136e+00,
                            'VAR_PORT_X1': 1.15874710e-09,
                            'VAR_PORT_X0': 1.04288039e-10},

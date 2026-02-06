@@ -82,7 +82,10 @@ class CountRate:
             logger.info(f"Reactor period fit R^2 = {r2}")
             return period
 
-    def _linear_fit(self, preprocessing: str='log', nonzero: bool=True):
+    def _linear_fit(self,
+                    preprocessing: str='log',
+                    nonzero: bool=True
+                    ) -> tuple[pd.Series, np.ndarray, np.ndarray, dict]:
         """
         `nerea.CountRate._linear_fit`
         -----------------------------
@@ -95,23 +98,33 @@ class CountRate:
             linear fitting. Default is ``'log'``.
         **nonzero** : ``bool``, optional
             queries non-zero values in ``self.data``.
-            Default is ``True``."""
+            Default is ``True``.
+            
+        Returns
+        -------
+        tuple[pd.Series, np.ndarray, np.ndarray, dict]
+        fit output:
+            - The dependent data
+            - Parameter values minimizing RMSE
+            - Parameter covariance
+            - information"""
         from scipy.optimize import curve_fit
         def linear_fit(x, a, b):
             return x / a + b  # Linear fit function (a = T)
         if nonzero:
             data = self.data[self.data.value != 0]
             if data.shape != self.data.shape:
-                warnings.warn("Removing 0 counts from Count Rate to enable period log fit. Removed %s rows." % (self.data.shape[0] - data.shape[0]))
+                str1 = "Removing 0 counts from Count Rate to enable period log fit. "
+                str2 = f"Removed {(self.data.shape[0] - data.shape[0])} rows."
+                warnings.warn(str1 + str2)
         if preprocessing is not None:
             y = getattr(np, preprocessing)(data.value)  # apply preprocessing
         else:
             y = data.value
-        popt, pcov, out, _, _ = curve_fit(linear_fit,
-                                          (data.Time - self.start_time).dt.total_seconds(),  # x must be in seconds from 0
-                                          y,
+        x = (data.Time - self.start_time).dt.total_seconds()  # x must be in seconds from 0
+        popt, pcov, out, _, _ = curve_fit(linear_fit, x, y,
                                           full_output=True,
-                                          absolute_sigma=True)
+                                          absolute_sigma=False)  # sigma scaled to math sample variance
         return y, popt, pcov, out
 
     def average(self, start_time: datetime, duration: float) -> pd.DataFrame:
@@ -149,7 +162,7 @@ class CountRate:
         >>> print(avg_df)"""
         # end_time should be 1 timebase after the real end time to use
         end_time = start_time + timedelta(seconds=duration + self.timebase)
-        series = self.data.query("Time >= @start_time and Time < @end_time")
+        series = self.cut(start_time, end_time).data
         if series.empty:
             raise ValueError("No count rate data in the requested interval.")
         v, u = time_integral_v_u(series)
@@ -481,6 +494,18 @@ class CountRate:
             first = first.iloc[-1].name
         return self.__class__(self.data[first:last],
                               start_time=self.data[first:last].Time.min(),
+                              campaign_id=self.campaign_id,
+                              experiment_id=self.experiment_id,
+                              detector_id=self.detector_id,
+                              deposit_id=self.deposit_id,
+                              timebase=self.timebase,
+                              _dead_time_corrected=self._dead_time_corrected
+                              )
+
+    def cut(self, start: datetime, end: datetime):
+        data = self.data.query("Time >= @start and Time < @end")
+        return self.__class__(data,
+                              start_time=data.Time.min(),
                               campaign_id=self.campaign_id,
                               experiment_id=self.experiment_id,
                               detector_id=self.detector_id,
@@ -854,7 +879,7 @@ class CountRates:
         ``key`` is the id and ``value`` the count rate.
     _enable_checks: ``bool``, optional
         flag to enable consistency checks. Default is ``True``."""
-    detectors: dict[int, CountRate]
+    detectors: dict[int | str, CountRate]
     _enable_checks: bool = True
 
     def __post_init__(self) -> None:
@@ -1110,10 +1135,17 @@ class CountRates:
                 out[key] = detector.per_unit_time_power(self.detectors[monitor], **kwargs)
         return out
 
+    def cut(self, starts: list, ends: list):
+        dts = {}
+        for i, (j, d) in enumerate(self.detectors.items()):
+            dts[j] = d.cut(starts[i], ends[i])
+        return self.__class__(dts, self._enable_checks)
+
     @classmethod
     def from_ascii(cls,
                    files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
-                   filetypes: Iterable[str]='infer') -> Self:
+                   filetypes: Iterable[str]='infer',
+                   **kwargs) -> Self:
         """
         `nerea.CountRates.from_ascii()`
         -------------------------------
@@ -1144,6 +1176,10 @@ class CountRates:
             Type of ASCII file to process.
             Default is ``'infer'`` to infer it from
             file extension for each file.
+
+        **kwargs
+            additional arguments for class creation
+            **_enable_checks** (``bool``): enables consistency checks among detectors
 
         Returns
         -------
@@ -1185,4 +1221,4 @@ class CountRates:
                                                       filetype=ft_,
                                                       detector_id=d,
                                                       deposit_id=d_)
-        return cls(out)
+        return cls(out, **kwargs)
