@@ -411,9 +411,9 @@ def test_get_asymptotic_period(cut_exponential_monitor, caplog):
         cut_exponential_monitor.get_asymptotic_period(log=False),
         target)
     # scan
-    target = pd.DataFrame({'value': 49.51226637073453,
-                           'uncertainty': 0.055947612206386645,
-                           'uncertainty [%]': 0.11299747781179309},
+    target = pd.DataFrame({'value': 49.48098903394187,
+                           'uncertainty': 0.05397294278656929,
+                           'uncertainty [%]': 0.10907814059566623},
                            index=['value'])
     pd.testing.assert_frame_equal(
         cut_exponential_monitor.get_asymptotic_period(1., 20., 1e-2, log=True),

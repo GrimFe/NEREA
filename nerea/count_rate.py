@@ -477,7 +477,8 @@ class CountRate:
                             old_period = period
                         else:
                             break
-                period = self.cut(ts, self.data.Time.max()
+                period = self.cut(ts + timedelta(seconds=scan_dt),
+                                  self.data.Time.max()
                                   ).get_asymptotic_period(log=log)
             return period
 
