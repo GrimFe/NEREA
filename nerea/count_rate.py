@@ -4,7 +4,6 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 import linecache
-import serpentTools as sts
 from datetime import datetime, timedelta
 import warnings
 import matplotlib.pyplot as plt
@@ -63,24 +62,6 @@ class CountRate:
     timebase: float = 1. ## in seconds
     _dead_time_corrected: bool = False
     _vlines: Iterable[datetime] = field(default_factory=lambda: [])
-
-    @property
-    def period(self) -> pd.DataFrame:
-            """
-            `nerea.CountRate.period()`
-            --------------------------
-            Calculats the reactor period from a CountRate instance.
-            
-            Returns
-            -------
-            ``pd.DataFrame``
-                with reactor period value and uncertainty."""
-            # Curve fitting to find the reactor period (T)
-            fitted_data, popt, pcov, out = self._linear_fit()
-            period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
-            r2 = get_fit_R2(fitted_data, out['fvec'])
-            logger.info(f"Reactor period fit R^2 = {r2}")
-            return period
 
     def _linear_fit(self,
                     preprocessing: str='log',
@@ -404,7 +385,105 @@ class CountRate:
                               self.timebase,
                               _dead_time_corrected=True)
 
-    def get_reactivity(self, delayed_data: EffectiveDelayedParams) -> pd.DataFrame:
+    def cut(self, start: datetime, end: datetime) -> Self:
+        """
+        `nerea.CountRate.cut()`
+        -----------------------
+        Cuts count rate data from a set start to an end.
+        
+        Parameters
+        ----------
+        **start** : ``datetime``
+            start time of the new `nerea.CountRate`.
+        **end** : ``datetime``
+            end time of the new `nerea.CountRate`.
+        
+        Returns
+        -------
+        ``nerea.CountRate``
+            instance with truncated data.
+            
+        Notes
+        -----
+        Left boundary included, right boundary excluded."""
+        data = self.data.query("Time >= @start and Time < @end")
+        return self.__class__(data,
+                              start_time=data.Time.min(),
+                              campaign_id=self.campaign_id,
+                              experiment_id=self.experiment_id,
+                              detector_id=self.detector_id,
+                              deposit_id=self.deposit_id,
+                              timebase=self.timebase,
+                              _dead_time_corrected=self._dead_time_corrected
+                              )
+
+    def get_asymptotic_period(self,
+                              scan_dt: float=0.,
+                              scan_dt0: float=20.,
+                              scan_tol: float=1e-2,
+                              log: bool=True) -> pd.DataFrame:
+            """
+            `nerea.CountRate.get_asymptotic_period()`
+            -----------------------------------------
+            Calculats the reactor period from a CountRate instance.
+
+            Parameters
+            ----------
+            **scan_dt** : ``float``, optional
+                time delta to evaluate asymptotic convergence.
+                In seconds. Default is ``0.`` for no scan.
+            **scan_dt0** : ``float``, optional
+                seconds to skip from last: buffer time to have
+                a reasonable period estimate to converge to.
+                In seconds. Default is ``20.``.
+            **scan_tol** : ``float``, optional
+                tolerance to evaluate asymptotic convergence.
+                Relative. Default is ``1e-2``.
+            **log** : ``bool``, optional
+                flag to log fit R^2. Default is ``True``.
+
+            Returns
+            -------
+            ``pd.DataFrame``
+                with reactor asymptotic period value and uncertainty.
+                
+            Note
+            ----
+            The scan is performed backwards, starting from the
+            later time in ``self`` - ``scan_dt0``. time spacing is
+            defined by ``scan_dt`` and tolerance by ``scan_tol``."""
+            if scan_dt == 0:
+                fitted_data, popt, pcov, out = self._linear_fit()
+                period = _make_df(popt[0], np.sqrt(pcov[0, 0]))
+                r2 = get_fit_R2(fitted_data, out['fvec'])
+                if log:
+                    logger.info(f"Reactor period fit R^2 = {r2:.4f}")
+            else:
+                # starting from end
+                t0 = self.data.Time.max() - timedelta(seconds=scan_dt0)
+                full_dt = (t0 - self.start_time).total_seconds()
+                nbins = int(np.floor(full_dt / scan_dt))
+                old_period = 0
+                for i in np.linspace(scan_dt, full_dt, nbins):
+                    ts = t0 - timedelta(seconds = i)
+                    # period from ts to end of cut data
+                    cr = self.cut(ts, self.data.Time.max())
+                    period = cr.get_asymptotic_period(log=False
+                                ).value.values[0]
+                    if old_period == 0:
+                        old_period = period
+                    else:
+                        if (period / old_period - 1) <= scan_tol:
+                            old_period = period
+                        else:
+                            break
+                period = self.cut(ts, self.data.Time.max()
+                                  ).get_asymptotic_period(log=log)
+            return period
+
+    def get_reactivity(self,
+                       delayed_data: EffectiveDelayedParams,
+                       ap_kwargs: dict={}) -> pd.DataFrame:
         """
         `nerea.CountRate.get_reactivity()`
         ----------------------------------
@@ -421,11 +500,15 @@ class CountRate:
         -------
         ``pd.DataFrame``
             data frame with ``'value'`` and ``'uncertainty'`` columns."""
+        ap_kw = DEFAULT_AP_KWARGS | ap_kwargs
         bi = delayed_data.beta_i
         li = delayed_data.lambda_i
 
         # compute reactivity
-        T = self.period
+        assert(all(self.data.value.values != np.nan))
+        assert(all(self.data.value.values != 0))
+
+        T = self.get_asymptotic_period(**ap_kw)
         rho = np.sum(bi.value / (1 + li.value * T.value))
 
         # variance portions
@@ -435,84 +518,6 @@ class CountRate:
         return _make_df(rho, np.sqrt(VAR_PORT_T + VAR_PORT_B + VAR_PORT_L)).assign(VAR_PORT_T=VAR_PORT_T,
                                                                                    VAR_PORT_B=VAR_PORT_B,
                                                                                    VAR_PORT_L=VAR_PORT_L)
-
-    def get_asymptotic_counts(self, t_left: float=3e-2, t_right: float=1e-2,
-                              smooth_kwargs: dict={}, dtc_kwargs: dict={}) -> Self:
-        """
-        `nerea.CountRate.get_asymptotic_counts()`
-        -----------------------------------------
-        Cuts the power monitor data based on specific conditions to find the
-        asymptotic exponential (after all harmonics have decayed).
-        
-        Parameters
-        ----------
-        **t_left** : ``float``, optional
-            tolerance to find the beginning of the asymptotic
-            exponential counts. Default is ``3e-2``.
-        **t_right** : ``float``, optional
-            tolerance to find the end of the asymptotic
-            exponential counts. Default is ``1e-2``.
-        **smooth_kwargs** : ``dict``, optional
-            arguments to pass to ``self.smooth``.
-            Default is ``{}``.
-        **dtc_kwargs** : ``dict``, optional
-            arguments to pass to ``self.dead_time_corrected``.
-            Default is ``{}``.
-            
-        Returns
-        -------
-        ``nerea.CountRate``
-            instance with truncated data.
-
-        Notes
-        -----
-        - inherently uses dead time corrected counts
-        - inherently uses smoothed data to ease the search."""
-        smt_kw = DEFAULT_SMOOTH_KWARGS | smooth_kwargs
-        if not self._dead_time_corrected:
-            dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
-            data = self.dead_time_corrected(**dtc_kw).smooth(**smt_kw).data
-        else:
-            data = self.smooth(**smt_kw).data
-            if dtc_kwargs is not None:
-                logger.info("Dead time corection already applied, ignoring kwargs.")
-        log_double_derivative = np.log(data.value).diff().diff()
-        max_ = data.value.idxmax()
-        ## Right discrimination
-        last = data.loc[:max_].loc[log_double_derivative.loc[:max_].abs() < t_right]
-        if last.shape[0] == 0:
-            warnings.warn(f"Right bound not found with t_right = {t_right}. Using end point.")
-            last = data.loc[max_].to_frame().T.iloc[-1].name
-        else:
-            last = last.iloc[-1].name
-        ## Left discrimination
-        first = data.loc[:last].loc[log_double_derivative.loc[:last].abs() > t_left]
-        if first.shape[0] == 0:
-            warnings.warn(f"Left bound not found with t_left = {t_left}. Using start point.")
-            first = data.loc[0].to_frame().T.iloc[-1].name
-        else:
-            first = first.iloc[-1].name
-        return self.__class__(self.data[first:last],
-                              start_time=self.data[first:last].Time.min(),
-                              campaign_id=self.campaign_id,
-                              experiment_id=self.experiment_id,
-                              detector_id=self.detector_id,
-                              deposit_id=self.deposit_id,
-                              timebase=self.timebase,
-                              _dead_time_corrected=self._dead_time_corrected
-                              )
-
-    def cut(self, start: datetime, end: datetime):
-        data = self.data.query("Time >= @start and Time < @end")
-        return self.__class__(data,
-                              start_time=data.Time.min(),
-                              campaign_id=self.campaign_id,
-                              experiment_id=self.experiment_id,
-                              detector_id=self.detector_id,
-                              deposit_id=self.deposit_id,
-                              timebase=self.timebase,
-                              _dead_time_corrected=self._dead_time_corrected
-                              )
 
     def plot(self,
              start_time: datetime=None,
