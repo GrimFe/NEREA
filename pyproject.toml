@@ -24,7 +24,7 @@ dependencies = [
   "numpy==1.26.4",
   "pandas==2.2.3",
   "scipy==1.14.1",
-  "serpentTools==0.10.1",
+  "serpentTools>=0.10.1,<0.12",
   "xlwt==1.3.0",
   "matplotlib==3.9.3"
   ]

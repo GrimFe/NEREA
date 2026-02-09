@@ -4,4 +4,3 @@ sphinx-rtd-theme
 sphinx-autodoc-typehints
 sphinxcontrib-napoleon
 myst-parser
-serpentTools==0.11.0  # override only for docs build
