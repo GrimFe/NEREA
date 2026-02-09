@@ -1,7 +1,9 @@
 import pytest
+
 import numpy as np
 import pandas as pd
 from nerea.utils import *
+import datetime
 
 EXPECTED_RATIO = 2.0
 EXPECTED_UNCERTAINTY = 0.282842712474619
@@ -11,6 +13,13 @@ def test_integral_v_u():
     v, u = integral_v_u(s)
     assert v == pytest.approx(10, 1e-9)
     assert u == pytest.approx(0.31622776601683794 * v, rel=1e-9)
+
+def test_time_integral_v_u():
+    d = pd.DataFrame({"Time": [datetime.datetime(2025, 3, 3, 14, 22, 0) + datetime.timedelta(seconds=i) for i in [10, 15, 25, 30]],
+                      "value": [2, 5, 1, 5]})
+    v, u = time_integral_v_u(d)
+    assert v == 65
+    assert u == np.sqrt(65)
 
 def test_ratio_v_u():
     v1, u1, v2, u2 = 10, 1, 5, 0.5
@@ -28,12 +37,25 @@ def test_ratio_uncertainty():
 
 def test_product_v_u():
     product = product_v_u([pd.DataFrame({'value': x[0],
-                                         'uncertainty [%]': x[1]}, index=[0]) for x in
+                                         'uncertainty [%]': x[1]}, index=['value']) for x in
                                                             [(10, 10), (5, 2), (10, 20)]])
     EXPECTED_VALUE = 500
     EXPECTED_UNCERTAINTY = np.sqrt(2 **2 + 10 **2 + 20 **2) / 100 * EXPECTED_VALUE
-    assert product[0] == EXPECTED_VALUE
-    assert product[1] == EXPECTED_UNCERTAINTY
+    assert product[0].value == EXPECTED_VALUE
+    assert product[1].value == EXPECTED_UNCERTAINTY
+
+def test_dot_product_v_u():
+    v1, u1, v2, u2 = 1, 0.1, 2, 0.2
+    a = pd.DataFrame({'value': [v1, v2],
+                      'uncertainty': [u1, u2]}
+                      , index=[1, 2])
+    b = pd.DataFrame({'value': [v1, v2],
+                      'uncertainty': [u1, u2]}
+                      , index=[2, 1])
+    v, u = dot_product_v_u(a, b)
+    u_ = np.sqrt((v1 * u2) **2 + (v2 * u1) **2 + (v1 * u2) **2 + (v2 * u1) **2)
+    assert v == v1 * v2 + v1 * v2
+    assert u == u_
 
 def test_make_df():
     df = _make_df(EXPECTED_RATIO, EXPECTED_UNCERTAINTY)
@@ -50,3 +72,14 @@ def test_make_df_not_relative():
                                 'uncertainty [%]': np.nan},
                                 index=['value'])
     pd.testing.assert_frame_equal(df, expected_df)
+
+def test_make_df_iterable():
+    it = _make_df(np.array([1, 2]), np.array([0.01, 0.01]), relative=True)
+    target = pd.DataFrame({'value': np.array([1, 2]),
+                           'uncertainty': [0.01, 0.01],
+                           'uncertainty [%]': [1., 0.5]},
+                           index=['value', 'value'])
+    pd.testing.assert_frame_equal(it, target)
+    # now with list input
+    it = _make_df([1, 2], [0.01, 0.01], relative=True)
+    pd.testing.assert_frame_equal(it, target)

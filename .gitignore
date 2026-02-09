@@ -19,3 +19,6 @@ nerea.egg-info/*
 
 ## debugging
 debug/*
+
+## docstrings with Sphinx
+docs/*

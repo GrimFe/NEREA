@@ -2,20 +2,37 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.reaction_rate import ReactionRate
+from nerea.count_rate import CountRate, CountRates
 
 @pytest.fixture
-def sample_data():
+def sample_data1():
     data = pd.DataFrame({
-        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(7)],
+        'Time': [datetime(2024, 5, 19, 11, 19, 20) + timedelta(seconds=i) for i in range(7)],
         'value': [0, 10, 15, 10, 20, 15, 10]
     })
     return data
 
 @pytest.fixture
-def power_monitor(sample_data):
-    return ReactionRate(data=sample_data, campaign_id="C1", experiment_id="E1",
+def sample_data2():
+    data = pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 11, 19, 20) + timedelta(seconds=i) for i in range(7)],
+        'value': [0, 1, 2, 1, 2, 2, 1]
+    })
+    return data
+
+@pytest.fixture
+def power_monitor_1(sample_data1):
+    return CountRate(data=sample_data1, campaign_id="C1", experiment_id="E1",
                         start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+
+@pytest.fixture
+def power_monitor_2(sample_data2):
+    return CountRate(data=sample_data2, campaign_id="C1", experiment_id="E1",
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+
+@pytest.fixture
+def pms(power_monitor_1, power_monitor_2):
+    return CountRates({1: power_monitor_1, 2: power_monitor_2})
 
 @pytest.fixture
 def plateau_data():
@@ -61,70 +78,31 @@ def plateau_data():
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return ReactionRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=1, deposit_id='dep')
 
 @pytest.fixture
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
-    data_.value = [15000] * len(data_.value)
-    return ReactionRate(data_, data_.Time.min(),
+    data_.value = data_.value.apply(lambda x: 600 if x > 3000 else 1)
+    return CountRate(data_, data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
-def test_average(power_monitor):
-    expected_df = pd.DataFrame({'value': 11.66666667,
-                                'uncertainty': 1.9720265943665387,
-                                'uncertainty [%]': 16.903085094570333},
-                                index=['value'])
-    pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
-                                                                     3), check_exact=False, atol=0.00001)
+def test_deposit_id(pms, power_monitor_1):
+    assert pms.deposit_id == power_monitor_1.deposit_id
+    assert pms.deposit_id == 'dep'
 
-def test_average_timebase(power_monitor):
-    expected_df = pd.DataFrame({'value': 11.66666667 * 2,
-                                'uncertainty': 1.9720265943665387 * 2,
-                                'uncertainty [%]': 16.903085094570333},
-                                index=['value'])
-    power_monitor.timebase = 2
-    pd.testing.assert_frame_equal(expected_df, power_monitor.average(power_monitor.start_time,
-                                                                     3), check_exact=False, atol=0.00001)
-
-def test_integrate(power_monitor):
-    expected_df = pd.DataFrame({'value': [12.5, 15, 12.5],
-                                'uncertainty': [5. / 2, 5.47722558 / 2, 5. / 2],
-                                'uncertainty [%]': [40. / 2, 36.51483717 / 2, 40. / 2]})
-    pd.testing.assert_frame_equal(expected_df, power_monitor.integrate(2), check_exact=False, atol=0.00001)
-
-def test_plateau(rr_plateau):
-    MIN_T = datetime(2024,5,27,13,21,1)
-    MAX_T = datetime(2024,5,27,13,24,20)
-    COUNTS = 7992600.0
-
-    assert rr_plateau.plateau(1).Time.min() == MIN_T
-    assert rr_plateau.plateau(1).Time.max() == MAX_T
-    assert rr_plateau.plateau(1).value.sum() == COUNTS
-
-def test_plateau_timebase(rr_plateau):
-    MIN_T = datetime(2024,5,27,13,20,59)
-    MAX_T = datetime(2024,5,27,13,24,21)
-    COUNTS = 8112600.0
-
-    assert rr_plateau.plateau(2, timebase=7).Time.min() == MIN_T
-    assert rr_plateau.plateau(2, timebase=7).Time.max() == MAX_T
-    assert rr_plateau.plateau(2, timebase=7).value.sum() == COUNTS
+def test_best(pms, power_monitor_1):
+    assert pms.best == power_monitor_1
 
 def test_per_unit_power(rr_plateau, plateau_monitor):
-    expected_df = pd.DataFrame({'value': 532.84,
-                                'uncertainty': 0.36143842,
-                                'uncertainty [%]': 0.06783245}, index=['value'])
-    pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor))
-
-def test_per_unit_time_power(rr_plateau, plateau_monitor):
-    MIN_T = datetime(2024,5,27,13,21,1)
-    MAX_T = datetime(2024,5,27,13,24,20)
-    D = (MAX_T - MIN_T).seconds
-    V, U = 532.84 / D, 0.36143842 / D
-    target = rr_plateau.per_unit_time_power(plateau_monitor)
-    assert np.isclose(target.value.values[0], V, atol=0.00001)
-    assert np.isclose(target.uncertainty.values[0], U, atol=0.00001)
+    expected_df = pd.DataFrame({'value': 13321.,
+                                'uncertainty': 38.83779782,
+                                'uncertainty [%]': 0.29155317},
+                                index=['value'])
+    pd.testing.assert_frame_equal(expected_df,
+                                  CountRates({1: rr_plateau,
+                                                 2: plateau_monitor}
+                                                 ).per_unit_power(2)[1])   

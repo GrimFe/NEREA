@@ -1,16 +1,20 @@
 import pandas as pd
 import numpy as np
+import datetime
 
 from .utils import _make_df
 
-AVOGADRO = 6.02214076e23
+BASE_DATE = datetime.datetime(1899, 12, 30)  # Excel epoch
 
-# The isotopic mass data is from G. Audi, A. H. Wapstra Nucl. Phys A. 1993, 565, 1-65 and G. Audi, A. H. Wapstra Nucl. Phys A. 1995,
+AVOGADRO = _make_df(6.02214076e23, 0)
+
+# he isotopic mass data is from G. Audi, A. H. Wapstra Nucl. Phys A. 1993, 565, 1-65 and G. Audi, A. H. Wapstra Nucl. Phys A. 1995,
 # 595, 409-480. The percent natural abundance data is from the 1997 report of the IUPAC Subcommittee for Isotopic
 # Abundance Measurements by K.J.R. Rosman, P.D.P. Taylor Pure Appl. Chem. 1999, 71, 1593-1607.
 # WHEN AVAILABLE, nucleon number otherwise.
 ATOMIC_MASS = pd.DataFrame(
-    {"U233": [233.0, 0.0],
+    {"Th232": [232.038050, 0.0],
+     "U233": [233.0, 0.0],
      "U234": [234.040916, 0.0],
      "U235": [235.043923, 0.0],
      "U236": [236.0, 0.0],
@@ -21,5 +25,50 @@ ATOMIC_MASS = pd.DataFrame(
      "Pu240": [240.053807, 0.0],
      "Pu241": [241.0, 0.0],
      "Pu242": [242.0, 0.0],
-     "Am241": [241.0, 0.0]
-     }, index=['value', 'uncertainty'])
+     "Pu244": [244.0, 0.0],
+     "Am241": [241.0, 0.0],
+     "Am243": [243.0, 0.0]
+     }, index=['value', 'uncertainty']).T
+
+KNBS = {"BR1-MARK3": _make_df(8720., 0.02 * 8720.), #_make_df(8703., 0.02 * 8703.),
+        "BR1-EMPTY CAVITY": _make_df(25800., 0.021 * 25800.)}
+
+# 10.1051/epjconf/201610606003
+XS_FAST = pd.DataFrame({"Th232": np.array([69.9, 2.11 / 100 * 69.9]) * 1e-27,
+                        "U233": np.array([0, 0]) * 1e-27,
+                        "U234": np.array([1133, 19.3 / 100 * 1133]) * 1e-27,
+                        "U235": np.array([1494, 0.23 / 100 * 1494]) * 1e-27,
+                        "U236": np.array([571.8, 24.4 / 100 * 571.8]) * 1e-27,
+                        "U238": np.array([285.7, 0.52 / 100 * 285.7]) * 1e-27,
+                        "Np237": np.array([1290, 1.68 / 100 * 1290]) * 1e-27,
+                        "Pu238": np.array([1972, 0.68 / 100 * 1972]) * 1e-27,
+                        "Pu239": np.array([2131, 0.43 / 100 * 2131]) * 1e-27,
+                        "Pu240": np.array([1308, 0.52 / 100 * 1308]) * 1e-27,
+                        "Pu241": np.array([0, 0]) * 1e-27,
+                        "Pu242": np.array([1116, 1.87 / 100 * 1116]) * 1e-27,
+                        "Pu244": np.array([0, 0]) * 1e-27,
+                        "Am241": np.array([1314, 2.75 / 100 * 1314]) * 1e-27,
+                        "Am242": np.array([1024, 0.98 / 100 * 1024]) * 1e-27,
+                        "Am243": np.array([0, 0]) * 1e-27
+                        }, index=['value', 'uncertainty']).T
+
+XS_TH = pd.DataFrame({"value": np.array([0, 0.0669646, 584.977, 0.0613027, 2.65118E-05, 0.0180149,
+                                17.8823, 746.995, 0.0591624, 1012.26, 2.55745E-03, 3.15064,
+                                0.0813315]) * 1e-24,  ## thermal xs JEFF-3.1.1 [b]
+                      "uncertainty": [0., 0., 0., 0., 0., 0.,
+                                      0., 0., 0., 0., 0., 0.,
+                                      0.]   ## to be computed [b]
+                     }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
+                               "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
+                               "Am243"])
+
+XS_MAXWELIAN = pd.DataFrame({"value": XS_TH.value * 
+                             np.array([0, 0.99044, 0.97648, 1.00239, 1.00127, 0.98419,
+                              0.95731, 1.05023, 1.033, 1.04697, 1.00605, 1.05867,
+                              1.01289]),  ## Westcott factor
+                             "uncertainty": [0., 0., 0., 0., 0., 0.,
+                                             0., 0., 0., 0., 0., 0.,
+                                             0.]   ## to be computed [b]
+                            }, index=["Th232", "U234", "U235", "U236", "U238", "Np237",
+                                      "Pu238", "Pu239", "Pu240", "Pu241", "Pu242", "Am241",
+                                      "Am243"])
