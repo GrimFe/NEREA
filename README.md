@@ -6,7 +6,7 @@
 
 <h1 align="center" style="font-family:simplifica">NEREA</h1>
 
-NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.
+NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates. The documentation of NEREA can be found [here](https://nerea.readthedocs.io/en/latest/index.html).
 
 ## Main features
 
