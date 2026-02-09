@@ -22,3 +22,6 @@ debug/*
 
 ## docstrings with Sphinx
 docs/*
+source/*
+make.bat
+Makefile
