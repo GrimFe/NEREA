@@ -22,7 +22,9 @@ jobs:
           python -m pip install --upgrade pip build twine
 
       - name: Build the package
-        run: python -m build
+        run: |
+          rm -rf dist build
+          python -m build
 
       - name: Publish to PyPI
         env:
