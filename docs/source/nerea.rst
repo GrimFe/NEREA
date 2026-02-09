@@ -107,11 +107,3 @@ nerea.utils module
    :members:
    :show-inheritance:
    :undoc-members:
-
-Module contents
----------------
-
-.. automodule:: nerea
-   :members:
-   :show-inheritance:
-   :undoc-members:

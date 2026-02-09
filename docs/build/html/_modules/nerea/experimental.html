@@ -1,0 +1,1452 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nerea.experimental &mdash; NEREA 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            NEREA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">nerea</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">NEREA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">nerea.experimental</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for nerea.experimental</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">serpentTools</span> <span class="k">as</span> <span class="nn">sts</span>  <span class="c1">## impurity correction</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">from</span> <span class="nn">.pulse_height_spectrum</span> <span class="kn">import</span> <span class="n">PulseHeightSpectrum</span>
+<span class="kn">from</span> <span class="nn">.effective_mass</span> <span class="kn">import</span> <span class="n">EffectiveMass</span>
+<span class="kn">from</span> <span class="nn">.count_rate</span> <span class="kn">import</span> <span class="n">CountRate</span><span class="p">,</span> <span class="n">CountRates</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">ratio_v_u</span><span class="p">,</span> <span class="n">product_v_u</span><span class="p">,</span> <span class="n">_make_df</span>
+<span class="kn">from</span> <span class="nn">.functions</span> <span class="kn">import</span> <span class="n">impurity_correction</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="kn">import</span> <span class="n">ATOMIC_MASS</span>
+<span class="kn">from</span> <span class="nn">.defaults</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.classes</span> <span class="kn">import</span> <span class="n">Xs</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_Experimental&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;NormalizedPulseHeightSpectrum&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;SpectralIndex&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;Traverse&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">average_v_u</span><span class="p">(</span><span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.experimental.average_v_u()`</span>
+<span class="sd">    ------------------------------------</span>
+<span class="sd">    Computes average value and uncertainty.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **df** : ``pd.DataFrame``</span>
+<span class="sd">        A data frame with `&#39;value&#39;` and `&#39;uncertainty&#39;`</span>
+<span class="sd">        columns to take the average of.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ``tuple[float, float]``</span>
+<span class="sd">        The average value and uncertainty.&quot;&quot;&quot;</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">u</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">v</span><span class="p">,</span> <span class="n">u</span>
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_Experimental</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea._Experimental``</span>
+<span class="sd">    =======================</span>
+<span class="sd">    Superclass for experimental results.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Placeholder for inheriting classes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">NormalizedPulseHeightSpectrum</span><span class="p">(</span><span class="n">_Experimental</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.NormalizedPulseHeightSpectrum``</span>
+<span class="sd">    =======================================</span>
+<span class="sd">    Class storing and processing the pulse height spectrum</span>
+<span class="sd">    (PHS) normalization per unit mass, power and time.</span>
+<span class="sd">    Inherits from ``nerea.Experimental``.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **phs** : ``nerea.PulseHeightSpectrum``</span>
+<span class="sd">        the pulse height spectrum to normalize.</span>
+<span class="sd">    **effective_mass** : ``nerea.EffectiveMass``</span>
+<span class="sd">        the effective mass of the fission chamber used to acquire</span>
+<span class="sd">        the PHS.</span>
+<span class="sd">    **power_monitor** : ``nerea.CountRate``</span>
+<span class="sd">        the power monitor of the PHS acquisition.</span>
+<span class="sd">    _enable_checks: ``bool``, optoinal</span>
+<span class="sd">        flag enabling consistency checks. Default is ``True``.&quot;&quot;&quot;</span>
+    <span class="n">phs</span><span class="p">:</span> <span class="n">PulseHeightSpectrum</span>
+    <span class="n">effective_mass</span><span class="p">:</span> <span class="n">EffectiveMass</span>
+    <span class="n">power_monitor</span><span class="p">:</span> <span class="n">CountRate</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;</span>
+<span class="sd">        Runs consistency checks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_consistency</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._check_consistency()``</span>
+<span class="sd">        ------------------------------------------------------------</span>
+<span class="sd">        Checks the consistency of:</span>
+<span class="sd">            - ``experiment_id``</span>
+<span class="sd">            - ``detector_id``</span>
+<span class="sd">            - ``deposit_id``</span>
+<span class="sd">        among ``self.pulse_height_spectrum``</span>
+<span class="sd">        and also checks:</span>
+<span class="sd">            - ``R_channel``</span>
+<span class="sd">        between ``self.pulse_height_spectrum`` and ``self.effective_mass``</span>
+<span class="sd">        via ``_check_ch_equality(tolerance=0.01)``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        Exception</span>
+<span class="sd">            If there are inconsistencies among the IDs or R channel values.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">detector_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">detector_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Inconsistent detectors among PulseHeightSpectrum and EffectiveMass&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">deposit_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Inconsistent deposits among PulseHeightSpectrum and EffectiveMass&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">experiment_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">power_monitor</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s1">&#39;Inconsitent experiments among PulseHeightSpectrum and CountRate&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_ch_equality</span><span class="p">():</span>
+            <span class="n">ch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">get_R</span><span class="p">(</span><span class="n">bin_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;bins&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span><span class="p">})</span><span class="o">.</span><span class="n">channel</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;R channel difference: </span><span class="si">{</span><span class="p">((</span><span class="n">ch</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">R_channel</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">R_channel</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> %&quot;</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_ch_equality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tolerance</span><span class="p">:</span><span class="nb">float</span> <span class="o">=</span><span class="mf">0.01</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._check_ch_equality()``</span>
+<span class="sd">        ------------------------------------------------------------</span>
+<span class="sd">        Checks consistency of the R channels of ``self.pulse_height_spectrum`` and</span>
+<span class="sd">        ``self.effective_mass`` within a specified tolerance.</span>
+<span class="sd">        The check happens only if the binning of the two objects is the same.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **tolerance** : ``float``, optional</span>
+<span class="sd">            The acceptable relative difference between the R channel of</span>
+<span class="sd">            ``self.pulse_height_spectrum`` and ``self.effective_mass``.</span>
+<span class="sd">            Default is ``0.01``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``bool``</span>
+<span class="sd">            Indicating whether the relative difference between the R channels</span>
+<span class="sd">            is within tolerance.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span><span class="p">:</span>
+            <span class="n">check</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">get_R</span><span class="p">(</span>
+                            <span class="n">bin_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;bins&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span><span class="p">}</span>
+                            <span class="p">)</span><span class="o">.</span><span class="n">channel</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">R_channel</span>
+                        <span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">R_channel</span> <span class="o">&lt;</span> <span class="n">tolerance</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">check</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">check</span> 
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">measurement_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.measurement_id()``</span>
+<span class="sd">        ------------------------------------------------------------</span>
+<span class="sd">        The measurement ID associated with the pulse height spectrum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            The measurement ID attribute of the associated PHS.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">measurement_id</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">campaign_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.campaign_id()``</span>
+<span class="sd">        -----------------------------------------------------</span>
+<span class="sd">        The campaign ID associated with the pulse height spectrum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            The campaign ID attribute of the associated PHS.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">campaign_id</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">experiment_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.experiment_id()``</span>
+<span class="sd">        -------------------------------------------------------</span>
+<span class="sd">        The experiment ID associated with the pulse height spectrum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            The experiment ID attribute of the associated PHS.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">experiment_id</span>
+    
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">location_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.location_id()``</span>
+<span class="sd">        -----------------------------------------------------</span>
+<span class="sd">        The location ID associated with the pulse height spectrum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            The location ID attribute of the associated PHS.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">location_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deposit_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.deposit_id()``</span>
+<span class="sd">        ----------------------------------------------------</span>
+<span class="sd">        The deposit ID associated with the pulse height spectrum.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            The deposit ID attribute of the associated PHS.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">deposit_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_time_normalization</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._time_normalization()``</span>
+<span class="sd">        -------------------------------------------------------------</span>
+<span class="sd">        The time normalization and correction to be multiplied by the</span>
+<span class="sd">        pulse height spectrum per unit mass.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - it corresponds to 1 / time.&quot;&quot;&quot;</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">live_time</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">l</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">((</span><span class="mi">1</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">live_time</span> <span class="o">**</span><span class="mi">2</span> \
+                     <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">live_time_uncertainty</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_power_normalization</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.power_normalization()``</span>
+<span class="sd">        -------------------------------------------------------------</span>
+<span class="sd">        The power normalization to be multiplied by the pulse height</span>
+<span class="sd">        spectrum per unit mass.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - it corresponds to 1 / average(count_rate).&quot;&quot;&quot;</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="n">duration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">real_time</span>
+        <span class="n">pm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">power_monitor</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">duration</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">_make_df</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">pm</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_get_long_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                         <span class="n">plateau</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                         <span class="n">time</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                         <span class="n">power</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                         <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._get_long_output()``</span>
+<span class="sd">        ----------------------------------------------------------</span>
+<span class="sd">        The information to be included in the long output: component</span>
+<span class="sd">        variances.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **plateau** : ``pd.DataFrame``</span>
+<span class="sd">            output of ``self.plateau()``</span>
+<span class="sd">        **time** : ``pd.DataFrame``</span>
+<span class="sd">            output of ``self._time_normalization``</span>
+<span class="sd">        **power** : ``pd.DataFrame``</span>
+<span class="sd">            output of ``self._power_normalization``</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            arguments for ``self.pulse_height_spectrum.integrate()``</span>
+<span class="sd">            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">            - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">            additional arguments for</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">                - **bins** (``int``): number of bins</span>
+<span class="sd">                - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">                - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">                - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">                - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            (1 x N) DataFrame with information about variance values and variances of</span>
+<span class="sd">            data used in the processing.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - ``bins`` for PHS rebinning are set to ``self.effective_mass.bins``.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="c1"># I always want to integrate over the same channels and binning as EM</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;bins&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span>
+
+        <span class="n">ch_ffs</span><span class="p">,</span> <span class="n">ch_em</span> <span class="o">=</span> <span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_EM&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">ffs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">integrate</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;channel==@ch_ffs&quot;</span><span class="p">)</span>
+        <span class="n">em</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">integral</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;channel==@ch_em&quot;</span><span class="p">)</span>
+
+        <span class="n">r_ffs</span><span class="p">,</span> <span class="n">r_em</span> <span class="o">=</span> <span class="n">ffs</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">em</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">r_ffs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">r_em</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">assert</span> <span class="n">r_ffs</span> <span class="o">==</span> <span class="n">r_em</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">r_ffs</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">val_ffs</span><span class="p">,</span> <span class="n">var_ffs</span> <span class="o">=</span> <span class="n">ffs</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ffs</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="n">val_em</span><span class="p">,</span> <span class="n">var_em</span> <span class="o">=</span> <span class="n">em</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">em</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="n">val_pm</span><span class="p">,</span> <span class="n">var_pm</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">power</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">power</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">power</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">4</span>
+        <span class="n">val_t</span><span class="p">,</span> <span class="n">var_t</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">time</span><span class="o">.</span><span class="n">value</span><span class="p">,</span>  <span class="n">time</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="n">time</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">4</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;PHS&#39;</span><span class="p">:</span> <span class="n">val_ffs</span><span class="p">,</span> <span class="s1">&#39;VAR_PHS&#39;</span><span class="p">:</span> <span class="n">var_ffs</span><span class="p">,</span>
+                           <span class="s1">&#39;EM&#39;</span><span class="p">:</span> <span class="n">val_em</span><span class="p">,</span> <span class="s1">&#39;VAR_EM&#39;</span><span class="p">:</span> <span class="n">var_em</span><span class="p">,</span>
+                           <span class="s1">&#39;PM&#39;</span><span class="p">:</span> <span class="n">val_pm</span><span class="p">,</span> <span class="s1">&#39;VAR_PM&#39;</span><span class="p">:</span> <span class="n">var_pm</span><span class="p">,</span>
+                           <span class="s1">&#39;t&#39;</span><span class="p">:</span> <span class="n">val_t</span><span class="p">,</span> <span class="s1">&#39;VAR_t&#39;</span><span class="p">:</span> <span class="n">var_t</span><span class="p">,</span>
+                           <span class="s1">&#39;lld_ch_PHS&#39;</span><span class="p">:</span> <span class="n">ch_ffs</span><span class="p">,</span> <span class="s1">&#39;lld_ch_EM&#39;</span><span class="p">:</span> <span class="n">ch_em</span><span class="p">,</span>
+                           <span class="s1">&#39;lld_R&#39;</span><span class="p">:</span> <span class="n">r</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">df</span>
+    
+    <span class="k">def</span> <span class="nf">_per_unit_mass_R</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phsi</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">emi</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._per_unit_mass_R()``</span>
+<span class="sd">        ----------------------------------------------------------</span>
+<span class="sd">        The tabulated ratio of PHS.integrate() / EM.integral, integrated from</span>
+<span class="sd">        discrimination levels computed as a function of the R channel.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **phsi** : ``pd.DataFrame``</span>
+<span class="sd">            Output of ``self.pulse_height_spectrum.integrate().``</span>
+<span class="sd">        **emi** : ``pd.DataFrame``</span>
+<span class="sd">            Output of ``self.effective_mass.integral``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with information of the mass-normalized spectrum.&quot;&quot;&quot;</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">emi</span><span class="o">.</span><span class="n">R</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">R</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">emi</span><span class="o">.</span><span class="n">R</span><span class="p">):</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Neglecting some calibration channels.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">R</span><span class="p">):</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Neglecting some integration channels.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">phsi</span><span class="p">,</span> <span class="n">emi</span><span class="p">))</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+                            <span class="n">VAR_PORT_PHS</span> <span class="o">=</span> <span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">/</span> <span class="n">emi</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                            <span class="n">VAR_PORT_EM</span> <span class="o">=</span> <span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">emi</span><span class="o">.</span><span class="n">value</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">emi</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                            <span class="n">CH_PHS</span> <span class="o">=</span> <span class="n">phsi</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                            <span class="n">CH_EM</span> <span class="o">=</span> <span class="n">emi</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                            <span class="n">R</span><span class="o">=</span><span class="n">emi</span><span class="o">.</span><span class="n">R</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_per_unit_mass_ch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">phsi</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">emi</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum._per_unit_mass_ch()``</span>
+<span class="sd">        ----------------------------------------------------------</span>
+<span class="sd">        The tabulated ratio of PHS.integrate() / EM.integral, integrated from</span>
+<span class="sd">        discrimination levels defined as absolute channels.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **phsi** : ``pd.DataFrame``</span>
+<span class="sd">            Output of ``self.pulse_height_spectrum.integrate()``.</span>
+<span class="sd">        **emi** : ``pd.DataFrame``</span>
+<span class="sd">            Output of ``self.effectivemass.integral``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with information of the mass-normalized spectrum.&quot;&quot;&quot;</span>
+        <span class="n">channels</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">emi</span><span class="o">.</span><span class="n">channel</span><span class="p">)</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">channel</span><span class="p">)))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">emi</span><span class="o">.</span><span class="n">channel</span><span class="p">):</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Neglecting some calibration channels.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">channels</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">channel</span><span class="p">):</span> <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Neglecting some integration channels.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">phsi</span><span class="p">,</span> <span class="n">emi</span><span class="p">))</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+                                    <span class="n">VAR_PORT_PHS</span> <span class="o">=</span> <span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">/</span> <span class="n">emi</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                    <span class="n">VAR_PORT_EM</span> <span class="o">=</span> <span class="p">(</span><span class="n">phsi</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">emi</span><span class="o">.</span><span class="n">value</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">emi</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                                    <span class="n">CH_PHS</span> <span class="o">=</span> <span class="n">phsi</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                                    <span class="n">CH_EM</span> <span class="o">=</span> <span class="n">emi</span><span class="o">.</span><span class="n">channel</span><span class="p">,</span>
+                                    <span class="n">R</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.per_unit_mass">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.per_unit_mass">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_mass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass()``</span>
+<span class="sd">        -------------------------------------------------------</span>
+<span class="sd">        Normalizes ``self.pulse_height_spectrum()`` to the</span>
+<span class="sd">        ``self.effective_mass`` based on the effective mass</span>
+<span class="sd">        discrimination levels.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.pulse_height_spectrum.integrate()``</span>
+
+<span class="sd">        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">        - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with information of the mass-normalized spectrum.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - `bins` for PHS rebinning are set to `self.effective_mass.bins`.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="c1"># I always want to integrate over the same channels and binning as EM</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;bins&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span>
+
+        <span class="n">ffs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">integrate</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">em</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">integral</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">em</span><span class="o">.</span><span class="n">R</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ffs</span><span class="o">.</span><span class="n">R</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_per_unit_mass_ch</span><span class="p">(</span><span class="n">ffs</span><span class="p">,</span> <span class="n">em</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="ow">not</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">em</span><span class="o">.</span><span class="n">R</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">and</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">ffs</span><span class="o">.</span><span class="n">R</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()):</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_per_unit_mass_R</span><span class="p">(</span><span class="n">ffs</span><span class="p">,</span> <span class="n">em</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Inconsistent integration and integration methodologies: can not process discrimination levels.&quot;</span><span class="p">,</span>
+                            <span class="ne">ValueError</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.per_unit_mass_and_time">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.per_unit_mass_and_time">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_mass_and_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass_and_time()``</span>
+<span class="sd">        -----------------------------------------------------------------</span>
+<span class="sd">        The integrated PHS normalized per unit mass and time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.per_unit_mass()``</span>
+
+<span class="sd">        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">        - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            DataFrame with the information of the mass- and time- normalized spectrum.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - `bins` for PHS rebinning are set to `self.effective_mass.bins`.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="c1"># I always want to integrate over the same channels and binning as EM</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;bins&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span>
+        <span class="n">pum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_unit_mass</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">pum</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">pum</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_time_normalization</span><span class="p">]</span> <span class="o">*</span> <span class="n">pum</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">product_v_u</span><span class="p">([</span><span class="n">pum</span><span class="p">,</span> <span class="n">time</span><span class="p">]))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+            <span class="n">CH_PHS</span><span class="o">=</span><span class="n">pum</span><span class="o">.</span><span class="n">CH_PHS</span><span class="p">,</span> <span class="n">CH_EM</span><span class="o">=</span><span class="n">pum</span><span class="o">.</span><span class="n">CH_EM</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">[[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">,</span> <span class="s1">&#39;CH_EM&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty [%]&#39;</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.per_unit_mass_and_power">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.per_unit_mass_and_power">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_mass_and_power</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.per_unit_mass_and_power()``</span>
+<span class="sd">        -----------------------------------------------------------------</span>
+<span class="sd">        The integrated PHS normalized per unit mass and power.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.per_unit_mass()``</span>
+
+<span class="sd">        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">        - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with information of the mass- and power- normalized spectrum.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - `bins` for PHS rebinning are set to `self.effective_mass.bins`.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="c1"># I always want to integrate over the same channels and binning as EM</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;bins&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span>
+
+        <span class="c1"># ffs, em = self.pulse_height_spectrum, self.effective_mass</span>
+        <span class="n">pum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_unit_mass</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">pum</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">pum</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">power</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_power_normalization</span><span class="p">]</span> <span class="o">*</span> <span class="n">pum</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">product_v_u</span><span class="p">([</span><span class="n">pum</span><span class="p">,</span> <span class="n">power</span><span class="p">]))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+            <span class="n">CH_PHS</span><span class="o">=</span><span class="n">pum</span><span class="o">.</span><span class="n">CH_PHS</span><span class="p">,</span> <span class="n">CH_EM</span><span class="o">=</span><span class="n">pum</span><span class="o">.</span><span class="n">CH_EM</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">[[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">,</span> <span class="s1">&#39;CH_EM&#39;</span><span class="p">,</span> <span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty [%]&#39;</span><span class="p">]]</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.per_unit_power_and_time">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.per_unit_power_and_time">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_power_and_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.per_unit_power_and_time()``</span>
+<span class="sd">        -----------------------------------------------------------------</span>
+<span class="sd">        The integrated PHS normalized per unit power and time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.per_unit_mass()``</span>
+
+<span class="sd">        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">        - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with information of the power- and time- normalized spectrum.&quot;&quot;&quot;</span>
+        <span class="n">phspa_int</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">integrate</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s1">&#39;channel&#39;</span><span class="p">,</span> <span class="s1">&#39;R&#39;</span><span class="p">])</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">phspa_int</span><span class="o">.</span><span class="n">index</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">product_v_u</span><span class="p">([</span><span class="n">phspa_int</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                                      <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_time_normalization</span><span class="p">]</span> <span class="o">*</span> <span class="n">phspa_int</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                                      <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">_power_normalization</span><span class="p">]</span> <span class="o">*</span> <span class="n">phspa_int</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)]),</span>
+                                      <span class="n">idx</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.plateau">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.plateau">[docs]</a>
+    <span class="k">def</span> <span class="nf">plateau</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">int_tolerance</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">.01</span><span class="p">,</span> <span class="n">ch_tolerance</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">.01</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.plateau()``</span>
+<span class="sd">        -------------------------------------------------</span>
+<span class="sd">        Computes the count rate per unit mass.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **int_tolerance** : ``float``, optional</span>
+<span class="sd">            Tolerance for the integration check, by default ``0.01``.</span>
+<span class="sd">        **ch_tolerance** : ``float``, optional</span>
+<span class="sd">            Tolerance for the channel check, by default ``0.01``.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.per_unit_mass()``</span>
+
+<span class="sd">        - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">        - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">        - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            containing the count rate per unit mass at convergence.</span>
+<span class="sd">            It has ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            If the channel values differ beyond the specified tolerance.&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_unit_mass</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No plateau can be found with </span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> points. Considering last.&quot;</span><span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">T</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Normalized PHS plateau search with integral tolerance </span><span class="si">{</span><span class="n">int_tolerance</span><span class="si">}</span><span class="s2"> and channel tolerance </span><span class="si">{</span><span class="n">ch_tolerance</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+            
+            <span class="c1"># check where the values in the mass-normalized count rate converge withing tolerance</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">mask_value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">vals</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">vals</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">rtol</span><span class="o">=</span><span class="n">int_tolerance</span><span class="p">)</span>
+            <span class="n">close_values</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">:][</span><span class="n">mask_value</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">close_values</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No convergence found with the given tolerance on the integral.&quot;</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
+
+            <span class="c1"># and where close values were found in successive rows </span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">close_values</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span>
+            <span class="n">mask_successive</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">plateau</span> <span class="o">=</span> <span class="n">close_values</span><span class="p">[</span><span class="n">mask_successive</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">plateau</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No convergence found in neighbouring channels.&quot;</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
+
+            <span class="c1"># test if the channels are within tolerance</span>
+            <span class="n">mask_channel</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">]</span> <span class="o">-</span> <span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_EM&#39;</span><span class="p">])</span> <span class="o">/</span> <span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_EM&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">ch_tolerance</span>
+            <span class="n">plateau</span> <span class="o">=</span> <span class="n">plateau</span><span class="p">[</span><span class="n">mask_channel</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">plateau</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;No convergence found with the given tolerance on the channel.&quot;</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
+
+            <span class="c1"># return first value of the plateau</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">plateau</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span><span class="o">.</span><span class="n">T</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.process">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.process">[docs]</a>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">long_output</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">visual</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">savefig</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.NormalizedPulseHeightSpectrum.process()``</span>
+<span class="sd">        ----------------------------------------------------------</span>
+<span class="sd">        Computes the count rate.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **long_output** : ``bool``, optional</span>
+<span class="sd">            Flag to turn on/off the full output information, whcih includes</span>
+<span class="sd">            values and variances of all the processing elements, ``False`` by default.</span>
+<span class="sd">        **visual** : ``bool``, optional</span>
+<span class="sd">            Flag to display the processed data.</span>
+<span class="sd">            Default is ``False``.</span>
+<span class="sd">        **savefig** : ``str``, optional</span>
+<span class="sd">            Filename to save the figure to.</span>
+<span class="sd">            Default is ``&#39;&#39;`` not saving.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.plateau()``</span>
+
+<span class="sd">        - **int_tolerance** (``float``): tolerance for integration check.</span>
+<span class="sd">        - **ch_tolerance** (``float``): tolerance for channel check.</span>
+
+<span class="sd">        additional arguments for</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.integrate()``</span>
+<span class="sd">            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">            - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            containing the count rate per unint mass and power.</span>
+<span class="sd">            It has ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+<span class="sd">        </span>
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - `bins` for PHS rebinning are set to `self.effective_mass.bins`.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; ffs = PulseHeightSpectrum(data=pd.DataFrame({&#39;value&#39;: [1.0, 2.0, 3.0], &#39;uncertainty&#39;: [0.1, 0.2, 0.3]}),</span>
+<span class="sd">        ...                               detector_id=&#39;D1&#39;, deposit_id=&#39;Dep1&#39;, experiment_id=&#39;Exp1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; em = EffectiveMass(data=pd.DataFrame({&#39;value&#39;: [0.5, 0.6, 0.7], &#39;uncertainty&#39;: [0.05, 0.06, 0.07]}),</span>
+<span class="sd">        ...                    detector_id=&#39;D1&#39;, deposit_id=&#39;Dep1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pm = CountRate(data=pd.DataFrame({&#39;value&#39;: [10, 20, 30], &#39;uncertainty&#39;: [1, 2, 3]}), experiment_id=&#39;Exp1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; rr = NormalizedPulseHeightSpectrum(pulse_height_spectrum=ffs, effective_mass=em, power_monitor=pm)</span>
+<span class="sd">        &gt;&gt;&gt; rr.process()</span>
+<span class="sd">            value  uncertainty</span>
+<span class="sd">        0  35.6    2.449490&quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="n">DEFAULT_MAX_KWARGS</span> <span class="o">|</span> <span class="n">DEFAULT_BIN_KWARGS</span> <span class="o">|</span> <span class="n">kwargs</span>
+        <span class="c1"># I always want to integrate over the same channels and binning as EM</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;bins&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">bins</span>
+
+        <span class="n">plateau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plateau</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>        <span class="c1"># PHS / EM @plateau and relative variance fractions</span>
+        <span class="n">power</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_power_normalization</span>       <span class="c1"># this is 1/PM</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_time_normalization</span>         <span class="c1"># this is 1/t</span>
+        <span class="c1"># compute variance fractions</span>
+        <span class="n">S_PLAT</span><span class="p">,</span> <span class="n">S_PM</span><span class="p">,</span> <span class="n">S_T</span> <span class="o">=</span> <span class="n">power</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">time</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">plateau</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">time</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">plateau</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">power</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">product_v_u</span><span class="p">([</span><span class="n">plateau</span><span class="p">,</span> <span class="n">power</span><span class="p">,</span> <span class="n">time</span><span class="p">])</span>
+                      <span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">VAR_PORT_PHS</span><span class="o">=</span><span class="n">plateau</span><span class="p">[</span><span class="s2">&quot;VAR_PORT_PHS&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">S_PLAT</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                               <span class="n">VAR_PORT_EM</span><span class="o">=</span><span class="n">plateau</span><span class="p">[</span><span class="s2">&quot;VAR_PORT_EM&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">S_PLAT</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                               <span class="n">VAR_PORT_PM</span><span class="o">=</span><span class="p">(</span><span class="n">S_PM</span> <span class="o">*</span> <span class="n">power</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+                               <span class="n">VAR_PORT_t</span><span class="o">=</span><span class="p">(</span><span class="n">S_T</span> <span class="o">*</span> <span class="n">time</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">visual</span> <span class="ow">or</span> <span class="n">savefig</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plateau</span><span class="p">[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">savefig</span><span class="p">:</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">savefig</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">df</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">long_output</span> <span class="k">else</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span>
+                                                     <span class="bp">self</span><span class="o">.</span><span class="n">_get_long_output</span><span class="p">(</span><span class="n">plateau</span><span class="p">,</span>
+                                                                           <span class="n">time</span><span class="p">,</span>
+                                                                           <span class="n">power</span><span class="p">,</span>
+                                                                           <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+                                                    <span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="NormalizedPulseHeightSpectrum.plot">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.NormalizedPulseHeightSpectrum.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">discri</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.NormalizedPulseHeightSpectrum.plot()`</span>
+<span class="sd">        --------------------------------------------</span>
+<span class="sd">        Default plotting method of PHS and monitor considered.</span>
+<span class="sd">        It also reports tabulated effective mass values.</span>
+
+<span class="sd">        Paramters</span>
+<span class="sd">        ---------</span>
+<span class="sd">        **discri**: ``int``, optional</span>
+<span class="sd">            The discrimination level to highilight in the plots.</span>
+<span class="sd">            It is in units of channel of self.pulse_height_spectrum.</span>
+<span class="sd">            Default is None.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        arguments for ``self.per_unit_mass()``, ``self.pulse_height_spectrum.integrate()``</span>
+<span class="sd">        and ``self.pulse_height_spectrum.plot()``.</span>
+
+<span class="sd">        -``self.per_unit_mass()``</span>
+<span class="sd">            - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">            - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">            - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">            - **bins** (``int``): number of bins</span>
+<span class="sd">            - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">        - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">            - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``tuple[plt.Figure, Iterable[plt.Axes]]``&quot;&quot;&quot;</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span>
+                                <span class="n">height_ratios</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span> <span class="n">width_ratios</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+                                <span class="n">gridspec_kw</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;wspace&#39;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">})</span>
+
+        <span class="c1">## plot Effective Mass</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;channel&#39;</span><span class="p">,</span>  <span class="n">y</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;scatter&#39;</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Calibration channel&quot;</span><span class="p">)</span>
+        <span class="n">cell_text</span> <span class="o">=</span> <span class="p">[[</span><span class="s1">&#39;</span><span class="si">{:.0f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">channel</span><span class="p">),</span>
+                      <span class="s1">&#39;</span><span class="si">{:.2f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+                      <span class="p">]</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()]</span>
+        <span class="n">tab</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="n">cellText</span><span class="o">=</span><span class="n">cell_text</span><span class="p">,</span> <span class="n">colLabels</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;ch&#39;</span><span class="p">,</span> <span class="s1">&#39;m [ug]&#39;</span><span class="p">],</span>
+                              <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">1.01</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">0.275</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+        <span class="n">tab</span><span class="o">.</span><span class="n">auto_set_font_size</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Effective mass [ug]&quot;</span><span class="p">)</span>
+
+        <span class="c1">## plot Power Monitor</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">power_monitor</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span>
+                                <span class="n">start_time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span>
+                                <span class="n">duration</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">real_time</span><span class="p">)</span>
+
+        <span class="c1">## plot PHS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Measurement channel&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Counts [-]&quot;</span><span class="p">)</span>
+
+    	<span class="c1">## plot fission rate per unit mass</span>
+        <span class="n">pum</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_unit_mass</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">pum</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;scatter&#39;</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">pum</span><span class="p">[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">x</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">pum</span><span class="p">[</span><span class="s1">&#39;CH_PHS&#39;</span><span class="p">]])</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Integral counts per unit mass [1/ug]&quot;</span><span class="p">)</span>
+
+        <span class="n">ax_top</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">twiny</span><span class="p">()</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xlim</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">())</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_xticks</span><span class="p">())</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">x</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">pum</span><span class="p">[</span><span class="s1">&#39;CH_EM&#39;</span><span class="p">]])</span>
+        <span class="n">ax_top</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Calibration channel&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">ticklabel_format</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;sci&#39;</span><span class="p">,</span> <span class="n">scilimits</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">labelleft</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labelright</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s2">&quot;right&quot;</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Measurement channel&quot;</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_offset_text</span><span class="p">()</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">set_x</span><span class="p">(</span><span class="mf">1.01</span><span class="p">)</span>
+        <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">grid</span><span class="p">()</span>
+
+        <span class="c1"># highlight discrimination level if passed</span>
+        <span class="k">if</span> <span class="n">discri</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">discri_r</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phs</span><span class="o">.</span><span class="n">integrate</span><span class="p">(</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;channel == @discri&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">R</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">axs</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;R == @discri_r&quot;</span><span class="p">)[</span><span class="s1">&#39;channel&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                              <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;R == @discri_r&quot;</span><span class="p">)[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                              <span class="n">c</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Discriminator&quot;</span><span class="p">)</span>
+            <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">discri</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Discriminator&#39;</span><span class="p">)</span>
+            <span class="n">axs</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">discri</span><span class="p">,</span> <span class="n">pum</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;CH_PHS == @discri&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                          <span class="n">c</span><span class="o">=</span><span class="s1">&#39;b&#39;</span><span class="p">,</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;s&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Discriminator&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="SpectralIndex">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.SpectralIndex">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span> <span class="nc">SpectralIndex</span><span class="p">(</span><span class="n">_Experimental</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.SpectralIndex``</span>
+<span class="sd">    =======================</span>
+<span class="sd">    Class storing and processing a spectral index.</span>
+<span class="sd">    Inherits from ``nerea.Experimental``.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **numerator** : ``nerea.NormalizedPulseHeightSpectrum``</span>
+<span class="sd">        the spectral index numerator.</span>
+<span class="sd">    **denominator** : ``nerea.NormalizedPulseHeightSpectrum``</span>
+<span class="sd">        the spectral index denominator.</span>
+<span class="sd">    _enable_checks: ``bool``, optoinal</span>
+<span class="sd">        flag enabling consistency checks. Default is ``True``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">numerator</span><span class="p">:</span> <span class="n">NormalizedPulseHeightSpectrum</span>
+    <span class="n">denominator</span><span class="p">:</span> <span class="n">NormalizedPulseHeightSpectrum</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs consistency checks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_consistency</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.SpectralIndex._check_consistency()`</span>
+<span class="sd">        -------------------------------------------</span>
+<span class="sd">        Checks the consistency of:</span>
+<span class="sd">            - campaign_id</span>
+<span class="sd">            - location_id</span>
+<span class="sd">        among ``self.numerator`` and ``self.denominator``.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        UserWarning</span>
+<span class="sd">            If there are inconsistencies among the specified attributes.&quot;&quot;&quot;</span>
+        <span class="n">should</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;campaign_id&#39;</span><span class="p">,</span> <span class="s1">&#39;location_id&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">should</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="p">,</span> <span class="n">attr</span>
+                           <span class="p">)</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">denominator</span><span class="p">,</span> <span class="n">attr</span><span class="p">):</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent </span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s2"> among numerator and denominator.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deposit_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.SpectralIndex.deposit_ids()`</span>
+<span class="sd">        -----------------------------------</span>
+<span class="sd">        The deposit IDs associated with the numerator and denominator.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``list[str]``</span>
+<span class="sd">            A list containing the deposit IDs of the numerator and denominator.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; from nerea.CountRate import CountRate</span>
+<span class="sd">        &gt;&gt;&gt; ffs_num = CountRate(..., deposit_id=&#39;Dep1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; ffs_den = CountRate(..., deposit_id=&#39;Dep2&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; spectral_index = SpectralIndex(numerator=ffs_num, denominator=ffs_den)</span>
+<span class="sd">        &gt;&gt;&gt; spectral_index.deposit_ids</span>
+<span class="sd">        [&#39;Dep1&#39;, &#39;Dep2&#39;]&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">denominator</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">_compute_correction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">one_g_xs</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.SpectralIndex._compute_correction()`</span>
+<span class="sd">        -------------------------------------------</span>
+<span class="sd">        Computes the impurity correction to the spectral index.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **one_g_xs** : ``nerea.Xs``</span>
+<span class="sd">            with nuclides and one group cross sections as.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with correction ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        UserWarning</span>
+<span class="sd">            If xs is not given for all impurities.&quot;&quot;&quot;</span>
+        <span class="n">comp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">composition_</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># sum over impurities != self.numerator.deposit_id</span>
+        <span class="k">return</span> <span class="n">impurity_correction</span><span class="p">(</span><span class="n">one_g_xs</span><span class="p">,</span> <span class="n">comp</span><span class="p">,</span> <span class="n">drop_main</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                   <span class="n">xs_den</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">denominator</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">,</span>
+                                   <span class="n">relative</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">comp</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">False</span>
+                                   <span class="p">)</span><span class="o">.</span><span class="n">dropna</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_get_long_output</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.SpectralIndex._get_long_output()`</span>
+<span class="sd">        ----------------------------------------</span>
+<span class="sd">        The information to be included in the long output:</span>
+<span class="sd">        values and variances of numerator and denominator if</span>
+<span class="sd">        those were computed in the first place and variance</span>
+<span class="sd">        of the impurity correction (if any of the others was</span>
+<span class="sd">        computed).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **num** : ``pd.DataFrame``</span>
+<span class="sd">            output of ``self.numerator.process()``</span>
+<span class="sd">        **den** : ``pd.DataFrame``</span>
+<span class="sd">            output of ``self.denominator.process()``</span>
+<span class="sd">        **k** : ``pd.DataFrame``</span>
+<span class="sd">            impurity correction</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            (1 x N) DataFrame or empty pd.DataFrame if the varaince was not</span>
+<span class="sd">            computed for none of `num` and `den`.&quot;&quot;&quot;</span>
+        <span class="n">empty</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">start_col</span> <span class="o">=</span> <span class="mi">7</span>
+        <span class="k">if</span> <span class="s1">&#39;VAR_PHS&#39;</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">num_</span> <span class="o">=</span> <span class="n">num</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">num</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">start_col</span><span class="p">:],</span>
+                                          <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">_n&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">start_col</span><span class="p">:]]))</span>
+                                          <span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="n">start_col</span><span class="p">:]</span>
+            <span class="n">empty</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">num_</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s1">&#39;VAR_PHS&#39;</span> <span class="ow">in</span> <span class="n">den</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">den_</span> <span class="o">=</span> <span class="n">den</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">num</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">start_col</span><span class="p">:],</span>
+                                          <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">_d&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">start_col</span><span class="p">:]]))</span>
+                                          <span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="n">start_col</span><span class="p">:]</span>
+            <span class="n">empty</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">den_</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">empty</span><span class="p">:</span>
+            <span class="n">k_</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s1">&#39;1GXS&#39;</span><span class="p">:</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">k</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                               <span class="s1">&#39;VAR_1GXS&#39;</span><span class="p">:</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">k</span><span class="p">[</span><span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">**</span><span class="mi">2</span><span class="p">},</span>
+                               <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">num_</span><span class="p">,</span> <span class="n">den_</span><span class="p">,</span> <span class="n">k_</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="SpectralIndex.process">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.SpectralIndex.process">[docs]</a>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">one_g_xs</span><span class="p">:</span> <span class="n">Xs</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">one_g_xs_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">nuc_dec_from_file</span> <span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">numerator_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="o">=</span><span class="p">{},</span>
+                <span class="n">denominator_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="o">=</span><span class="p">{},</span>
+                <span class="n">mass_normalized</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.SpectralIndex.process()`</span>
+<span class="sd">        -------------------------------</span>
+<span class="sd">        Computes the ratio of two count rates.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **one_g_xs** : ``nerea.Xs``, optional</span>
+<span class="sd">            with nuclides and one group cross sections as.</span>
+<span class="sd">            Defaults to ``None`` for no correction.</span>
+<span class="sd">        **one_g_xs_file** : ``str``, optional</span>
+<span class="sd">            the Serpent detector file to read the one group xs from.</span>
+<span class="sd">            Default is ``None``.</span>
+<span class="sd">        **nuc_dec_from_file** : ``dict[str, str]``, optional</span>
+<span class="sd">            A dictionary mapping each nuclide with the detector associated</span>
+<span class="sd">            with its cross section calculation in ``one_g_xs_file``.</span>
+<span class="sd">        **numerator_kwargs** : dict[Any]</span>
+<span class="sd">            Keyword arguments for `self.numerator.process()`</span>
+
+<span class="sd">            - **long_output** (``bool``): whetehr to output full information</span>
+<span class="sd">            - **visual** (``bool``): whether to display the processed data</span>
+<span class="sd">            - **savefig** (``str``): filename to save the figure to.</span>
+
+<span class="sd">            additional arguments for</span>
+
+<span class="sd">            - ``self.plateau()``</span>
+<span class="sd">                - **int_tolerance** (``float``): tolerance for integration check.</span>
+<span class="sd">                - **ch_tolerance** (``float``): tolerance for channel check.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.integrate()``</span>
+<span class="sd">                - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">                - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">                - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">                - **bins** (``int``): number of bins</span>
+<span class="sd">                - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">                - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">                - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">                - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">            **denominator_kwargs** : dict[Any]</span>
+<span class="sd">            Keyword arguments for `self.denominator.process()`</span>
+<span class="sd">            - **long_output** (``bool``): whetehr to output full information</span>
+<span class="sd">            - **visual** (``bool``): whether to display the processed data</span>
+<span class="sd">            - **savefig** (``str``): filename to save the figure to.</span>
+
+<span class="sd">            additional arguments for</span>
+
+<span class="sd">            - ``self.plateau()``</span>
+<span class="sd">                - **int_tolerance** (``float``): tolerance for integration check.</span>
+<span class="sd">                - **ch_tolerance** (``float``): tolerance for channel check.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.integrate()``</span>
+<span class="sd">                - **llds** (``Iterable[int|float] | int``) low level discriminator(s).</span>
+<span class="sd">                - **r** (``bool``): whether discriminators are absolute or fractions of R.</span>
+<span class="sd">                - **raw_integral** (``bool``): whether to integrate the raw data or the smoothed ones.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.rebin()``</span>
+<span class="sd">                - **bins** (``int``): number of bins</span>
+<span class="sd">                - **smooth** (``bool``): whether to smooth the PHS</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.smooth()`` only if ``smooth == True``</span>
+<span class="sd">                - **renormalize** (``bool``): Whether to renormalize the smoothed spectrum.</span>
+<span class="sd">                - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">                - arguments for the chosen ``nerea.functions.smoothing``.</span>
+
+<span class="sd">            - ``self.pulse_height_spectrum.get_max()``</span>
+<span class="sd">                - **fst_ch** (``int | str``): channel to start max search or max search method.</span>
+
+<span class="sd">        **mass_normalized** : ``bool``, optional</span>
+<span class="sd">            defines whether the result is the ratio of fission rates or of</span>
+<span class="sd">            fission rates per unit mass.</span>
+<span class="sd">            Default is ``False``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+<span class="sd">            </span>
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - Working in the effective mass framework, it is assumed that all cross sections</span>
+<span class="sd">        for impurities are mass-normalized (nerea.Xs.normalized). Then the processed </span>
+<span class="sd">        spectral index result is multiplied by the ratio between numerator and denominator</span>
+<span class="sd">        atomic mass to be consistent with the definition of one-group cross section ratio.</span>
+<span class="sd">        Else the ``mass_normalized`` argument should be used passing consistent one group</span>
+<span class="sd">        cross sections for impurity correction.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">numerator_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PROCESSING SPECTRAL INDEX NUMERATOR.&quot;</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="o">**</span><span class="n">numerator_kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">denominator_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;verbose&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PROCESSING SPECTRAL INDEX DENOMINATOR.&quot;</span><span class="p">)</span>
+        <span class="n">den</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">denominator</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="o">**</span><span class="n">denominator_kwargs</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">ratio_v_u</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">one_g_xs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">one_g_xs_file</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="o">.</span><span class="n">effective_mass</span><span class="o">.</span><span class="n">composition_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Impurities in the fission chambers require one group xs&quot;</span> <span class="o">+</span>\
+                          <span class="s2">&quot; to be accounted for.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">one_g_xs_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">read</span> <span class="o">=</span> <span class="n">Xs</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">one_g_xs_file</span><span class="p">,</span> <span class="n">nuc_dec_from_file</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">read</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="n">one_g_xs_</span> <span class="o">=</span> <span class="n">read</span> <span class="k">if</span> <span class="n">one_g_xs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">one_g_xs</span>
+        <span class="k">if</span> <span class="n">one_g_xs_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_correction</span><span class="p">(</span><span class="n">one_g_xs_</span><span class="o">.</span><span class="n">normalized</span><span class="p">)</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">v</span> <span class="o">-</span> <span class="n">k</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">u</span> <span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="n">k</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">k</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># atomic mass ratio for EM renormalization</span>
+        <span class="c1"># see docstring note</span>
+        <span class="c1"># assumed to have no uncertainty</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">mass_normalized</span><span class="p">:</span>
+            <span class="n">an</span> <span class="o">=</span> <span class="n">ATOMIC_MASS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">numerator</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> 
+            <span class="n">ad</span> <span class="o">=</span> <span class="n">ATOMIC_MASS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">denominator</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> 
+            <span class="n">mass_ratio</span> <span class="o">=</span> <span class="n">an</span> <span class="o">/</span> <span class="n">ad</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mass_ratio</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span> <span class="o">*</span> <span class="n">mass_ratio</span><span class="p">,</span> <span class="n">u</span> <span class="o">*</span> <span class="n">mass_ratio</span><span class="p">)</span>
+
+        <span class="c1"># compute fraction of variance</span>
+        <span class="n">var_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;VAR_PORT&quot;</span><span class="p">)]</span>
+        
+        <span class="n">var_num</span> <span class="o">=</span> <span class="n">num</span><span class="p">[</span><span class="n">var_cols</span><span class="p">]</span> <span class="o">/</span> <span class="n">den</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">mass_ratio</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="n">var_num</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">_n&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">var_cols</span><span class="p">]</span>
+
+        <span class="n">var_den</span> <span class="o">=</span> <span class="n">den</span><span class="p">[</span><span class="n">var_cols</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">num</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">den</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">mass_ratio</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="n">var_den</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2">_d&quot;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">var_cols</span><span class="p">]</span>
+
+        <span class="c1"># concatenate variances to `df`</span>
+        <span class="n">df</span> <span class="o">=</span>  <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">var_num</span><span class="p">,</span> <span class="n">var_den</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+                                    <span class="n">VAR_PORT_1GXS</span><span class="o">=</span><span class="p">(</span><span class="n">k</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">*</span> <span class="n">mass_ratio</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mf">0.</span>
+                                    <span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_long_output</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">,</span> <span class="n">k</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+
+<div class="viewcode-block" id="Traverse">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.Traverse">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">Traverse</span><span class="p">(</span><span class="n">_Experimental</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.Traverse``</span>
+<span class="sd">    ==================</span>
+<span class="sd">    Class storing and processing a traverse data.</span>
+<span class="sd">    Inherits from `nerea.Experimental`.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **count_rates** : ``dict[str, CountRate | CountRates]``</span>
+<span class="sd">        Links traverse position to the measured count rate.</span>
+<span class="sd">        ``key`` is the position identifier, ``value`` is the </span>
+<span class="sd">        corresponding ``nerea.CountRate`` or `nerea`.CountRates``.</span>
+<span class="sd">        If ``nerea.CountRates``, the first is considered.</span>
+<span class="sd">    _enable_checks: ``bool``, optoinal</span>
+<span class="sd">        flag enabling consistency checks. Default is ``True``.&quot;&quot;&quot;</span>
+    <span class="n">count_rates</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">CountRate</span> <span class="o">|</span> <span class="n">CountRates</span><span class="p">]</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs consistency checks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">campaign_id</span> <span class="o">==</span> <span class="n">item</span><span class="o">.</span><span class="n">campaign_id</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Not matching campaign ids.&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">deposit_id</span> <span class="o">==</span> <span class="n">item</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Not matching deposit ids.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_first</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CountRate</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.Traverse._first()``</span>
+<span class="sd">        ---------------------------</span>
+<span class="sd">        The first element of ``self.count_rates``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deposit_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.Traverse.deposit_id()``</span>
+<span class="sd">        -------------------------------</span>
+<span class="sd">        The deposit id of the first count rate.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">deposit_id</span>
+
+<div class="viewcode-block" id="Traverse.process">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.Traverse.process">[docs]</a>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                <span class="n">monitors</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">CountRate</span><span class="o">|</span> <span class="nb">int</span><span class="p">],</span>
+                <span class="n">normalization</span><span class="p">:</span> <span class="nb">int</span><span class="o">|</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">visual</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">savefig</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                <span class="n">palette</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;tab10&#39;</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.Traverse.process()``</span>
+<span class="sd">        ----------------------------</span>
+<span class="sd">        Normalizes all the count rates to the power in ``monitors``</span>
+<span class="sd">        and to the maximum value.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitors** : ``Iterable[CountRate | int]``</span>
+<span class="sd">            ordered information on the power normalization.</span>
+<span class="sd">            Should be ``nerea.CountRate`` when mapped to a</span>
+<span class="sd">            ``nerea.CountRate`` and int when mapped to ``nerea.CountRates``.</span>
+<span class="sd">            The normalization is passed to ``CountRate.per_unit_time_power()``</span>
+<span class="sd">            or ``CountRates.per_unit_time_power()``.</span>
+<span class="sd">        **normalization** : ``str``, optional</span>
+<span class="sd">            The ``self.count_rates`` CountRate identifier to normalize the traveres to.</span>
+<span class="sd">            Defaults to ``None``, normalizing to the one with the highest counts.</span>
+<span class="sd">        **visual** : ``bool``, optional</span>
+<span class="sd">            Plots the processed data.</span>
+<span class="sd">            Default is ``False``.</span>
+<span class="sd">        **savefig** : ``str``, optional</span>
+<span class="sd">            File name to save the plotted data to.</span>
+<span class="sd">            Default is `&#39;&#39;` for not saving.</span>
+<span class="sd">        **palette** : ``str``, optional</span>
+<span class="sd">            Color palette to use for plotting.</span>
+<span class="sd">            Default is ``&#39;tab10&#39;``.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            for `nerea.CountRate.plateau()`.</span>
+
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding</span>
+<span class="sd">            - **timebase** (``int``): time base for integration in plateau search.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;``, ``&#39;uncertainty&#39;``, ``&#39;uncertainty [%]&#39;`` and</span>
+<span class="sd">            ``&#39;traverse&#39;`` columns.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - Working with ``nerea.CountRates`` instances, the first count rate is used.&quot;&quot;&quot;</span>
+        <span class="n">normalized</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="p">{},</span> <span class="mi">0</span>
+        <span class="c1"># Normalize to power</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">rr</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">n</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">per_unit_time_power</span><span class="p">(</span><span class="n">monitors</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">normalized</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">rr</span><span class="p">,</span> <span class="n">CountRate</span><span class="p">)</span> <span class="k">else</span> <span class="nb">list</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">normalized</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">&gt;</span> <span class="n">m</span><span class="p">:</span>
+                <span class="n">max_k</span><span class="p">,</span> <span class="n">m</span> <span class="o">=</span> <span class="n">k</span><span class="p">,</span> <span class="n">normalized</span><span class="p">[</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">norm_k</span> <span class="o">=</span> <span class="n">max_k</span> <span class="k">if</span> <span class="n">normalization</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">normalization</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">normalized</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">normalized</span><span class="p">[</span><span class="n">norm_k</span><span class="p">]))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">traverse</span><span class="o">=</span><span class="n">k</span><span class="p">))</span>
+        <span class="c1"># plot</span>
+        <span class="k">if</span> <span class="n">visual</span> <span class="ow">or</span> <span class="n">savefig</span><span class="p">:</span>
+            <span class="n">fig</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">monitors</span><span class="p">,</span> <span class="n">palette</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">savefig</span><span class="p">:</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">savefig</span><span class="p">)</span>
+                <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Traverse.plot">
+<a class="viewcode-back" href="../../nerea.html#nerea.experimental.Traverse.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+             <span class="n">monitors</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">CountRate</span><span class="o">|</span> <span class="nb">int</span><span class="p">],</span>
+             <span class="n">palette</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;tab10&#39;</span><span class="p">,</span>
+             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea.Traverse.plot()``</span>
+<span class="sd">        -------------------------</span>
+<span class="sd">        Plot the data processed in Traverse.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitors** : ``Iterable[CountRate | int]``</span>
+<span class="sd">            ordered information on the power normalization.</span>
+<span class="sd">            Should be ``nerea.CountRate`` when mapped to a ``nerea.CountRate``</span>
+<span class="sd">            and ``int`` when mapped to ``nerea.CountRates``. The normalization</span>
+<span class="sd">            is passed to ``CountRate.per_unit_time_power()`` or</span>
+<span class="sd">            ``CountRates.per_unit_time_power()``.</span>
+<span class="sd">        **palette** : ``str``, optional</span>
+<span class="sd">            plt palette to use for plotting.</span>
+<span class="sd">            Default is ``&#39;tab10&#39;``.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            for `nerea.CountRate.plateau()`.</span>
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding</span>
+<span class="sd">            - **timebase** (``int``): time base for integration in plateau search.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``tuple[plt.Figure, Iterable[plt.Axes]]``&quot;&quot;&quot;</span>
+        <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span>
+                              <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="mi">30</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="p">)))</span>
+        <span class="n">j</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">rr</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">count_rates</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">palette</span><span class="p">)(</span><span class="n">j</span><span class="p">)</span>
+            <span class="n">plat</span> <span class="o">=</span> <span class="n">rr</span><span class="o">.</span><span class="n">plateau</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">dur</span> <span class="o">=</span> <span class="p">(</span><span class="n">plat</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">plat</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">())</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+            <span class="c1"># plot data</span>
+            <span class="n">rr</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">start_time</span><span class="o">=</span><span class="n">plat</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">duration</span><span class="o">=</span><span class="n">dur</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Traverse count rate </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># plot monitor</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">monitors</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">plat</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">dur</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">)</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">plot</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">c</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Monitor count rate </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="n">h</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_legend_handles_labels</span><span class="p">()</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+            <span class="n">h</span><span class="p">,</span> <span class="n">l</span> <span class="o">=</span> <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get_legend_handles_labels</span><span class="p">()</span>
+            <span class="n">axs</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">h</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span> <span class="n">l</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+
+            <span class="n">j</span> <span class="o">=</span> <span class="n">j</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">palette</span><span class="p">)</span><span class="o">.</span><span class="n">N</span> <span class="k">else</span> <span class="mi">0</span>
+        <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright YYYY-2026, Federico Grimaldi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

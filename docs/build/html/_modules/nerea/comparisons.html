@@ -1,0 +1,455 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nerea.comparisons &mdash; NEREA 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            NEREA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">nerea</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">NEREA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">nerea.comparisons</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for nerea.comparisons</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_Experimental</span><span class="p">,</span> <span class="n">SpectralIndex</span><span class="p">,</span> <span class="n">Traverse</span>
+<span class="kn">from</span> <span class="nn">.</span> <span class="kn">import</span> <span class="n">_Calculated</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">,</span> <span class="n">CalculatedTraverse</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">ratio_v_u</span><span class="p">,</span> <span class="n">_make_df</span>
+
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;CoverE&#39;</span><span class="p">,</span> <span class="s1">&#39;CoverC&#39;</span><span class="p">,</span> <span class="s1">&#39;FrameCompare&#39;</span><span class="p">]</span>
+
+
+<span class="k">def</span> <span class="nf">_frame_comparison</span><span class="p">(</span><span class="n">num</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">den</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                      <span class="n">_minus_one_percent</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.comparisons._frame_comparison()`</span>
+<span class="sd">    ---------------------------------------</span>
+<span class="sd">    Ratio comparison of `pd.DataFrame` objects.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **num**: ``pd.DataFrame``</span>
+<span class="sd">        the ratio numerator.</span>
+<span class="sd">    **den**: ``pd.DataFrame``</span>
+<span class="sd">        the ratio denominator.</span>
+<span class="sd">    **_minus_one_percent**: ``bool``, optional</span>
+<span class="sd">        flag to determine whether the comparison should be</span>
+<span class="sd">        as N / D - 1 [%]. Defaults to False.</span>
+<span class="sd">    </span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    **df**: ``pd.DataFrame``</span>
+<span class="sd">        the result in the standard format of `nerea.utils._make_df()`.</span>
+<span class="sd">    **var_num**: ``pd.DataFrame``</span>
+<span class="sd">        variance apportioning of the numerator.</span>
+<span class="sd">    **var_den**: ``pd.DataFrame``</span>
+<span class="sd">        variance apportioning of the denominator.&quot;&quot;&quot;</span>
+    <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">ratio_v_u</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">((</span><span class="n">v</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="n">u</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">if</span> <span class="n">_minus_one_percent</span> <span class="k">else</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">)</span>
+    <span class="c1"># sensitivities</span>
+    <span class="n">S_num</span><span class="p">,</span> <span class="n">S_den</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">den</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">num</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">den</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span>
+    <span class="n">factor</span> <span class="o">=</span> <span class="mi">100</span> <span class="k">if</span> <span class="n">_minus_one_percent</span> <span class="k">else</span> <span class="mi">1</span>
+    <span class="c1"># variances</span>
+    <span class="n">var_cols_num</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;VAR_PORT&quot;</span><span class="p">)]</span>
+    <span class="n">var_num</span> <span class="o">=</span> <span class="p">(</span><span class="n">num</span><span class="p">[</span><span class="n">var_cols_num</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">S_num</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">factor</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">({</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+    <span class="n">var_cols_den</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">den</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;VAR_PORT&quot;</span><span class="p">)]</span>
+    <span class="n">var_den</span> <span class="o">=</span> <span class="n">den</span><span class="p">[</span><span class="n">var_cols_den</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">S_den</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">factor</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span>
+    <span class="c1"># Handling C where all variances are None</span>
+    <span class="k">if</span> <span class="s1">&#39;VAR_PORT_C_n&#39;</span> <span class="ow">in</span> <span class="n">var_cols_num</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">([</span><span class="n">num</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">var_cols_num</span><span class="p">]):</span>
+        <span class="n">var_num</span><span class="p">[</span><span class="s1">&#39;VAR_PORT_C&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">num</span><span class="p">[</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">S_num</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">factor</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span>
+    <span class="k">if</span> <span class="s1">&#39;VAR_PORT_C_n&#39;</span> <span class="ow">in</span> <span class="n">var_cols_den</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">([</span><span class="n">den</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">var_cols_den</span><span class="p">]):</span>
+        <span class="n">var_den</span><span class="p">[</span><span class="s1">&#39;VAR_PORT_C&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">den</span><span class="p">[</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">S_den</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">factor</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span>
+    <span class="c1"># Disambiguation of the numerator and denominator column names if C/C</span>
+    <span class="k">if</span> <span class="s1">&#39;VAR_PORT_C_n&#39;</span> <span class="ow">in</span> <span class="n">num</span><span class="o">.</span><span class="n">columns</span> <span class="ow">and</span> <span class="s1">&#39;VAR_PORT_C_n&#39;</span> <span class="ow">in</span> <span class="n">den</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>  <span class="c1"># if C/C</span>
+        <span class="n">var_num</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">_n&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">var_num</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        <span class="n">var_den</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s1">_d&#39;</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">var_den</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        <span class="n">var_den</span> <span class="o">=</span> <span class="n">var_den</span><span class="o">.</span><span class="n">replace</span><span class="p">({</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">:</span> <span class="kc">None</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">df</span><span class="p">,</span> <span class="n">var_num</span><span class="p">,</span> <span class="n">var_den</span>
+
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_Comparison</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea._Comparison()``</span>
+<span class="sd">    =====================</span>
+<span class="sd">    Comparison superclass handling calculation of the</span>
+<span class="sd">    comparison ratio.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **num**: ``nerea._Calculated``</span>
+<span class="sd">        the calculated quantity to use as numerator.</span>
+<span class="sd">    **den**: ``nerea._Calculated`` | nerea._Experimental</span>
+<span class="sd">        the calculated or measured quantity to use</span>
+<span class="sd">        as denominator.&quot;&quot;&quot;</span>
+    <span class="n">num</span><span class="p">:</span> <span class="n">_Calculated</span>
+    <span class="n">den</span><span class="p">:</span> <span class="n">_Experimental</span> <span class="o">|</span> <span class="n">_Calculated</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency_attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison._check_consistency_attrs()`</span>
+<span class="sd">        ----------------------------------------------</span>
+<span class="sd">        Checks consistency of ``deposit_id`` or ``deposit_ids``.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">Traverse</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">.</span><span class="n">deposit_id</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Inconsistent deposits between C and E.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">SpectralIndex</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">.</span><span class="n">deposit_ids</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="o">.</span><span class="n">deposit_ids</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Inconsistent deposits between C and E.&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deposit_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison.deposit_ids()`</span>
+<span class="sd">        ---------------------------------</span>
+<span class="sd">        The deposit IDs associated with the numerator and denominator.</span>
+<span class="sd">        Consistency check performed in ``self._check_consistency()``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``list[str]``</span>
+<span class="sd">            A list containing the deposit IDs of the numerator and denominator.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">.</span><span class="n">deposit_ids</span>
+
+    <span class="k">def</span> <span class="nf">_get_denominator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison._get_denominator()`</span>
+<span class="sd">        --------------------------------------</span>
+<span class="sd">        Processess the comparison denominator discrimiating</span>
+<span class="sd">        between Experimental and Calculated types.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs@</span>
+<span class="sd">            keyword arguments for experimental denominator</span>
+<span class="sd">            processing.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            The processed / calculated denominator.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span>
+                                                        <span class="n">_Experimental</span><span class="p">)</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="o">.</span><span class="n">calculate</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_compute_si</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison._compute_si()`</span>
+<span class="sd">        ---------------------------------</span>
+<span class="sd">        Computes the C/E value for spectral indices.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **_minus_one_percent**: ``bool``, optional</span>
+<span class="sd">            flag to compute C/E - 1 [%]. Default is False.</span>
+<span class="sd">        **kwargs@</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            the C/E value and uncertainty&quot;&quot;&quot;</span>
+        <span class="n">num</span><span class="p">,</span> <span class="n">den</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">.</span><span class="n">calculate</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_denominator</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">df</span><span class="p">,</span> <span class="n">var_num</span><span class="p">,</span> <span class="n">var_den</span> <span class="o">=</span> <span class="n">_frame_comparison</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df</span><span class="p">,</span> <span class="n">var_num</span><span class="p">,</span> <span class="n">var_den</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_compute_traverse</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                          <span class="n">normalization</span><span class="p">:</span> <span class="nb">int</span><span class="o">|</span><span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison._compute_traverse()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Computes the C/E value for traverses.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **_minus_one_percent**: ``bool``, optional</span>
+<span class="sd">            flag to compute C/E - 1 [%]. Default is False</span>
+<span class="sd">        **normalization**: ``int|str``, optional</span>
+<span class="sd">            The point to normalize the traverse to. Default is</span>
+<span class="sd">            None, normalizing to the one with the highest counts.</span>
+<span class="sd">        **kwargs@</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            the C/E value and uncertainty&quot;&quot;&quot;</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">normalization</span><span class="o">=</span><span class="n">normalization</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;traverse&#39;</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">normalization</span><span class="o">=</span><span class="n">normalization</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;traverse&#39;</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">ratio_v_u</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">_minus_one_percent</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">((</span><span class="n">v</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span> <span class="p">,</span> <span class="n">u</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">idx</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">names</span><span class="o">=</span><span class="s1">&#39;traverse&#39;</span><span class="p">)[[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty [%]&#39;</span><span class="p">,</span> <span class="s1">&#39;traverse&#39;</span><span class="p">]]</span>
+
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison.compute()`</span>
+<span class="sd">        -----------------------------</span>
+<span class="sd">        Computes the comparison value.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **_minus_one_percent**: ``bool``, optional</span>
+<span class="sd">            computes the C/E-1 [%]. Defaults to False.</span>
+<span class="sd">        **normalization** : ``str``, optional</span>
+<span class="sd">            The detector name to normalize the traveres to.</span>
+<span class="sd">            Defaults to None, normalizing to the one with the highest counts.</span>
+<span class="sd">            Will be used to compute traverse C/E for normalization of both C and E.</span>
+<span class="sd">        **kwargs@</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            DataFrame containing the comparison value.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">):</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_si</span><span class="p">(</span><span class="n">_minus_one_percent</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedTraverse</span><span class="p">):</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_traverse</span><span class="p">(</span><span class="n">_minus_one_percent</span><span class="p">,</span> <span class="n">normalization</span><span class="o">=</span><span class="n">normalization</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">minus_one_percent</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea._Comparison.minus_one_percent()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Computes the comparison value and subtracts 1, adjusting the uncertainty accordingly.</span>
+<span class="sd">        The result is in units of %.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs@</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            DataFrame containing the adjusted comparison value.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="CoverE">
+<a class="viewcode-back" href="../../nerea.html#nerea.comparisons.CoverE">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CoverE</span><span class="p">(</span><span class="n">_Comparison</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CoverE``</span>
+<span class="sd">    ================</span>
+<span class="sd">    Calculates the C/E inheriting from `nerea._Comparison`.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **num**: ``nerea._Calculated``</span>
+<span class="sd">        the calculated quantity to use as numerator.</span>
+<span class="sd">    **den**: ``nerea._Experimental``</span>
+<span class="sd">        the measured quantity to use as denominator.</span>
+<span class="sd">    **_enable_checks**: ``bool``, optional</span>
+<span class="sd">        flag to enable consistency checks.</span>
+<span class="sd">        Default is ``True``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">num</span><span class="p">:</span> <span class="n">_Calculated</span>  <span class="c1"># calculation</span>
+    <span class="n">den</span><span class="p">:</span> <span class="n">_Experimental</span>  <span class="c1"># experiment</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CoverE.__post_init__`</span>
+<span class="sd">        ----------------------------</span>
+<span class="sd">        Runs consistency checks.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_consistency</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CoverE.__post_init__`</span>
+<span class="sd">        ----------------------------</span>
+<span class="sd">        Checks consistency of C and E types and runs</span>
+<span class="sd">        ``nerea._Comparison`` checks.&quot;&quot;&quot;</span>
+        <span class="n">_Comparison</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">)</span><span class="o">.</span><span class="n">_check_consistency_attrs</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">((</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedTraverse</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">Traverse</span><span class="p">))</span> <span class="ow">or</span>
+            <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">Traverse</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedTraverse</span><span class="p">))):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cannot compare Traverse and non-Traverse object.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">SpectralIndex</span><span class="p">)</span> <span class="ow">or</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">SpectralIndex</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cannot compare SpectralIndex and non-SpectralIndex object.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="CoverC">
+<a class="viewcode-back" href="../../nerea.html#nerea.comparisons.CoverC">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CoverC</span><span class="p">(</span><span class="n">_Comparison</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CoverC``</span>
+<span class="sd">    ================</span>
+<span class="sd">    Calculates the C/C inheriting from `nerea._Comparison`.</span>
+
+<span class="sd">    Attributes:</span>
+<span class="sd">    -----------</span>
+<span class="sd">    **num**: ``nerea._Calculated``</span>
+<span class="sd">        the calculated quantity to use as numerator.</span>
+<span class="sd">    **den**: ``nerea._Calculated``</span>
+<span class="sd">        the calculated quantity to use as denominator.</span>
+<span class="sd">    **_enable_checks**: ``bool``, optional</span>
+<span class="sd">        flag to enable consistency checks.</span>
+<span class="sd">        Default is ``True``.&quot;&quot;&quot;</span>
+    <span class="n">num</span><span class="p">:</span> <span class="n">_Calculated</span>  <span class="c1"># calculation</span>
+    <span class="n">den</span><span class="p">:</span> <span class="n">_Calculated</span>  <span class="c1"># calculation</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CoverC.__post_init__`</span>
+<span class="sd">        ----------------------------</span>
+<span class="sd">        Runs consistency checks.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_consistency</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CoverC._check_consistency()`</span>
+<span class="sd">        ----------------------------------</span>
+<span class="sd">        Checks consistency of C and E types and</span>
+<span class="sd">        runs _Comparison checks.&quot;&quot;&quot;</span>
+        <span class="n">_Comparison</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">)</span><span class="o">.</span><span class="n">_check_consistency_attrs</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedTraverse</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">CalculatedTraverse</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cannot compare Traverse and non-Traverse object.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">CalculatedSpectralIndex</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Cannot compare SpectralIndex and non-SpectralIndex object.&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="FrameCompare">
+<a class="viewcode-back" href="../../nerea.html#nerea.comparisons.FrameCompare">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">FrameCompare</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.FrameCompare``</span>
+<span class="sd">    ======================</span>
+<span class="sd">    A class to compute the ratio comparison of two</span>
+<span class="sd">    ``pd.DataFrame`` instances.</span>
+<span class="sd">    Each data frame should be nerea-formatted, with ``&#39;value&#39;``</span>
+<span class="sd">    and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **num**: ``pd.DataFrame``</span>
+<span class="sd">        the numerator.</span>
+<span class="sd">    **den**: ``pd.DataFrame``</span>
+<span class="sd">        the denominator.&quot;&quot;&quot;</span>
+    <span class="n">num</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">den</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+
+<div class="viewcode-block" id="FrameCompare.compute">
+<a class="viewcode-back" href="../../nerea.html#nerea.comparisons.FrameCompare.compute">[docs]</a>
+    <span class="k">def</span> <span class="nf">compute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.FrameCompare.compute()`</span>
+<span class="sd">        ------------------------------</span>
+<span class="sd">        Computes the comparison value as ratio of `num` and `den`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **_minus_one_percent** : ``bool``, optional</span>
+<span class="sd">            computes the C/E-1 [%]. Defaults to False.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame containing the comparison value.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">_frame_comparison</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">den</span><span class="p">,</span> <span class="n">_minus_one_percent</span><span class="p">),</span>
+                         <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright YYYY-2026, Federico Grimaldi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

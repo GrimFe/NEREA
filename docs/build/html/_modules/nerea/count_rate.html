@@ -1,0 +1,1388 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nerea.count_rate &mdash; NEREA 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            NEREA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">nerea</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">NEREA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">nerea.count_rate</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for nerea.count_rate</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Self</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">linecache</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timedelta</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">ratio_v_u</span><span class="p">,</span> <span class="n">_make_df</span><span class="p">,</span> <span class="n">time_integral_v_u</span><span class="p">,</span> <span class="n">integral_v_u</span>
+<span class="kn">from</span> <span class="nn">.functions</span> <span class="kn">import</span> <span class="n">get_fit_R2</span><span class="p">,</span> <span class="n">smoothing</span>
+<span class="kn">from</span> <span class="nn">.defaults</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">.classes</span> <span class="kn">import</span> <span class="n">EffectiveDelayedParams</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="kn">import</span> <span class="n">BASE_DATE</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;CountRate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;CountRates&quot;</span><span class="p">]</span>
+
+<div class="viewcode-block" id="CountRate">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CountRate</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CountRate``</span>
+<span class="sd">    ===================</span>
+<span class="sd">    Class storing and processing count rate data acquired as </span>
+<span class="sd">    a function of time.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **data**: ``pd.DataFrame``</span>
+<span class="sd">        the count rate as a function of time data.</span>
+<span class="sd">    **start_time**: ``datetime``</span>
+<span class="sd">        acquisition start time.</span>
+<span class="sd">    **campaign_id**: ``str``</span>
+<span class="sd">        metadatada for experimental campaign identification.</span>
+<span class="sd">    **experiment_id**: ``str``</span>
+<span class="sd">        metadata for experiment identification</span>
+<span class="sd">    **detector_id**: ``int|str``</span>
+<span class="sd">        metadata for detector identification</span>
+<span class="sd">    **deposit_id**: ``str``</span>
+<span class="sd">        metadata for deposit identification</span>
+<span class="sd">    **timebase**: ``float``, optional</span>
+<span class="sd">        acquisition timebase in seconds. Default is ``1.0``.</span>
+<span class="sd">    _dead_time_corrected: ``bool``, optional</span>
+<span class="sd">        flag labelling whether the count rates have been</span>
+<span class="sd">        corrected for dead time. Handled internally.</span>
+<span class="sd">        Default is ``False``.</span>
+<span class="sd">    _vlines: ``Iterable[datetime]``, optional</span>
+<span class="sd">        lines to draw plotting. Handled internally.</span>
+<span class="sd">        Default is ``[]``.&quot;&quot;&quot;</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">start_time</span><span class="p">:</span> <span class="n">datetime</span>
+    <span class="n">campaign_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">experiment_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">detector_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">deposit_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">timebase</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.</span> <span class="c1">## in seconds</span>
+    <span class="n">_dead_time_corrected</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">_vlines</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[])</span>
+
+    <span class="k">def</span> <span class="nf">_linear_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                    <span class="n">preprocessing</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;log&#39;</span><span class="p">,</span>
+                    <span class="n">nonzero</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+                    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._linear_fit`</span>
+<span class="sd">        -----------------------------</span>
+<span class="sd">        Linearly fits monitor data after preprocessing.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **preprocessing** : ``str``, optional</span>
+<span class="sd">            ``numpy`` function to apply to ``self.data`` prior to</span>
+<span class="sd">            linear fitting. Default is ``&#39;log&#39;``.</span>
+<span class="sd">        **nonzero** : ``bool``, optional</span>
+<span class="sd">            queries non-zero values in ``self.data``.</span>
+<span class="sd">            Default is ``True``.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        tuple[pd.Series, np.ndarray, np.ndarray, dict]</span>
+<span class="sd">        fit output:</span>
+<span class="sd">            - The dependent data</span>
+<span class="sd">            - Parameter values minimizing RMSE</span>
+<span class="sd">            - Parameter covariance</span>
+<span class="sd">            - information&quot;&quot;&quot;</span>
+        <span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">curve_fit</span>
+        <span class="k">def</span> <span class="nf">linear_fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>  <span class="c1"># Linear fit function (a = T)</span>
+        <span class="k">if</span> <span class="n">nonzero</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+                <span class="n">str1</span> <span class="o">=</span> <span class="s2">&quot;Removing 0 counts from Count Rate to enable period log fit. &quot;</span>
+                <span class="n">str2</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Removed </span><span class="si">{</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">data</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="si">}</span><span class="s2"> rows.&quot;</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="n">str1</span> <span class="o">+</span> <span class="n">str2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">preprocessing</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">np</span><span class="p">,</span> <span class="n">preprocessing</span><span class="p">)(</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>  <span class="c1"># apply preprocessing</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>  <span class="c1"># x must be in seconds from 0</span>
+        <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">linear_fit</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span>
+                                          <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">absolute_sigma</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># sigma scaled to math sample variance</span>
+        <span class="k">return</span> <span class="n">y</span><span class="p">,</span> <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span><span class="p">,</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="CountRate.average">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.average">[docs]</a>
+    <span class="k">def</span> <span class="nf">average</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">duration</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.average()`</span>
+<span class="sd">        ---------------------------</span>
+<span class="sd">        Calculates the average value and uncertainty of</span>
+<span class="sd">        time series data within a specified duration.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **start_time** : ``datetime.datetime``</span>
+<span class="sd">            The starting time for the data to be analyzed.</span>
+<span class="sd">        **duration** : ``float``</span>
+<span class="sd">            The length of time in seconds for which</span>
+<span class="sd">            the average is calculated.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame containing average `&#39;value&#39;` and `&#39;uncertainty&#39;` columns.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)</span>
+<span class="sd">            </span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; from datetime import datetime</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({&#39;Time&#39;: pd.date_range(&#39;2021-01-01&#39;, periods=100, freq=&#39;S&#39;),</span>
+<span class="sd">                                 &#39;value&#39;: np.random.rand(100)})</span>
+<span class="sd">        &gt;&gt;&gt; pm = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                              campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)</span>
+<span class="sd">        &gt;&gt;&gt; print(avg_df)&quot;&quot;&quot;</span>
+        <span class="c1"># end_time should be 1 timebase after the real end time to use</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">start_time</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">duration</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">timebase</span><span class="p">)</span>
+        <span class="n">series</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut</span><span class="p">(</span><span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">)</span><span class="o">.</span><span class="n">data</span>
+        <span class="k">if</span> <span class="n">series</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No count rate data in the requested interval.&quot;</span><span class="p">)</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">time_integral_v_u</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>
+        <span class="n">relative</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">v</span> <span class="o">!=</span> <span class="mi">0</span> <span class="k">else</span> <span class="kc">False</span>
+        <span class="c1"># Time Normalization of the Average</span>
+        <span class="c1"># If the RR time binning is not 1 s, there is a chance the query truncated</span>
+        <span class="c1"># the time series so that the difference between first and last time in</span>
+        <span class="c1"># `series` are closer than duration. Hence I define delta.</span>
+        <span class="c1"># iloc[-1] explained by the use of time_integral_v_u(): we stop at the </span>
+        <span class="c1"># beginning of the next step-post time stamp.</span>
+        <span class="n">delta</span> <span class="o">=</span> <span class="p">(</span><span class="n">series</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">series</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">delta</span><span class="p">,</span> <span class="n">u</span> <span class="o">/</span> <span class="n">delta</span><span class="p">,</span> <span class="n">relative</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.smooth">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.smooth">[docs]</a>
+    <span class="k">def</span> <span class="nf">smooth</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.smooth()`</span>
+<span class="sd">        --------------------------</span>
+<span class="sd">        Smooths the count rate data to ease feature recognition.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">        Argumnents for ``nerea.functions.smoothing()``</span>
+<span class="sd">        </span>
+<span class="sd">            - **renormalize** (``bool``): Whether to renormalize the data.</span>
+<span class="sd">            - **smoothing_method** (``str``): The mehtod to implement for smoothing.</span>
+<span class="sd">            - arguments for the chosen ``nerea.functions.smoothing``.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame with time and counts columns.</span>
+<span class="sd">        </span>
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Allowed methods are</span>
+<span class="sd">            - ``&#39;moving_average&#39;`` (requires ``window``)</span>
+<span class="sd">            - ``&#39;ewm&#39;``</span>
+<span class="sd">            - ``&#39;savgol_filter&#39;`` (requires ``window_length``, ``polyorder``)</span>
+<span class="sd">            - ``&#39;fit&#39;``(requires ``ch_before_max``, ``order``)&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;window&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;window_lenght&#39;</span><span class="p">):</span>
+            <span class="n">w</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;window&#39;</span><span class="p">]</span> <span class="k">if</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;smoothing_method&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;moving_average&#39;</span> <span class="k">else</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;window_length&#39;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">w</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">timebase</span><span class="p">:</span>  <span class="c1">## if nor window nor window_length are passed w is False</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Smoothing window length should be larger than the Count Rate timebase.&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;Time&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">],</span>
+                                <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">smoothing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">out</span><span class="p">,</span>
+            <span class="n">start_time</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span>
+            <span class="n">campaign_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">campaign_id</span><span class="p">,</span>
+            <span class="n">experiment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">,</span>
+            <span class="n">detector_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">detector_id</span><span class="p">,</span>
+            <span class="n">deposit_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">,</span>
+            <span class="n">timebase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timebase</span><span class="p">,</span>
+            <span class="n">_dead_time_corrected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_dead_time_corrected</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.integrate">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.integrate">[docs]</a>
+    <span class="k">def</span> <span class="nf">integrate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timebase</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="n">datetime</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.integrate()`</span>
+<span class="sd">        -----------------------------</span>
+<span class="sd">        Integrates data over a specified timebase starting</span>
+<span class="sd">        from a given start time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **timebase** : ``int``</span>
+<span class="sd">            The interval of time in seconds over which to calculate the average.</span>
+<span class="sd">            This interval is used to group the data for averaging.</span>
+<span class="sd">        **start_time** : ``datetime``, optional</span>
+<span class="sd">            The starting time for the integration process. Default is ``self.start_time``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame containing average `&#39;value&#39;` and `&#39;uncertainty&#39;` columns.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; from datetime import datetime</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({&#39;Time&#39;: pd.date_range(&#39;2021-01-01&#39;, periods=100, freq=&#39;S&#39;),</span>
+<span class="sd">                                 &#39;value&#39;: np.random.rand(100)})</span>
+<span class="sd">        &gt;&gt;&gt; pm = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                              campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; integrated_df = pm.integrate(10)</span>
+<span class="sd">        &gt;&gt;&gt; print(integrated_df)&quot;&quot;&quot;</span>
+        <span class="n">start_time_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span> <span class="k">if</span> <span class="n">start_time</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">start_time</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">start_time_</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">():</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">start_time_</span><span class="p">,</span> <span class="n">timebase</span><span class="p">))</span>
+            <span class="n">start_time_</span> <span class="o">=</span> <span class="n">start_time_</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">timebase</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.plateau">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.plateau">[docs]</a>
+    <span class="k">def</span> <span class="nf">plateau</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">timebase</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.plateau()`</span>
+<span class="sd">        ---------------------------</span>
+<span class="sd">        The plateau with the largest integral counts in the detector.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **sigma** : ``int``, optional</span>
+<span class="sd">            the amount of standard deviations to consider for the</span>
+<span class="sd">            uncertainty on the plateau.</span>
+<span class="sd">            Defaults to ``2``.</span>
+<span class="sd">        **timebase** : ``int``, optional</span>
+<span class="sd">            the time base for integration in plateau search in seconds.</span>
+<span class="sd">            Defaults to ``10`` s.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;Time&#39;`` and ``&#39;value&#39;`` columns.&quot;&quot;&quot;</span>
+        <span class="n">time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="n">plateau_start_time</span><span class="p">,</span> <span class="n">plateau_end_time</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="nb">sum</span><span class="p">,</span> <span class="nb">max</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span>
+        <span class="k">while</span> <span class="n">time</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">():</span>
+            <span class="c1"># compute the integral over timebase</span>
+            <span class="n">time_plus_timedelta</span> <span class="o">=</span> <span class="n">time</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">timebase</span><span class="p">)</span>
+            <span class="n">series</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;Time &gt; @time and Time &lt;= @time_plus_timedelta&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+            <span class="n">local_sum</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">integral_v_u</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>
+            <span class="c1"># check if new plateau starts</span>
+            <span class="n">same_plateau</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">local_sum</span><span class="p">,</span> <span class="nb">sum</span><span class="p">,</span>
+                                      <span class="n">atol</span><span class="o">=</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">local_sum</span><span class="p">)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="nb">sum</span><span class="p">))</span> <span class="o">*</span> <span class="n">sigma</span><span class="p">)</span>
+            <span class="c1"># local_plateau = self.data.query(&quot;Time &gt; @plateau_start_time and Time &lt;= @time_plus_timedelta&quot;)</span>
+            <span class="k">if</span> <span class="n">same_plateau</span><span class="p">:</span>
+                <span class="n">plateau_end_time</span> <span class="o">=</span> <span class="n">time_plus_timedelta</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;Time &gt; @plateau_start_time and Time &lt;= @plateau_end_time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">:</span>
+                    <span class="nb">max</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;Time &gt; @plateau_start_time and Time &lt;= @plateau_end_time&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+                    <span class="n">max_plateau_start_time</span> <span class="o">=</span> <span class="n">plateau_start_time</span>
+                    <span class="n">max_plateau_end_time</span> <span class="o">=</span> <span class="n">plateau_end_time</span>
+                <span class="n">plateau_start_time</span> <span class="o">=</span> <span class="n">time_plus_timedelta</span>
+            <span class="c1"># update iteration variables (next timebin next sum)</span>
+            <span class="n">time</span> <span class="o">=</span> <span class="n">time_plus_timedelta</span>
+            <span class="nb">sum</span> <span class="o">=</span> <span class="n">local_sum</span>
+        <span class="k">if</span> <span class="n">plateau_end_time</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No plateau found in for detector </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">detector_id</span><span class="si">}</span><span class="s2"> in experiment </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;Time &gt; @max_plateau_start_time and Time &lt;= @max_plateau_end_time&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.per_unit_power">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.per_unit_power">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_power</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">monitor</span><span class="p">:</span> <span class="n">Self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.per_unit_power()`</span>
+<span class="sd">        ----------------------------------</span>
+<span class="sd">        Normalizes the count rate to a power monitor.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitor** : ``nerea.CountRate``</span>
+<span class="sd">            The power monitor for the count rate normalization.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            arguments for ``self.plateau()``.</span>
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding.</span>
+<span class="sd">            - **timebase** (``int``): integration timebase in seconds.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.&quot;&quot;&quot;</span>
+        <span class="n">plateau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plateau</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">plateau</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">plateau</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">())</span><span class="o">.</span><span class="n">seconds</span>
+        <span class="n">normalization</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">plateau</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">duration</span><span class="p">)</span> 
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">integral_v_u</span><span class="p">(</span><span class="n">plateau</span><span class="o">.</span><span class="n">value</span><span class="p">)),</span> <span class="n">normalization</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="CountRate.per_unit_time_power">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.per_unit_time_power">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_time_power</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">monitor</span><span class="p">:</span> <span class="n">Self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.per_unit_time_power()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Normalizes the count rate to a power monitor and gives</span>
+<span class="sd">        the conunt rate per unit power.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        monitor : CountRate</span>
+<span class="sd">            The power monitor for the count rate normalization.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitor** : ``nerea.CountRate``</span>
+<span class="sd">            The power monitor for the count rate normalization.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            arguments for ``self.plateau()``.</span>
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding.</span>
+<span class="sd">            - **timebase** (``int``): integration timebase in seconds.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.&quot;&quot;&quot;</span>
+        <span class="n">plateau</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">plateau</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">duration</span> <span class="o">=</span> <span class="p">(</span><span class="n">plateau</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">plateau</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">())</span><span class="o">.</span><span class="n">seconds</span>
+        <span class="n">unit_p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">per_unit_power</span><span class="p">(</span><span class="n">monitor</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">unit_p</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">duration</span><span class="p">,</span> <span class="n">unit_p</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">/</span> <span class="n">duration</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.dead_time_corrected">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.dead_time_corrected">[docs]</a>
+    <span class="k">def</span> <span class="nf">dead_time_corrected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tau_p</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">88e-9</span><span class="p">,</span> <span class="n">tau_np</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">108e-9</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.dead_time_corrected()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Apply dead time correction to the count rate data.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **tau_p** : ``float``, optional</span>
+<span class="sd">            paralizable dead time constant.</span>
+<span class="sd">            Defaults to ``88e-9``.</span>
+<span class="sd">        **tau_np** : ``float``, optional</span>
+<span class="sd">            non-paralizable dead time constant.</span>
+<span class="sd">            Defaults to ``108e-9``.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            instance with dead time corrected data.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dead_time_corrected</span><span class="p">:</span>
+            <span class="n">pm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">optimize</span>
+            <span class="k">def</span> <span class="nf">dead_time_correction</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">m</span><span class="p">,</span> <span class="n">tp</span><span class="p">,</span> <span class="n">tnp</span><span class="p">):</span> 
+                <span class="c1"># Equation for dead time correction</span>
+                <span class="k">return</span> <span class="n">n</span> <span class="o">/</span> <span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">tp</span> <span class="o">/</span> <span class="n">tnp</span><span class="p">)</span> <span class="o">*</span> <span class="n">n</span> <span class="o">*</span> <span class="n">tp</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">tp</span> <span class="o">*</span> <span class="n">n</span><span class="p">))</span> <span class="o">-</span> <span class="n">m</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dead_time_corrected</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dead time correction already applied to this detector.&quot;</span><span class="p">)</span>
+            <span class="n">pm</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">pm</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pm</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span>
+                                        <span class="n">optimize</span><span class="o">.</span><span class="n">newton</span><span class="p">(</span><span class="k">lambda</span> <span class="n">n</span><span class="p">:</span>
+                                                        <span class="n">dead_time_correction</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">tau_p</span><span class="p">,</span> <span class="n">tau_np</span><span class="p">),</span>
+                                                        <span class="n">x</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">pm</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">campaign_id</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">detector_id</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">,</span>
+                              <span class="bp">self</span><span class="o">.</span><span class="n">timebase</span><span class="p">,</span>
+                              <span class="n">_dead_time_corrected</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.cut">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.cut">[docs]</a>
+    <span class="k">def</span> <span class="nf">cut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">start</span><span class="p">:</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.cut()`</span>
+<span class="sd">        -----------------------</span>
+<span class="sd">        Cuts count rate data from a set start to an end.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **start** : ``datetime``</span>
+<span class="sd">            start time of the new `nerea.CountRate`.</span>
+<span class="sd">        **end** : ``datetime``</span>
+<span class="sd">            end time of the new `nerea.CountRate`.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            instance with truncated data.</span>
+<span class="sd">            </span>
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        Left boundary included, right boundary excluded.&quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;Time &gt;= @start and Time &lt; @end&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+                              <span class="n">start_time</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                              <span class="n">campaign_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">campaign_id</span><span class="p">,</span>
+                              <span class="n">experiment_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">,</span>
+                              <span class="n">detector_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">detector_id</span><span class="p">,</span>
+                              <span class="n">deposit_id</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">,</span>
+                              <span class="n">timebase</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">timebase</span><span class="p">,</span>
+                              <span class="n">_dead_time_corrected</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_dead_time_corrected</span>
+                              <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.get_asymptotic_period">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.get_asymptotic_period">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_asymptotic_period</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                              <span class="n">scan_dt</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">0.</span><span class="p">,</span>
+                              <span class="n">scan_dt0</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">20.</span><span class="p">,</span>
+                              <span class="n">scan_tol</span><span class="p">:</span> <span class="nb">float</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+                              <span class="n">log</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">            `nerea.CountRate.get_asymptotic_period()`</span>
+<span class="sd">            -----------------------------------------</span>
+<span class="sd">            Calculats the reactor period from a CountRate instance.</span>
+
+<span class="sd">            Parameters</span>
+<span class="sd">            ----------</span>
+<span class="sd">            **scan_dt** : ``float``, optional</span>
+<span class="sd">                time delta to evaluate asymptotic convergence.</span>
+<span class="sd">                In seconds. Default is ``0.`` for no scan.</span>
+<span class="sd">            **scan_dt0** : ``float``, optional</span>
+<span class="sd">                seconds to skip from last: buffer time to have</span>
+<span class="sd">                a reasonable period estimate to converge to.</span>
+<span class="sd">                In seconds. Default is ``20.``.</span>
+<span class="sd">            **scan_tol** : ``float``, optional</span>
+<span class="sd">                tolerance to evaluate asymptotic convergence.</span>
+<span class="sd">                Relative. Default is ``1e-2``.</span>
+<span class="sd">            **log** : ``bool``, optional</span>
+<span class="sd">                flag to log fit R^2. Default is ``True``.</span>
+
+<span class="sd">            Returns</span>
+<span class="sd">            -------</span>
+<span class="sd">            ``pd.DataFrame``</span>
+<span class="sd">                with reactor asymptotic period value and uncertainty.</span>
+<span class="sd">                </span>
+<span class="sd">            Note</span>
+<span class="sd">            ----</span>
+<span class="sd">            The scan is performed backwards, starting from the</span>
+<span class="sd">            later time in ``self`` - ``scan_dt0``. time spacing is</span>
+<span class="sd">            defined by ``scan_dt`` and tolerance by ``scan_tol``.&quot;&quot;&quot;</span>
+            <span class="k">if</span> <span class="n">scan_dt</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">fitted_data</span><span class="p">,</span> <span class="n">popt</span><span class="p">,</span> <span class="n">pcov</span><span class="p">,</span> <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_linear_fit</span><span class="p">()</span>
+                <span class="n">period</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">popt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">pcov</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]))</span>
+                <span class="n">r2</span> <span class="o">=</span> <span class="n">get_fit_R2</span><span class="p">(</span><span class="n">fitted_data</span><span class="p">,</span> <span class="n">out</span><span class="p">[</span><span class="s1">&#39;fvec&#39;</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">log</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reactor period fit R^2 = </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># starting from end</span>
+                <span class="n">t0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">scan_dt0</span><span class="p">)</span>
+                <span class="n">full_dt</span> <span class="o">=</span> <span class="p">(</span><span class="n">t0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+                <span class="n">nbins</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">(</span><span class="n">full_dt</span> <span class="o">/</span> <span class="n">scan_dt</span><span class="p">))</span>
+                <span class="n">old_period</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">scan_dt</span><span class="p">,</span> <span class="n">full_dt</span><span class="p">,</span> <span class="n">nbins</span><span class="p">):</span>
+                    <span class="n">ts</span> <span class="o">=</span> <span class="n">t0</span> <span class="o">-</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span> <span class="o">=</span> <span class="n">i</span><span class="p">)</span>
+                    <span class="c1"># period from ts to end of cut data</span>
+                    <span class="n">cr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+                    <span class="n">period</span> <span class="o">=</span> <span class="n">cr</span><span class="o">.</span><span class="n">get_asymptotic_period</span><span class="p">(</span><span class="n">log</span><span class="o">=</span><span class="kc">False</span>
+                                <span class="p">)</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="k">if</span> <span class="n">old_period</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">old_period</span> <span class="o">=</span> <span class="n">period</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="p">(</span><span class="n">period</span> <span class="o">/</span> <span class="n">old_period</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">scan_tol</span><span class="p">:</span>
+                            <span class="n">old_period</span> <span class="o">=</span> <span class="n">period</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="k">break</span>
+                <span class="n">period</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cut</span><span class="p">(</span><span class="n">ts</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">scan_dt</span><span class="p">),</span>
+                                  <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+                                  <span class="p">)</span><span class="o">.</span><span class="n">get_asymptotic_period</span><span class="p">(</span><span class="n">log</span><span class="o">=</span><span class="n">log</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">period</span></div>
+
+
+<div class="viewcode-block" id="CountRate.get_reactivity">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.get_reactivity">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_reactivity</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                       <span class="n">delayed_data</span><span class="p">:</span> <span class="n">EffectiveDelayedParams</span><span class="p">,</span>
+                       <span class="n">ap_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="o">=</span><span class="p">{})</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.get_reactivity()`</span>
+<span class="sd">        ----------------------------------</span>
+<span class="sd">        Calculates the reactor reactivity based on the Count Rate-estimated</span>
+<span class="sd">        reactor period and on effective nuclear data computed by Serpent.</span>
+<span class="sd">        </span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **delayed_data** : ``nerea.EffectiveDelayedParams``</span>
+<span class="sd">            effective delayed neutron paramters to use for</span>
+<span class="sd">            reactivity calculation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame with ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.&quot;&quot;&quot;</span>
+        <span class="n">ap_kw</span> <span class="o">=</span> <span class="n">DEFAULT_AP_KWARGS</span> <span class="o">|</span> <span class="n">ap_kwargs</span>
+        <span class="n">bi</span> <span class="o">=</span> <span class="n">delayed_data</span><span class="o">.</span><span class="n">beta_i</span>
+        <span class="n">li</span> <span class="o">=</span> <span class="n">delayed_data</span><span class="o">.</span><span class="n">lambda_i</span>
+
+        <span class="c1"># compute reactivity</span>
+        <span class="k">assert</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">values</span> <span class="o">!=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">))</span>
+        <span class="k">assert</span><span class="p">(</span><span class="nb">all</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">values</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">))</span>
+
+        <span class="n">T</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_asymptotic_period</span><span class="p">(</span><span class="o">**</span><span class="n">ap_kw</span><span class="p">)</span>
+        <span class="n">rho</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">bi</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">li</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">value</span><span class="p">))</span>
+
+        <span class="c1"># variance portions</span>
+        <span class="n">VAR_PORT_T</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="o">-</span><span class="n">bi</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">li</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">li</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">VAR_PORT_B</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">li</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">*</span> <span class="n">bi</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">VAR_PORT_L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="o">-</span><span class="n">bi</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">li</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">T</span><span class="o">.</span><span class="n">value</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">li</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">rho</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">VAR_PORT_T</span> <span class="o">+</span> <span class="n">VAR_PORT_B</span> <span class="o">+</span> <span class="n">VAR_PORT_L</span><span class="p">))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">VAR_PORT_T</span><span class="o">=</span><span class="n">VAR_PORT_T</span><span class="p">,</span>
+                                                                                   <span class="n">VAR_PORT_B</span><span class="o">=</span><span class="n">VAR_PORT_B</span><span class="p">,</span>
+                                                                                   <span class="n">VAR_PORT_L</span><span class="o">=</span><span class="n">VAR_PORT_L</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRate.plot">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.plot">[docs]</a>
+    <span class="k">def</span> <span class="nf">plot</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+             <span class="n">start_time</span><span class="p">:</span> <span class="n">datetime</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">duration</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">experiment_time</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+             <span class="n">ax</span><span class="p">:</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+             <span class="n">c</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;k&#39;</span><span class="p">,</span>
+             <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">plt</span><span class="o">.</span><span class="n">Axes</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.plot()`</span>
+<span class="sd">        ------------------------</span>
+<span class="sd">        Plot data in this CountRate instance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **start_time** : ``datetime.datetime``, optional</span>
+<span class="sd">            The time the count rate is considered from.</span>
+<span class="sd">            Default is ``None`` for first acquisition time.</span>
+<span class="sd">        **duration** : ``int``, optional</span>
+<span class="sd">            The time-span the count rate is considered for.</span>
+<span class="sd">            Default is ``None`` for until last acquisition time.</span>
+<span class="sd">        **ax** : ``plt.Axes``, optional</span>
+<span class="sd">            The ax where the plot is drawn.</span>
+<span class="sd">            Defauls is ``None`` for a new axes.</span>
+<span class="sd">        **c** : ``str``, optional</span>
+<span class="sd">            The color of the plotted seriese.</span>
+<span class="sd">            Default is ``&#39;k&#39;``.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            Additional arguments for ``pd.DataFrame.plot()``</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``plt.Axes``</span>
+<span class="sd">            with the plotted data.&quot;&quot;&quot;</span>
+        <span class="n">start_time_</span> <span class="o">=</span> <span class="n">start_time</span> <span class="k">if</span> <span class="n">start_time</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="n">duration_</span> <span class="o">=</span> <span class="n">duration</span> <span class="k">if</span> <span class="n">duration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">start_time_</span><span class="p">)</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">experiment_time</span><span class="p">:</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;scatter&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="c1"># vspans and vlines plotted only when x is real time</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">axvspan</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_time</span><span class="p">,</span> <span class="n">start_time_</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">axvspan</span><span class="p">(</span><span class="n">start_time_</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">duration_</span><span class="p">),</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span>
+                    <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Ingored&#39;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_vlines</span><span class="p">:</span>
+                <span class="n">ax</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;File joining&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">Time</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="n">ax</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="n">ax</span><span class="o">=</span><span class="n">ax</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s1">&#39;scatter&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">ticklabel_format</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;sci&#39;</span><span class="p">,</span> <span class="n">scilimits</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Power monitor count rate [1/s]&quot;</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="s1">&#39;y&#39;</span><span class="p">,</span> <span class="n">left</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">labelleft</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">right</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labelright</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">set_label_position</span><span class="p">(</span><span class="s2">&quot;right&quot;</span><span class="p">)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_offset_text</span><span class="p">()</span>
+        <span class="n">t</span><span class="o">.</span><span class="n">set_x</span><span class="p">(</span><span class="mf">1.01</span><span class="p">)</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">ax</span></div>
+
+    
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_formatted_ads</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._from_formatted_ads()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file generated by ADS DAQ.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            Additional arguments for class creation</span>
+<span class="sd">            **detector_id** (``int|str``): metadata for detector identification</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``nerea.CountRate`` instance.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - infers ``campaign_id`` and ``experiment_id`` from file name.</span>
+<span class="sd">        - file format: ``&#39;CAMP_EXP.ads&#39;``.</span>
+<span class="sd">        - ``detector_id`` kwarg is also used to select the detector to read.&quot;&quot;&quot;</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;detector_id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">detector</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`&#39;detector&#39;` kwarg required to read CountRate.&quot;</span><span class="p">)</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">linecache</span><span class="o">.</span><span class="n">getline</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;</span><span class="si">%d</span><span class="s2">-%m-%Y %H:%M:%S</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">read</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">decimal</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span>
+        <span class="n">read</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">read</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">start_time</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">campaign_id</span><span class="p">,</span> <span class="n">experiment_id</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">read</span><span class="p">[[</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Det </span><span class="si">{</span><span class="n">detector</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;Det </span><span class="si">{</span><span class="n">detector</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">}),</span>
+                   <span class="n">start_time</span><span class="o">=</span><span class="n">start_time</span><span class="p">,</span>
+                   <span class="n">campaign_id</span><span class="o">=</span><span class="n">campaign_id</span><span class="p">,</span>
+                   <span class="n">experiment_id</span><span class="o">=</span><span class="n">experiment_id</span><span class="p">,</span>
+                   <span class="n">detector_id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Det </span><span class="si">{</span><span class="n">detector</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                   <span class="n">timebase</span><span class="o">=</span><span class="p">(</span><span class="n">read</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">read</span><span class="p">[</span><span class="s1">&#39;Time&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">(),</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_phspa</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._from_phspa()`</span>
+<span class="sd">        -------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file generated by PHSPA DAQ.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **detector_id** (``int``): metadata for detector identification</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit</span>
+<span class="sd">            **campaign_id** (``str``): metadata for experimental campaign identification</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``nerea.CountRate`` instance.&quot;&quot;&quot;</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;detector&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">detector</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`&#39;detector&#39;` kwarg required to read CountRate.&quot;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">skiprows</span><span class="o">=</span><span class="mi">18</span><span class="p">,</span> <span class="n">decimal</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">]</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">Time</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">BASE_DATE</span> <span class="o">+</span> <span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">x</span><span class="p">))</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Average timebase considered for PHSPA acquisitions.&quot;</span><span class="p">)</span>
+        <span class="n">timebase</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+                   <span class="n">start_time</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                   <span class="n">detector_id</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+                   <span class="n">timebase</span><span class="o">=</span><span class="n">timebase</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_formatted_phspa</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._from_formatted_phspa()`</span>
+<span class="sd">        -----------------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file generated by PHSPA DAQ.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit</span>
+<span class="sd">            **campaign_id** (``str``): metadata for experimental campaign identification</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``nerea.CountRate`` instance.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - infers ``detector_id``, ``campaign_id`` and ``experiment_id`` from file name.</span>
+<span class="sd">        - file format: ``&#39;CAMP_EXP_DET.log&#39;``.&quot;&quot;&quot;</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">campaign_id</span><span class="p">,</span> <span class="n">experiment_id</span><span class="p">,</span> <span class="n">det</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_phspa</span><span class="p">(</span><span class="n">file</span><span class="p">,</span>
+                               <span class="n">detector</span><span class="o">=</span><span class="n">det</span><span class="p">,</span>
+                               <span class="n">campaign_id</span><span class="o">=</span><span class="n">campaign_id</span><span class="p">,</span>
+                               <span class="n">experiment_id</span><span class="o">=</span><span class="n">experiment_id</span><span class="p">,</span>
+                               <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_formatted_br1</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._from_formatted_br1()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file generated by the NBS chamber</span>
+<span class="sd">        DAQ at BR1.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``nerea.CountRate`` instance.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - sets ``detector_id`` to ``&#39;NBS&#39;``, ``deposit_id`` to ``&#39;U235&#39;`` and ``campaign_id`` to `&#39;CAL&#39;`.&quot;&quot;&quot;</span>
+        <span class="n">read</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s1">&#39;;&#39;</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="kc">None</span><span class="p">)[[</span><span class="mi">0</span><span class="p">,</span><span class="mi">4</span><span class="p">]]</span>
+        <span class="n">read</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">]</span>
+        <span class="n">read</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">read</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">])</span>
+        <span class="n">campaign_id</span><span class="p">,</span> <span class="n">detector_id</span><span class="p">,</span> <span class="n">deposit_id</span> <span class="o">=</span> <span class="s2">&quot;CAL&quot;</span><span class="p">,</span> <span class="s2">&quot;NBS&quot;</span><span class="p">,</span> <span class="s2">&quot;U235&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Average timebase considered for BR1 acquisitions.&quot;</span><span class="p">)</span>
+        <span class="n">timebase</span> <span class="o">=</span> <span class="n">read</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">read</span><span class="p">,</span>
+                   <span class="n">start_time</span><span class="o">=</span><span class="n">read</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                   <span class="n">campaign_id</span><span class="o">=</span><span class="n">campaign_id</span><span class="p">,</span>
+                   <span class="n">detector_id</span><span class="o">=</span><span class="n">detector_id</span><span class="p">,</span>
+                   <span class="n">timebase</span><span class="o">=</span><span class="n">timebase</span><span class="p">,</span>
+                   <span class="n">deposit_id</span><span class="o">=</span><span class="n">deposit_id</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_from_formatted_vf</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate._from_formatted_vf()`</span>
+<span class="sd">        --------------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file generated by the VENUS-F</span>
+<span class="sd">        monitoring system.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit</span>
+<span class="sd">            **detector_id** (``str``): metadata for detector identification</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``nerea.CountRate`` instance.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - infers ``campaign_id`` and ``experiment_id`` from file name.</span>
+<span class="sd">        - file format: ``&#39;CAMP_EXP_DATE.vf&#39;``</span>
+<span class="sd">        - reads experiment date from file name.</span>
+<span class="sd">        - DATE format: %Y-%m-%d.&quot;&quot;&quot;</span>
+        <span class="n">detector</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;detector_id&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">detector</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;`&#39;detector_id&#39;` kwarg required to read CountRate.&quot;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;unicode_escape&#39;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;\s+&#39;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">md</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">cmp</span><span class="p">,</span> <span class="n">exp</span><span class="p">,</span> <span class="n">time</span> <span class="o">=</span> <span class="n">md</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">md</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">],</span> <span class="n">md</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;Time&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">time</span> <span class="o">+</span> <span class="s1">&#39; &#39;</span><span class="o">+</span> <span class="n">data</span><span class="o">.</span><span class="n">time</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">),</span>
+                                      <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2"> %H:%M:%S&quot;</span><span class="p">)</span>
+        <span class="n">data</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">detector</span><span class="p">]</span>
+        <span class="n">timebase</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">[[</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">]],</span>
+                   <span class="n">start_time</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                   <span class="n">timebase</span><span class="o">=</span><span class="n">timebase</span><span class="p">,</span>
+                   <span class="n">campaign_id</span><span class="o">=</span><span class="n">cmp</span><span class="p">,</span>
+                   <span class="n">experiment_id</span><span class="o">=</span><span class="n">exp</span><span class="p">,</span>
+                   <span class="n">detector_id</span><span class="o">=</span><span class="n">detector</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CountRate.from_ascii">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.from_ascii">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_ascii</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">filetype</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.from_ascii()`</span>
+<span class="sd">        ------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        from an ASCII file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **filetype** : ``str``, optional</span>
+<span class="sd">            Type of ASCII file to process.</span>
+<span class="sd">            Default is ``&#39;infer&#39;`` to infer it from</span>
+<span class="sd">            file extension.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit</span>
+<span class="sd">            **detector_id** (``str``): metadata for detector identification</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification</span>
+<span class="sd">            **campaign_id** (``str``): metadata for experimental campaign identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``CountRate`` instance.&quot;&quot;&quot;</span>
+        <span class="n">ft</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">filetype</span> <span class="o">==</span> <span class="s1">&#39;infer&#39;</span> <span class="k">else</span> <span class="n">filetype</span>
+        <span class="k">match</span> <span class="n">ft</span><span class="p">:</span>
+            <span class="k">case</span> <span class="s1">&#39;ads&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_formatted_ads</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;phspa&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_phspa</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_formatted_phspa</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;br1&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_formatted_br1</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">case</span> <span class="s1">&#39;vf&#39;</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_from_formatted_vf</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;ASCII file type processing not implemented&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="CountRate.from_files">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRate.from_files">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_files</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">files</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">filetype</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRate.from_files()`</span>
+<span class="sd">        ------------------------------</span>
+<span class="sd">        Method to create a ``nerea.CountRate`` instance</span>
+<span class="sd">        joing data from ASCII files of the same type.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            Path to the ASCII file.</span>
+<span class="sd">        **filetype** : ``str``, optional</span>
+<span class="sd">            Type of ASCII file to process.</span>
+<span class="sd">            Default is ``&#39;infer&#39;`` to infer it from</span>
+<span class="sd">            file extension.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **deposit_id** (``str``): metadata for detector deposit</span>
+<span class="sd">            **detector_id** (``str``): metadata for detector identification</span>
+<span class="sd">            **experiment_id** (``str``): metadata for experiment identification</span>
+<span class="sd">            **campaign_id** (``str``): metadata for experimental campaign identification.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            A new ``CountRate`` instance.&quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">vlines</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">files</span><span class="p">):</span>
+            <span class="n">rr</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_ascii</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">filetype</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rr</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+            <span class="n">vlines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">_kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;campaign_id&#39;</span><span class="p">:</span> <span class="n">rr</span><span class="o">.</span><span class="n">campaign_id</span><span class="p">,</span>
+                           <span class="s1">&#39;experiment_id&#39;</span><span class="p">:</span> <span class="n">rr</span><span class="o">.</span><span class="n">experiment_id</span><span class="p">,</span>
+                           <span class="s1">&#39;detector_id&#39;</span><span class="p">:</span> <span class="n">rr</span><span class="o">.</span><span class="n">detector_id</span><span class="p">,</span>
+                           <span class="s1">&#39;deposit_id&#39;</span><span class="p">:</span> <span class="n">rr</span><span class="o">.</span><span class="n">deposit_id</span><span class="p">}</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">timebase</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">total_seconds</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="p">,</span>
+                   <span class="n">start_time</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span>
+                   <span class="n">timebase</span><span class="o">=</span><span class="n">timebase</span><span class="p">,</span>
+                   <span class="n">_vlines</span><span class="o">=</span><span class="n">vlines</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">_kwargs</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CountRates">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRates">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CountRates</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CountRates``</span>
+<span class="sd">    =============================</span>
+<span class="sd">    Class storing and processing count rate data acquired as </span>
+<span class="sd">    a function of time. Stores data of many detectors/acquisitions.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **detectors** : ``dict[int, nerea.CountRate]``</span>
+<span class="sd">        Links detector id and its conunt rate.</span>
+<span class="sd">        ``key`` is the id and ``value`` the count rate.</span>
+<span class="sd">    _enable_checks: ``bool``, optional</span>
+<span class="sd">        flag to enable consistency checks. Default is ``True``.&quot;&quot;&quot;</span>
+    <span class="n">detectors</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span><span class="p">,</span> <span class="n">CountRate</span><span class="p">]</span>
+    <span class="n">_enable_checks</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Runs consistency checks.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_check_consistency</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_check_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_tolerance</span><span class="p">:</span> <span class="n">timedelta</span><span class="o">=</span><span class="n">timedelta</span><span class="p">(</span><span class="n">seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">),</span>
+                           <span class="n">timebase</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates._check_consistency()`</span>
+<span class="sd">        ---------------------------------------</span>
+<span class="sd">        Check the consistency of time and curve data with specified parameters.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **time_tolerance** : ``datetime.timedelta``, optional</span>
+<span class="sd">            Parameter for ``self._check_time_consistency``. Defaults to ``60`` seconds.</span>
+<span class="sd">        **timebase** : ``int``, optional</span>
+<span class="sd">            Parameter for ``self._check_curve_consistency``. Defaults to ``100``.</span>
+<span class="sd">        **sigma** : int, optional</span>
+<span class="sd">            Parameter for ``self._check_curve_consistency``. Defaults to ``1``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({&#39;Time&#39;: pd.date_range(&#39;2021-01-01&#39;, periods=100, freq=&#39;S&#39;),</span>
+<span class="sd">                                 &#39;value&#39;: np.random.rand(100)})</span>
+<span class="sd">        &gt;&gt;&gt; pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M2&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pms = CountRates(detectors={1: pm1, 2: pm2})</span>
+<span class="sd">        &gt;&gt;&gt; pms._check_consistency()&quot;&quot;&quot;</span>
+        <span class="n">must</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;campaign_id&#39;</span><span class="p">,</span> <span class="s1">&#39;experiment_id&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">must</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">getattr</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="n">attr</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">()]):</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent </span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s2"> among different CountRate instances.&quot;</span><span class="p">)</span>
+        <span class="n">should</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;deposit_id&#39;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">should</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">getattr</span><span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">],</span> <span class="n">attr</span><span class="p">)</span>
+                        <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">()]):</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Inconsistent </span><span class="si">{</span><span class="n">attr</span><span class="si">}</span><span class="s2"> among different CountRate instances.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_time_consistency</span><span class="p">(</span><span class="n">time_tolerance</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_check_curve_consistency</span><span class="p">(</span><span class="n">timebase</span><span class="p">,</span> <span class="n">sigma</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_time_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time_tolerance</span><span class="p">:</span> <span class="n">timedelta</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates._check_time_consistency()`</span>
+<span class="sd">        --------------------------------------------</span>
+<span class="sd">        Check if the start times of power detectors are</span>
+<span class="sd">        consistent within a given time tolerance.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **time_tolerance** : ``datetime.timedelta``</span>
+<span class="sd">            The maximum allowable difference in time between</span>
+<span class="sd">            the start times of the power detectors in ``self.detectors``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({&#39;Time&#39;: pd.date_range(&#39;2021-01-01&#39;, periods=100, freq=&#39;S&#39;),</span>
+<span class="sd">                                 &#39;value&#39;: np.random.rand(100)})</span>
+<span class="sd">        &gt;&gt;&gt; pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M2&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pms = CountRates(detectors={1: pm1, 2: pm2})</span>
+<span class="sd">        &gt;&gt;&gt; pms._check_time_consistency(timedelta(seconds=60))&quot;&quot;&quot;</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">start_time</span>
+        <span class="k">for</span> <span class="n">monitor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">abs</span><span class="p">(</span><span class="n">monitor</span><span class="o">.</span><span class="n">start_time</span> <span class="o">-</span> <span class="n">ref</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">time_tolerance</span><span class="p">:</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Power monitor start time difference &gt; </span><span class="si">{</span><span class="n">time_tolerance</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_check_curve_consistency</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timebase</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sigma</span><span class="p">:</span> <span class="nb">int</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates._check_curve_consistency()`</span>
+<span class="sd">        ---------------------------------------------</span>
+<span class="sd">        Compare data from multiple detectors to check for consistency</span>
+<span class="sd">        within a sigma-uncertainty tolerance, based on a specified</span>
+<span class="sd">        timebase.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **timebase** : ``int``</span>
+<span class="sd">            The time interval in seconds for grouping the data.</span>
+<span class="sd">            This parameter determines how the data are aggregated</span>
+<span class="sd">            and compared between different detectors.</span>
+<span class="sd">        **sigma** : ``int``, optional</span>
+<span class="sd">            The uncertainty associated with the measurements. It</span>
+<span class="sd">            is used to calculate the tolerance for checking the</span>
+<span class="sd">            consistency between different power detectors. The</span>
+<span class="sd">            tolerance is computed as the average uncertainty on the</span>
+<span class="sd">            ratio of values between two detectors. Defaults to ``1``.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; data = pd.DataFrame({&#39;Time&#39;: pd.date_range(&#39;2021-01-01&#39;, periods=100, freq=&#39;S&#39;),</span>
+<span class="sd">                                 &#39;value&#39;: np.random.rand(100)})</span>
+<span class="sd">        &gt;&gt;&gt; pm1 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pm2 = CountRate(data=data, start_time=datetime(2021, 1, 1), </span>
+<span class="sd">                               campaign_id=&#39;C1&#39;, experiment_id=&#39;E1&#39;, detector_id=&#39;M2&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; pms = CountRates(detectors={1: pm1, 2: pm2})</span>
+<span class="sd">        &gt;&gt;&gt; pms._check_curve_consistency(10, 1)&quot;&quot;&quot;</span>
+        <span class="n">ref</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
+                                                    <span class="n">pd</span><span class="o">.</span><span class="n">Grouper</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">timebase</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">),</span>
+                                                    <span class="n">observed</span><span class="o">=</span><span class="kc">False</span>
+                                                    <span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">ref</span><span class="p">[</span><span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ref</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>  <span class="c1"># absolute</span>
+        <span class="n">ref</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ref</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">timebase</span>  
+        <span class="k">for</span> <span class="n">monitor</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="n">compute</span> <span class="o">=</span> <span class="n">monitor</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Grouper</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="s2">&quot;Time&quot;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">timebase</span><span class="si">}</span><span class="s1">s&#39;</span><span class="p">,</span> <span class="n">closed</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">),</span>
+                                           <span class="n">observed</span><span class="o">=</span><span class="kc">False</span>
+                                            <span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s1">&#39;sum&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="n">compute</span><span class="p">[</span><span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">compute</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>  <span class="c1"># absolute</span>
+            <span class="n">compute</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">compute</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">timebase</span>
+            <span class="c1"># filtering noise below 100 counts in time</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">ref</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;value &gt;= 100&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">compute</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;value &gt;= 100&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">ref</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;value &gt;= 100&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">compute</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;value &gt;= 100&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">Time</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+            <span class="n">qs</span> <span class="o">=</span> <span class="s2">&quot;Time &gt;= @start and Time &lt;= @end&quot;</span>
+            <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">ratio_v_u</span><span class="p">(</span><span class="n">compute</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">qs</span><span class="p">),</span> <span class="n">ref</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">qs</span><span class="p">))</span>
+            <span class="c1"># tolerance is scalar, therefore it is computed as average uncertainty on the ratio</span>
+            <span class="n">tol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sigma</span> <span class="o">*</span> <span class="n">u</span><span class="p">)</span>  <span class="c1"># absolute</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">shift</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">atol</span><span class="o">=</span><span class="n">tol</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Power monitor </span><span class="si">{</span><span class="n">monitor</span><span class="o">.</span><span class="n">detector_id</span><span class="si">}</span><span class="s2"> inconsistent with </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">detector_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">_first</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CountRate</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates._first()`</span>
+<span class="sd">        ---------------------------</span>
+<span class="sd">        The first count rate in ``self.detectors``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            the first count rate.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">campaign_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.campaign_id()`</span>
+<span class="sd">        --------------------------------</span>
+<span class="sd">        Campaign id of the first count rate in ``self.detectors``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            the campaign id of the first detector.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">campaign_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">experiment_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.experiment_id()`</span>
+<span class="sd">        ----------------------------------</span>
+<span class="sd">        Experiment id of the first count rate in ``self.detectors``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            the campaign id of the first detector.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">experiment_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">deposit_id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.deposit_id()`</span>
+<span class="sd">        -------------------------------</span>
+<span class="sd">        The deposit id of the first element of `self.detectors`.</span>
+<span class="sd">        </span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``str``</span>
+<span class="sd">            the deposit id of the first detector.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_first</span><span class="o">.</span><span class="n">deposit_id</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">best</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CountRate</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.best()`</span>
+<span class="sd">        -------------------------</span>
+<span class="sd">        Returns the count rate with the highest sum value.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRate``</span>
+<span class="sd">            Count rate with the highest integral count.&quot;&quot;&quot;</span>
+        <span class="nb">max</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">monitor</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">1</span><span class="p">:]:</span>
+            <span class="k">if</span> <span class="n">monitor</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">:</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">monitor</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+<div class="viewcode-block" id="CountRates.per_unit_power">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRates.per_unit_power">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_power</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">monitor</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.per_unit_power()`</span>
+<span class="sd">        -----------------------------------</span>
+<span class="sd">        Normalizes the raction rate to a power monitor.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitor** : ``int``</span>
+<span class="sd">            The ID of the count rate to be used as power</span>
+<span class="sd">            monitor for the count rate normalization.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            arguments for ``CountRate.plateau()``.</span>
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding.</span>
+<span class="sd">            - **timebase** (``int``): integration timebase in seconds.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``dict[int, pd.DataFrame]``</span>
+<span class="sd">            with value and uncertainty of the normalized count rate</span>
+<span class="sd">            integrated over time. Keys are the detector IDs as in</span>
+<span class="sd">            self.detectors.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="n">monitor</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">per_unit_power</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="p">[</span><span class="n">monitor</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="CountRates.per_unit_time_power">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRates.per_unit_time_power">[docs]</a>
+    <span class="k">def</span> <span class="nf">per_unit_time_power</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">monitor</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.per_unit_time_power()`</span>
+<span class="sd">        ----------------------------------------</span>
+<span class="sd">        Normalizes the raction rate to a power monitor and takes the average over time.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **monitor** : ``int``</span>
+<span class="sd">            The ID of the count rate to be used as power</span>
+<span class="sd">            monitor for the count rate normalization.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            arguments for ``CountRate.plateau()``.</span>
+<span class="sd">            - **sigma** (``int``): standard deviations for plateau finding.</span>
+<span class="sd">            - **timebase** (``int``): integration timebase in seconds.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``dict[int, pd.DataFrame]``</span>
+<span class="sd">            with value and uncertainty of the normalized count rate</span>
+<span class="sd">            averaged over time. Keys are the detector IDs as in</span>
+<span class="sd">            self.detectors.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">detector</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="n">monitor</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">detector</span><span class="o">.</span><span class="n">per_unit_time_power</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="p">[</span><span class="n">monitor</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="CountRates.cut">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRates.cut">[docs]</a>
+    <span class="k">def</span> <span class="nf">cut</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">starts</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">ends</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">dts</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">detectors</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">dts</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span><span class="o">.</span><span class="n">cut</span><span class="p">(</span><span class="n">starts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">ends</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="p">(</span><span class="n">dts</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_enable_checks</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CountRates.from_ascii">
+<a class="viewcode-back" href="../../nerea.html#nerea.count_rate.CountRates.from_ascii">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_ascii</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                   <span class="n">files</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">|</span><span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span><span class="o">|</span><span class="kc">None</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]]],</span>
+                   <span class="n">filetypes</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span>
+                   <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CountRates.from_ascii()`</span>
+<span class="sd">        -------------------------------</span>
+<span class="sd">        Creates an instance of ``nerea.CountRates`` using data extracted from an ASCII file.</span>
+
+<span class="sd">        The ASCII file should contain columns of data including timestamps and power readings.</span>
+
+<span class="sd">        The filename is supposed to be formatted as:</span>
+<span class="sd">        {Campaign}_{experiment} (ADS) or</span>
+<span class="sd">        {Campaign}_{experiment}_{detector} (PHSPA)</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **files** : ``dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]]``</span>
+<span class="sd">            Maps each file to the detectors to read there and</span>
+<span class="sd">            the corresponding deposit id.</span>
+
+<span class="sd">            - key: ``str``</span>
+<span class="sd">                Path to the ASCII files containing the power monitor data.</span>
+<span class="sd">            - values: ``tuple``</span>
+<span class="sd">                first: ``Iterable[str]|Iterable[int]``</span>
+<span class="sd">                    detector ids for ADS files</span>
+<span class="sd">                    or ``None`` for PHSPA file (detector id inferred from filename)</span>
+<span class="sd">                second: ``Iterable[str]``</span>
+<span class="sd">                    deposit ids</span>
+
+<span class="sd">        **filetype** : ``Iterable[str]``, optional</span>
+<span class="sd">            Type of ASCII file to process.</span>
+<span class="sd">            Default is ``&#39;infer&#39;`` to infer it from</span>
+<span class="sd">            file extension for each file.</span>
+
+<span class="sd">        **kwargs</span>
+<span class="sd">            additional arguments for class creation</span>
+<span class="sd">            **_enable_checks** (``bool``): enables consistency checks among detectors</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CountRates``</span>
+<span class="sd">            initialized with the data from the ASCII file.</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        - allows only for formatted source files.</span>
+<span class="sd">        - ADS files requires detectors to be passed as an iterable</span>
+<span class="sd">            in the same order as the ADS processed files.&quot;&quot;&quot;</span>
+        <span class="n">ft</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;infer&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">files</span><span class="p">)</span> <span class="k">if</span> <span class="n">filetypes</span> <span class="o">==</span> <span class="s1">&#39;infer&#39;</span> <span class="k">else</span> <span class="n">filetypes</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="p">(</span><span class="n">dets</span><span class="p">,</span> <span class="n">deps</span><span class="p">))</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">files</span><span class="o">.</span><span class="n">items</span><span class="p">()):</span>
+            <span class="n">ft_</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">ft</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;infer&#39;</span> <span class="k">else</span> <span class="n">ft</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="k">match</span><span class="w"> </span><span class="n">ft</span><span class="k">_</span><span class="p">:</span>
+                <span class="k">case</span> <span class="s1">&#39;ads&#39;</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">d_</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">dets</span><span class="p">,</span> <span class="n">deps</span><span class="p">):</span>
+                        <span class="n">out</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">CountRate</span><span class="o">.</span><span class="n">from_ascii</span><span class="p">(</span><span class="n">f</span><span class="p">,</span>
+                                                      <span class="n">filetype</span><span class="o">=</span><span class="n">ft_</span><span class="p">,</span>
+                                                      <span class="n">detector_id</span><span class="o">=</span><span class="n">d</span><span class="p">,</span>
+                                                      <span class="n">deposit_id</span><span class="o">=</span><span class="n">d_</span><span class="p">)</span>
+                <span class="k">case</span> <span class="s1">&#39;phspa&#39;</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">d_</span> <span class="o">=</span> <span class="n">deps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">CountRate</span><span class="o">.</span><span class="n">from_ascii</span><span class="p">(</span><span class="n">f</span><span class="p">,</span>
+                                                  <span class="n">filetype</span><span class="o">=</span><span class="n">ft_</span><span class="p">,</span>
+                                                  <span class="n">detector_id</span><span class="o">=</span><span class="n">d</span><span class="p">,</span>
+                                                  <span class="n">deposit_id</span><span class="o">=</span><span class="n">d_</span><span class="p">)</span>
+                <span class="k">case</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span>
+                    <span class="n">d</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                    <span class="n">d_</span> <span class="o">=</span> <span class="n">deps</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">out</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">CountRate</span><span class="o">.</span><span class="n">from_ascii</span><span class="p">(</span><span class="n">f</span><span class="p">,</span>
+                                                  <span class="n">filetype</span><span class="o">=</span><span class="n">ft_</span><span class="p">,</span>
+                                                  <span class="n">deposit_id</span><span class="o">=</span><span class="n">d_</span><span class="p">)</span>
+                <span class="k">case</span> <span class="s1">&#39;vf&#39;</span><span class="p">:</span>
+                    <span class="k">for</span> <span class="n">d</span><span class="p">,</span> <span class="n">d_</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">dets</span><span class="p">,</span> <span class="n">deps</span><span class="p">):</span>
+                        <span class="n">out</span><span class="p">[</span><span class="n">d</span><span class="p">]</span> <span class="o">=</span> <span class="n">CountRate</span><span class="o">.</span><span class="n">from_ascii</span><span class="p">(</span><span class="n">f</span><span class="p">,</span>
+                                                      <span class="n">filetype</span><span class="o">=</span><span class="n">ft_</span><span class="p">,</span>
+                                                      <span class="n">detector_id</span><span class="o">=</span><span class="n">d</span><span class="p">,</span>
+                                                      <span class="n">deposit_id</span><span class="o">=</span><span class="n">d_</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright YYYY-2026, Federico Grimaldi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

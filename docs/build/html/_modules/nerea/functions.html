@@ -1,0 +1,540 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nerea.functions &mdash; NEREA 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            NEREA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">nerea</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">NEREA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">nerea.functions</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for nerea.functions</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">scipy.optimize</span> <span class="kn">import</span> <span class="n">curve_fit</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="kn">from</span> <span class="nn">inspect</span> <span class="kn">import</span> <span class="n">signature</span>
+<span class="kn">from</span> <span class="nn">.classes</span> <span class="kn">import</span> <span class="n">Xs</span>
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;fitting_polynomial&#39;</span><span class="p">,</span> <span class="s1">&#39;polynomial&#39;</span><span class="p">,</span> <span class="s1">&#39;get_fit_R2&#39;</span><span class="p">,</span> <span class="s1">&#39;polyfit&#39;</span><span class="p">,</span> <span class="s1">&#39;smoothing&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;_normalize_array&#39;</span><span class="p">,</span> <span class="s1">&#39;get_relative_array&#39;</span><span class="p">,</span> <span class="s1">&#39;impurity_correction&#39;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="polynomial">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.polynomial">[docs]</a>
+<span class="k">def</span> <span class="nf">polynomial</span><span class="p">(</span><span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">x</span><span class="p">:</span> <span class="nb">float</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.polynomial()`</span>
+<span class="sd">    ------------------------------</span>
+<span class="sd">    Evaluate a polynomial of a given order at a specific value.</span>
+
+<span class="sd">    The polynomial is defined as:</span>
+<span class="sd">        P(x) = c₀·xⁿ + c₁·xⁿ⁻¹ + ... + cₙ</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **order** : ``int``</span>
+<span class="sd">        The order (degree) of the polynomial (n in the equation).</span>
+<span class="sd">    **c** : ``Iterable[float]``</span>
+<span class="sd">        Sequence of polynomial coefficients, with length `order + 1`.</span>
+<span class="sd">        Coefficients are ordered from highest degree to constant term.</span>
+<span class="sd">    **x** : ``float``</span>
+<span class="sd">        The point at which to evaluate the polynomial.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ``float``</span>
+<span class="sd">        The computed polynomial value at ``x``.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the number of coefficients does not match `order + 1`.</span>
+
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; polynomial(2, [1, -3, 2], 5)</span>
+<span class="sd">    12.0  # computes 1 * 5² - 3 * 5 + 2&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">!=</span> <span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected </span><span class="si">{</span><span class="n">order</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> coefficients, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># returns the polynomial value @x</span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">x</span> <span class="o">**</span><span class="p">(</span><span class="n">order</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)])</span></div>
+
+
+<div class="viewcode-block" id="fitting_polynomial">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.fitting_polynomial">[docs]</a>
+<span class="k">def</span> <span class="nf">fitting_polynomial</span><span class="p">(</span><span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.fitting_polynomial()`</span>
+<span class="sd">    --------------------------------------</span>
+<span class="sd">    Return a callable polynomial function of a given order for curve fitting.</span>
+
+<span class="sd">    This is typically used as a model function for fitting tools such as</span>
+<span class="sd">    `scipy.optimize.curve_fit`. The returned function takes an independent</span>
+<span class="sd">    variable `x` and a sequence of `order + 1` coefficients, and computes:</span>
+
+<span class="sd">        P(x) = c₀·xⁿ + c₁·xⁿ⁻¹ + ... + cₙ</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **order** : ``int``</span>
+<span class="sd">        The order (degree) of the polynomial (n in the equation).</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ``Callable[[float, *float], float]``</span>
+<span class="sd">        A function that computes the polynomial value given ``x`` and its coefficients.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        If the provided number of coefficients does not match ``order + 1``.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    --------</span>
+<span class="sd">    Returns a ``scipy.curve_fit``-suitable function.&quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">poly</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">*</span><span class="n">c</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="o">!=</span> <span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected </span><span class="si">{</span><span class="n">order</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> coefficients, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">c</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># returns the polynomial value @x</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">x</span> <span class="o">**</span><span class="p">(</span><span class="n">order</span> <span class="o">-</span> <span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)])</span>
+    <span class="k">return</span> <span class="n">poly</span></div>
+
+
+<div class="viewcode-block" id="get_fit_R2">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.get_fit_R2">[docs]</a>
+<span class="k">def</span> <span class="nf">get_fit_R2</span><span class="p">(</span><span class="n">y</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">fvec</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span> <span class="n">weight</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.get_fit_R2()`</span>
+<span class="sd">    ------------------------------</span>
+<span class="sd">    Calculates the R2 of a fit from the fitted points and the fitting line residuals.</span>
+
+<span class="sd">    Paramters</span>
+<span class="sd">    ---------</span>
+<span class="sd">    **y** : ``Iterable[float]``</span>
+<span class="sd">        the fitted y points</span>
+<span class="sd">    **fvec** : ``Iterable[float]``</span>
+<span class="sd">        residuals of the fitting line corresponding to those of y</span>
+<span class="sd">    **weight** : ``Iterable[float]``, optional</span>
+<span class="sd">        the weights for R2 weighting. Degaults to None, meaning w = 1</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    --------</span>
+<span class="sd">    ``float``</span>
+<span class="sd">        the fit R^2.</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    - assumes y and fvec share x.&quot;&quot;&quot;</span>
+    <span class="c1"># calculation of fit R2</span>
+    <span class="c1"># we use weighted average to account for uncertainties on y</span>
+    <span class="c1"># https://stats.stackexchange.com/questions/439590/how-does-r-compute-r-squared-for-weighted-least-squares</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))</span> <span class="k">if</span> <span class="n">weight</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">weight</span>
+    <span class="n">weighted_mean_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">average</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">weights</span><span class="o">=</span><span class="n">w</span><span class="p">)</span>
+    <span class="n">r2</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">fvec</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">y</span> <span class="o">-</span> <span class="n">weighted_mean_y</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">w</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">r2</span></div>
+
+
+<div class="viewcode-block" id="polyfit">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.polyfit">[docs]</a>
+<span class="k">def</span> <span class="nf">polyfit</span><span class="p">(</span><span class="n">order</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.polyfit()`</span>
+<span class="sd">    ---------------------------</span>
+<span class="sd">    Fits the data with a polynomial of chosen order.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **order** : ``int``</span>
+<span class="sd">        fitting polynomial order.</span>
+<span class="sd">    **data** : ``pd.DataFrame``</span>
+<span class="sd">        Dataframe with data to fit. Columns should be:</span>
+<span class="sd">            - ``&#39;x&#39;``, abscissa</span>
+<span class="sd">            - ``&#39;y&#39;``, ordinate</span>
+<span class="sd">            - ``&#39;u&#39;``, y-uncertainty</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">    --------</span>
+<span class="sd">    **coef** : ``np.array``</span>
+<span class="sd">        fit coefficients</span>
+<span class="sd">    **coef_cov** : ``np.array``</span>
+<span class="sd">        fit coefficients covariance matrix</span>
+<span class="sd">    </span>
+<span class="sd">    Notes:</span>
+<span class="sd">    ------</span>
+<span class="sd">    - replaces NaN and negative or zero uncertianties with</span>
+<span class="sd">        non-zero small values to allow fitting.&quot;&quot;&quot;</span>
+    <span class="n">data_</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">zero_u</span> <span class="o">=</span> <span class="n">data_</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;u &gt; 0&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">min</span><span class="p">()</span> <span class="o">*</span> <span class="mf">1e-3</span>  <span class="c1"># Replacing meaningless uncertainties with this</span>
+    <span class="n">data_</span><span class="o">.</span><span class="n">u</span> <span class="o">=</span> <span class="n">data_</span><span class="o">.</span><span class="n">u</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">zero_u</span><span class="p">)</span>
+    <span class="n">data_</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">data_</span><span class="o">.</span><span class="n">u</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;u&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">zero_u</span>
+    <span class="n">coef</span><span class="p">,</span> <span class="n">coef_cov</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">fitting_polynomial</span><span class="p">(</span><span class="n">order</span><span class="p">),</span>
+                                          <span class="n">data_</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+                                          <span class="n">data_</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+                                          <span class="n">sigma</span><span class="o">=</span><span class="n">data_</span><span class="o">.</span><span class="n">u</span><span class="p">,</span>
+                                          <span class="n">absolute_sigma</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">full_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                          <span class="n">p0</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1">## needed to set number of fit params</span>
+                                          <span class="p">)</span>
+    <span class="n">r2</span> <span class="o">=</span> <span class="n">get_fit_R2</span><span class="p">(</span><span class="n">data_</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">out</span><span class="p">[</span><span class="s2">&quot;fvec&quot;</span><span class="p">],</span> <span class="n">weight</span><span class="o">=</span><span class="mi">1</span> <span class="o">/</span> <span class="n">data_</span><span class="o">.</span><span class="n">u</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CR reactivity curve fit R^2 = </span><span class="si">{</span><span class="n">r2</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">coef</span><span class="p">,</span> <span class="n">coef_cov</span></div>
+
+
+<div class="viewcode-block" id="smoothing">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.smoothing">[docs]</a>
+<span class="k">def</span> <span class="nf">smoothing</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span>
+              <span class="n">smoothing_method</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s2">&quot;moving_average&quot;</span><span class="p">,</span>
+              <span class="n">renormalize</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+              <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.smoothing()`</span>
+<span class="sd">    -----------------------------</span>
+<span class="sd">    Smooths the data in ``data``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **data** : ``ps.Series``</span>
+<span class="sd">        the data to smooth</span>
+<span class="sd">    **smoothing_method** : ``str``, optional</span>
+<span class="sd">        the method to use. Allowed options are:</span>
+<span class="sd">            - ``&#39;moving_average&#39;``: (requires ``&#39;window&#39;`` kwarg)</span>
+<span class="sd">            - ``&#39;ewm&#39;``</span>
+<span class="sd">            - ``&#39;savgol_filter&#39;``: (requires ``&#39;window_length&#39;``, ``&#39;polyorder&#39;`` kwargs)</span>
+<span class="sd">            - ``&#39;fit&#39;``: (requires ``&#39;ch_before_max&#39;``, ``&#39;order&#39;`` kwargs)</span>
+<span class="sd">        Default is ``&quot;moving_average&quot;``</span>
+<span class="sd">    **renormalize** : ``bool``, optional</span>
+<span class="sd">        whether the smoothed data shall be renormalized to the data integral.</span>
+<span class="sd">    **kwargs</span>
+<span class="sd">        additional arguments for the chosen method</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    ``pd.DataFrame``&quot;&quot;&quot;</span>
+    <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;window&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;window_length&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+              <span class="s1">&#39;ch_before_max&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span> <span class="s1">&#39;order&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;ch_lld&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span> <span class="o">|</span> <span class="n">kwargs</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">([</span><span class="n">k</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;com&quot;</span><span class="p">,</span> <span class="s2">&quot;span&quot;</span><span class="p">,</span> <span class="s2">&quot;halflife&quot;</span><span class="p">,</span> <span class="s2">&quot;alpha&quot;</span><span class="p">]]):</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;span&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s1">&#39;float64&#39;</span><span class="p">)</span>
+    <span class="k">match</span> <span class="n">smoothing_method</span><span class="p">:</span>
+        <span class="k">case</span> <span class="s2">&quot;moving_average&quot;</span><span class="p">:</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="o">.</span><span class="n">rolling</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)}</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">case</span> <span class="s2">&quot;ewm&quot;</span><span class="p">:</span> <span class="c1"># exponentially weighted mean</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="o">.</span><span class="n">ewm</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)}</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">ewm</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">case</span> <span class="s2">&quot;savgol_filter&quot;</span><span class="p">:</span>
+            <span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">savgol_filter</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">savgol_filter</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)}</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">savgol_filter</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">s</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;Using Savgol Filter smoothing, negative values appear.&quot;</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="k">case</span> <span class="s2">&quot;fit&quot;</span><span class="p">:</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;ch_lld&#39;</span><span class="p">]:]</span><span class="o">.</span><span class="n">idxmax</span><span class="p">()</span> <span class="o">-</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;ch_before_max&#39;</span><span class="p">]</span>
+            <span class="n">start_</span> <span class="o">=</span> <span class="n">start</span> <span class="k">if</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">order</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;order&#39;</span><span class="p">]</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">signature</span><span class="p">(</span><span class="n">curve_fit</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span><span class="p">)}</span>
+            <span class="c1"># truncate fit at first zero after max if any</span>
+            <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">lst_ch</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">idxmax</span><span class="p">():][</span><span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">idxmax</span><span class="p">():]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">zeros</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">lst_ch</span><span class="p">:]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+                                <span class="n">index</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="n">lst_ch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                                            <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">lst_ch</span><span class="p">:]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">lst_ch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+                                <span class="n">name</span><span class="o">=</span><span class="s1">&#39;counts&#39;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">lst_ch</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="n">zeros</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_</span><span class="p">:</span><span class="n">lst_ch</span><span class="p">]</span>
+            <span class="n">coef</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">curve_fit</span><span class="p">(</span><span class="n">fitting_polynomial</span><span class="p">(</span><span class="n">order</span><span class="p">),</span>
+                                <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+                                <span class="n">s</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                                <span class="n">p0</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span>
+                                <span class="o">**</span><span class="n">kwargs</span>
+                                <span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">fitting_polynomial</span><span class="p">(</span><span class="n">order</span><span class="p">)(</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="o">*</span><span class="n">coef</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;counts&#39;</span><span class="p">)</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">data</span><span class="o">.</span><span class="n">loc</span><span class="p">[:</span><span class="n">start_</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_</span><span class="p">:</span><span class="n">lst_ch</span><span class="p">],</span> <span class="n">zeros</span><span class="p">])</span>
+        <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;The chosen method </span><span class="si">{</span><span class="n">smoothing_method</span><span class="si">}</span><span class="s2"> is not allowed.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">renormalize</span><span class="p">:</span>
+        <span class="n">s</span> <span class="o">*=</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">s</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">return</span> <span class="n">s</span></div>
+
+
+<span class="k">def</span> <span class="nf">_normalize_array</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                     <span class="n">d</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions._normalize_array()`</span>
+<span class="sd">    ------------------------------------</span>
+<span class="sd">    Calculates array ``a`` normalized to its entry</span>
+<span class="sd">    with index ``d``.</span>
+<span class="sd">    Supports ``nerea.functions.get_relative_array()``.</span>
+
+<span class="sd">    Paramters</span>
+<span class="sd">    ---------</span>
+<span class="sd">    **a** : ``pd.DataFrame``</span>
+<span class="sd">        the array to make relative.</span>
+<span class="sd">        Has columns for ``&#39;value&#39;`` and ``&#39;uncertainty&#39;``.</span>
+<span class="sd">    **den** : ``str``</span>
+<span class="sd">        entry to make the array relative to.</span>
+
+<span class="sd">    Return</span>
+<span class="sd">    ------</span>
+<span class="sd">    ``pd.DataFrame``&quot;&quot;&quot;</span>
+    <span class="n">a_</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">a_</span><span class="o">.</span><span class="n">index</span>
+    <span class="n">den</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">a_</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">d</span><span class="p">]]</span> <span class="o">*</span> <span class="n">a_</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span>
+                        <span class="p">)[[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">a_</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">a_</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(),</span>
+                             <span class="n">den</span><span class="p">))[[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">]]</span>
+    <span class="n">a_</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">idx</span>
+    <span class="c1"># the denominator is fully correlated with itself:</span>
+    <span class="n">a_</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">d</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">a_</span>
+
+<div class="viewcode-block" id="get_relative_array">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.get_relative_array">[docs]</a>
+<span class="k">def</span> <span class="nf">get_relative_array</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                       <span class="n">den</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.get_relative_array()`</span>
+<span class="sd">    --------------------------------------</span>
+<span class="sd">    Transforms composition array making it</span>
+<span class="sd">    relative to its main component.</span>
+
+<span class="sd">    Paramters</span>
+<span class="sd">    ---------</span>
+<span class="sd">    **a** : ``dict[str, float] | pd.DataFrame``</span>
+<span class="sd">        the array to make relative.</span>
+<span class="sd">        ``key`` is the nuclide string identifier (e.g., ``&#39;U235&#39;``),</span>
+<span class="sd">        and ``value`` is its array value.</span>
+<span class="sd">        Has columns for its value and uncertainty.</span>
+<span class="sd">    **den** : ``str``, optional</span>
+<span class="sd">        flag to make the array relative to one entry ``den``.</span>
+<span class="sd">        Default is ``&#39;&#39;`` to normalize to the maximum.</span>
+
+<span class="sd">    Return</span>
+<span class="sd">    ------</span>
+<span class="sd">    ``pd.DataFrame``&quot;&quot;&quot;</span>
+    <span class="n">a_</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">,</span> <span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">T</span> <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="k">else</span> <span class="n">a</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">den</span> <span class="o">==</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+        <span class="k">match</span><span class="w"> </span><span class="n">a</span><span class="k">_</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">max</span><span class="p">():</span>
+            <span class="k">case</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">case</span> <span class="mi">100</span><span class="p">:</span>
+                <span class="n">a_</span><span class="o">.</span><span class="n">value</span> <span class="o">/=</span> <span class="mi">100</span>
+                <span class="n">a_</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">/=</span> <span class="mi">100</span>
+            <span class="k">case</span><span class="w"> </span><span class="k">_</span><span class="p">:</span>
+                <span class="n">a_</span> <span class="o">=</span> <span class="n">_normalize_array</span><span class="p">(</span><span class="n">a_</span><span class="p">,</span> <span class="n">a_</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">idxmax</span><span class="p">())</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">a_</span> <span class="o">=</span> <span class="n">_normalize_array</span><span class="p">(</span><span class="n">a_</span><span class="p">,</span> <span class="n">den</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">a_</span></div>
+
+
+<div class="viewcode-block" id="impurity_correction">
+<a class="viewcode-back" href="../../nerea.html#nerea.functions.impurity_correction">[docs]</a>
+<span class="k">def</span> <span class="nf">impurity_correction</span><span class="p">(</span><span class="n">one_group_xs</span><span class="p">:</span> <span class="n">Xs</span><span class="p">,</span>
+                        <span class="n">composition</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+                        <span class="n">xs_den</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>
+                        <span class="n">drop_main</span><span class="p">:</span> <span class="nb">bool</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                        <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    `nerea.functions.impurity_correction()`</span>
+<span class="sd">    ---------------------------------------</span>
+<span class="sd">    Calculates the fission chamber calibration coefficient.</span>
+
+<span class="sd">    Paramters</span>
+<span class="sd">    ---------</span>
+<span class="sd">    **one_group_xs** : ``dict[str, float]``</span>
+<span class="sd">        the one group cross sections of the fission</span>
+<span class="sd">        chamber components. ``key`` is the nuclide</span>
+<span class="sd">        string identifier (e.g., ``&#39;U235&#39;``), and ``value``</span>
+<span class="sd">        is its one group cross section.</span>
+<span class="sd">        Has columns for its value and uncertainty.</span>
+<span class="sd">    **composition** : ``pd.DataFrame``</span>
+<span class="sd">        the fission chamber composition relative to</span>
+<span class="sd">        the deposit main nuclide. ``key`` is the nuclide</span>
+<span class="sd">        string identifier (e.g., ``&#39;U235&#39;``), and ``value``</span>
+<span class="sd">        is its atomic abundance relative to the main one.</span>
+<span class="sd">        Has columns for its value and uncertainty.</span>
+<span class="sd">    **xs_den** : ``str``, optional</span>
+<span class="sd">        the cross section entry of ``one_group_xs`` to</span>
+<span class="sd">        normalize the impurity correction to.</span>
+<span class="sd">        Default is ``&#39;&#39;`` for no cross section normalization.</span>
+<span class="sd">    **drop_main** : ``bool``, optional</span>
+<span class="sd">        flag to drop the main nuclide.</span>
+<span class="sd">        Default is ``False``.</span>
+<span class="sd">    **kwargs </span>
+<span class="sd">        arguments for ``nerea.utils._make_df()``</span>
+
+<span class="sd">    Returns </span>
+<span class="sd">    -------</span>
+<span class="sd">    ``pd.DataFrame``</span>
+
+<span class="sd">    Note</span>
+<span class="sd">    ----</span>
+<span class="sd">    - The implementation features a separate calculation of</span>
+<span class="sd">    value and uncertainty to proper account for uncertianties</span>
+<span class="sd">    in dot products where the elements of the two vectors</span>
+<span class="sd">    are variable. This also covers for the setting of u(N_main)</span>
+<span class="sd">    to 0 in ``get_relative_composition`` when renormalization</span>
+<span class="sd">    is required.&quot;&quot;&quot;</span>
+    <span class="n">ogxs</span> <span class="o">=</span> <span class="n">one_group_xs</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">composition</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">drop_main</span><span class="p">:</span>
+        <span class="c1"># one cannot remove main if there is one nuclide ony</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot remove main from processing of mono-isotopic deposit.&quot;</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">relative</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">one_over_xsd</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">ogxs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xs_den</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="n">xs_den</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">get_relative_array</span><span class="p">(</span><span class="n">composition</span><span class="p">)</span>
+        <span class="n">main</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;value == 1&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">drop_main</span><span class="p">:</span>
+            <span class="n">c</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+            <span class="n">comp</span> <span class="o">=</span> <span class="n">composition</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>  <span class="c1"># comp is used to compute uncertainties</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">comp</span> <span class="o">=</span> <span class="n">composition</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># Only the xs in the composition array are taken</span>
+        <span class="c1"># xs relativization to main is performed at the end</span>
+        <span class="n">xs</span> <span class="o">=</span> <span class="n">ogxs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">index</span><span class="p">]</span>
+        <span class="c1">## BEST ESTIMATE</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">dot_product_v_u</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">xs</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">v</span> <span class="o">*</span> <span class="n">one_over_xsd</span>
+
+        <span class="c1">## UNCERTAINTY</span>
+        <span class="n">na</span> <span class="o">=</span> <span class="n">composition</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">main</span><span class="p">]</span>
+        <span class="c1"># use unchanged composition uncertainty data as I treat the ratio</span>
+        <span class="c1"># Ni / Na separately.</span>
+        <span class="c1"># the variance from Ni is just the sum of variances from each Ni</span>
+        <span class="n">var_ni</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">na</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span> <span class="o">@</span> <span class="n">comp</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">one_over_xsd</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="c1"># If the main nuclide was not removed, its var_ni quota should be</span>
+        <span class="c1"># removed as it is anyways correlated 1 with itself</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">drop_main</span><span class="p">:</span>
+            <span class="n">var_ni</span> <span class="o">-=</span> <span class="p">(</span><span class="n">na</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">/</span> <span class="n">na</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">xs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">main</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">*</span> <span class="n">one_over_xsd</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="c1"># the variance from Na instead takes the sensitivity of the output to</span>
+        <span class="c1"># Na, which is the dot product of Ni and xs</span>
+        <span class="c1"># here again we use the unmodified composition array</span>
+        <span class="c1"># Same as before I need to subtract one contribution ot var_na</span>
+        <span class="c1"># if not drop_main as main is still in xs and comp</span>
+        <span class="k">if</span> <span class="n">drop_main</span><span class="p">:</span>
+            <span class="n">var_na</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">na</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">value</span> <span class="o">@</span> <span class="n">comp</span><span class="o">.</span><span class="n">value</span>
+                                    <span class="p">)</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">na</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">one_over_xsd</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">var_na</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">na</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="n">xs</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">main</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="o">@</span> <span class="n">comp</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">main</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+                                    <span class="p">)</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">na</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">one_over_xsd</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="c1"># the sensitivity of the output to xi is just the normalized</span>
+        <span class="c1"># composition array in composition_</span>
+        <span class="n">var_xi</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span> <span class="o">@</span> <span class="n">xs</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">one_over_xsd</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="c1"># If normalization to a cross section is required, then</span>
+        <span class="c1"># sensitivity to it is computed taking the normalized</span>
+        <span class="c1"># concentration array and the cross section value</span>
+        <span class="k">if</span> <span class="n">xs_den</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">ogxs</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">xs_den</span><span class="p">]</span>
+            <span class="n">var_xd</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">x</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">4</span> <span class="o">*</span> <span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">value</span> <span class="o">@</span> <span class="n">xs</span><span class="o">.</span><span class="n">value</span>
+                                        <span class="p">)</span> <span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="n">x</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">var_xd</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">var_ni</span> <span class="o">+</span> <span class="n">var_na</span> <span class="o">+</span> <span class="n">var_xi</span> <span class="o">+</span> <span class="n">var_xd</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright YYYY-2026, Federico Grimaldi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

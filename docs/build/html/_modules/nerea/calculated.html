@@ -1,0 +1,356 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nerea.calculated &mdash; NEREA 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=01f34227"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            NEREA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">nerea</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">NEREA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">nerea.calculated</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for nerea.calculated</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Self</span>
+<span class="kn">from</span> <span class="nn">dataclasses</span> <span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">import</span> <span class="nn">serpentTools</span> <span class="k">as</span> <span class="nn">sts</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">.utils</span> <span class="kn">import</span> <span class="n">_make_df</span><span class="p">,</span> <span class="n">ratio_v_u</span>
+<span class="kn">from</span> <span class="nn">.constants</span> <span class="kn">import</span> <span class="n">ATOMIC_MASS</span>
+<span class="kn">from</span> <span class="nn">.classes</span> <span class="kn">import</span> <span class="n">Xs</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;_Calculated&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;CalculatedSpectralIndex&#39;</span><span class="p">,</span>
+           <span class="s1">&#39;CalculatedTraverse&#39;</span><span class="p">]</span>
+
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">_Calculated</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea._Calculated``</span>
+<span class="sd">    ====================</span>
+<span class="sd">    Superclass for calculated results.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        ``nerea._Calculated.calculate()``</span>
+<span class="sd">        ---------------------------------</span>
+<span class="sd">        Placeholder for inheriting classes.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="CalculatedSpectralIndex">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedSpectralIndex">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CalculatedSpectralIndex</span><span class="p">(</span><span class="n">_Calculated</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CalculatedSpectralIndex``</span>
+<span class="sd">    =================================</span>
+<span class="sd">    Spectral Index calculated in any simulation.</span>
+<span class="sd">    Can be created from Serpent outputs.</span>
+<span class="sd">    Can be created from ratio of Serpent detectors or</span>
+<span class="sd">    from a direct tally of the ratio.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **data**: ``pd.DataFrame``</span>
+<span class="sd">        the calculated spectral index value and uncertainty.</span>
+<span class="sd">    **model_id**: ``str``</span>
+<span class="sd">        metadata for model identifier.</span>
+<span class="sd">    **deposit_ids**: ``list[str]``</span>
+<span class="sd">        two-element list with the deposits considered</span>
+<span class="sd">        in the spectral index. First element for numerator,</span>
+<span class="sd">        second for denominator.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">model_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">deposit_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>  <span class="c1"># 0: num, 1: den</span>
+
+<div class="viewcode-block" id="CalculatedSpectralIndex.from_sts">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedSpectralIndex.from_sts">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_sts</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">detector_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CalculatedSpectralIndex.from_sts()`</span>
+<span class="sd">        ------------------------------------------</span>
+<span class="sd">        Creates an instance using data extracted from a Serpent det.m</span>
+<span class="sd">        file for a specific detector.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            The file path from which data will be read.</span>
+<span class="sd">        **detector_name** : ``str``</span>
+<span class="sd">            The name of the detector from which data will be extracted.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CalculatedSpectralIndex``</span>
+<span class="sd">            An instance of the `nerea.CalculatedSpectralIndex` class created</span>
+<span class="sd">            from the specified file.&quot;&quot;&quot;</span>
+        <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">sts</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">detectors</span><span class="p">[</span><span class="n">detector_name</span><span class="p">]</span><span class="o">.</span><span class="n">bins</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+        <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;deposit_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;deposit_ids&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">mass_norm</span> <span class="o">=</span> <span class="n">ATOMIC_MASS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">d</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span> <span class="o">/</span> <span class="n">ATOMIC_MASS</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">n</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="c1"># Serpent detector uncertainty is relative</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">v</span> <span class="o">*</span> <span class="n">mass_norm</span><span class="p">,</span> <span class="n">u</span> <span class="o">*</span> <span class="n">v</span> <span class="o">*</span> <span class="n">mass_norm</span>
+                                  <span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">VAR_PORT_C_n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                           <span class="n">VAR_PORT_C_d</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CalculatedSpectralIndex.from_sts_detectors">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedSpectralIndex.from_sts_detectors">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_sts_detectors</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span>
+                           <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+                           <span class="n">detector_names</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span>
+                           <span class="n">normalize</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                           <span class="n">xs_kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="o">=</span><span class="p">{},</span>
+                           <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CalculatedSpectralIndex.from_sts_detectors()`</span>
+<span class="sd">        ----------------------------------------------------</span>
+<span class="sd">        Creates an instance using data extracted from a Serpent det.m</span>
+<span class="sd">        file for multiple detectors.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file** : ``str``</span>
+<span class="sd">            The file path from which data will be read.</span>
+<span class="sd">        **detector_names** : ``dict[str, str]``</span>
+<span class="sd">            Keys can be ``&#39;numerator&#39;`` or ``&#39;denominator&#39;``, while values are the names of</span>
+<span class="sd">            the detectors from which data will be extracted.</span>
+<span class="sd">        **xs_kwargs** : ``dict``</span>
+<span class="sd">            Additional arguments for ``nerea.Xs`` instance creation</span>
+<span class="sd">                </span>
+<span class="sd">                - **mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.</span>
+<span class="sd">                - **volume_normalized** (``bool``, optional), whether the cross section is volume-normalized.</span>
+<span class="sd">                - **volume** (``float``, optional), volume for volume normalization.</span>
+<span class="sd">        *kwargs</span>
+<span class="sd">            Additional arguments for instance creation</span>
+<span class="sd">            </span>
+<span class="sd">                - **model_id** (``str``), model identity</span>
+<span class="sd">                - **deposit_ids** (``list[str]``), nuclide identifiers</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `nerea.CalculatedSpectralIndex`</span>
+<span class="sd">            An instance of the `CalculatedSpectralIndex` class created from</span>
+<span class="sd">            the specified file.&quot;&quot;&quot;</span>
+        <span class="n">n_</span><span class="p">,</span> <span class="n">d_</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;deposit_ids&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;deposit_ids&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="n">Xs</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="p">{</span><span class="n">n_</span><span class="p">:</span> <span class="n">detector_names</span><span class="p">[</span><span class="s1">&#39;numerator&#39;</span><span class="p">]},</span> <span class="o">**</span><span class="n">xs_kwargs</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">Xs</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">file</span><span class="p">,</span> <span class="p">{</span><span class="n">d_</span><span class="p">:</span> <span class="n">detector_names</span><span class="p">[</span><span class="s1">&#39;denominator&#39;</span><span class="p">]},</span> <span class="o">**</span><span class="n">xs_kwargs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+            <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">normalized</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">normalized</span><span class="o">.</span><span class="n">data</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n</span><span class="p">,</span> <span class="n">d</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">d</span><span class="o">.</span><span class="n">data</span>
+        <span class="n">n</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+        <span class="n">d</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+
+        <span class="n">S1</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">/</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+        <span class="n">S2</span> <span class="o">=</span> <span class="n">n</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">/</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span> <span class="o">**</span><span class="mi">2</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">d</span><span class="p">))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
+            <span class="n">VAR_PORT_C_n</span><span class="o">=</span><span class="p">(</span><span class="n">S1</span> <span class="o">*</span> <span class="n">n</span><span class="p">[</span><span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">VAR_PORT_C_d</span><span class="o">=</span><span class="p">(</span><span class="n">S2</span> <span class="o">*</span> <span class="n">d</span><span class="p">[</span><span class="s1">&#39;uncertainty&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CalculatedSpectralIndex.calculate">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedSpectralIndex.calculate">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CalculatedSpectralIndex.calculate()`</span>
+<span class="sd">        -------------------------------------------</span>
+<span class="sd">        Computes the C value. Alias for self.data.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame containing C ``&#39;value&#39;`` and ``&#39;uncertainty&#39;`` columns.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; c_instance = CalculatedSpectralIndex(data=pd.DataFrame({&#39;value&#39;: [0.5], </span>
+<span class="sd">                                                                    &#39;uncertainty&#39;: [0.05]}),</span>
+<span class="sd">                            model_id=&#39;Model1&#39;, deposit_ids=&#39;Dep1&#39;)</span>
+<span class="sd">        &gt;&gt;&gt; c_instance.compute()</span>
+<span class="sd">           value    uncertainty</span>
+<span class="sd">        0    0.5           0.05</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span></div>
+</div>
+
+
+<div class="viewcode-block" id="CalculatedTraverse">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedTraverse">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">slots</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">CalculatedTraverse</span><span class="p">(</span><span class="n">_Calculated</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ``nerea.CalculatedTraverse``</span>
+<span class="sd">    ============================</span>
+<span class="sd">    Traverse calculated in any simulation.</span>
+<span class="sd">    Can be created from Serpent outputs.</span>
+
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    **data**: ``pd.DataFrame``</span>
+<span class="sd">        the calculated traverse values and uncertainties.</span>
+<span class="sd">    **model_id*: ``str``</span>
+<span class="sd">        metadata for model identifier.</span>
+<span class="sd">    **deposit_ids**: ``str``</span>
+<span class="sd">        the deposits of the tally considered.&quot;&quot;&quot;</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">model_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">deposit_id</span><span class="p">:</span> <span class="nb">str</span>
+
+<div class="viewcode-block" id="CalculatedTraverse.from_sts">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedTraverse.from_sts">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_sts</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">file</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">detector_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Self</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CalculatedTraverse.from_sts()`</span>
+<span class="sd">        -------------------------------------</span>
+<span class="sd">        Creates an instance using data extracted from a Serpent det.m</span>
+<span class="sd">        file for multiple detectors.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **file**: ``str``</span>
+<span class="sd">            The file path from which data will be read.</span>
+<span class="sd">        **detector_names**: ``Iterable[str]``</span>
+<span class="sd">            The names of the detectors from which data will be extracted.</span>
+<span class="sd">        **normalization**: ``str``, optional</span>
+<span class="sd">            The detector name to normalize the traveres to.</span>
+<span class="sd">            Defaults to None, normalizing to the one with the highest counts.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``nerea.CalculatedTraverse``</span>
+<span class="sd">            An instance of the `CalculatedTraverse` class created from</span>
+<span class="sd">            the specified file.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">detector_names</span><span class="p">:</span>
+            <span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">=</span> <span class="n">sts</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="o">.</span><span class="n">detectors</span><span class="p">[</span><span class="n">d</span><span class="p">]</span><span class="o">.</span><span class="n">bins</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_make_df</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">u</span> <span class="o">*</span> <span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">traverse</span><span class="o">=</span><span class="n">d</span><span class="p">))</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">out</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CalculatedTraverse.calculate">
+<a class="viewcode-back" href="../../nerea.html#nerea.calculated.CalculatedTraverse.calculate">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">normalization</span><span class="p">:</span> <span class="nb">str</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        `nerea.CalculatedTraverse.calculate()`</span>
+<span class="sd">        --------------------------------------</span>
+<span class="sd">        Computes the C value. Normalized self.data.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **normalization**: ``str``, optional</span>
+<span class="sd">            The detector name to normalize the traveres to.</span>
+<span class="sd">            Defaults to ``None``, normalizing to the one with the highest counts.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ``pd.DataFrame``</span>
+<span class="sd">            data frame containing C `&#39;value&#39;` and `&#39;uncertainty&#39;` columns.&quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">max_d</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s2">&quot;value == @self.data.value.max()&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">traverse</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">norm_d</span> <span class="o">=</span> <span class="n">max_d</span> <span class="k">if</span> <span class="n">normalization</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">normalization</span>
+        <span class="n">den</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;traverse == @norm_d&#39;</span><span class="p">)</span>
+        <span class="n">den</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="n">den</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">den</span><span class="o">.</span><span class="n">uncertainty</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">num</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">_make_df</span><span class="p">(</span><span class="o">*</span><span class="n">ratio_v_u</span><span class="p">(</span><span class="n">num</span><span class="p">,</span> <span class="n">den</span><span class="p">))</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">traverse</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">traverse</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright YYYY-2026, Federico Grimaldi.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

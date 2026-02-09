@@ -18,7 +18,8 @@
       <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="nerea" href="modules.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -40,11 +41,11 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <!-- Local TOC -->
-              <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">NEREA documentation</a></li>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">nerea</a></li>
 </ul>
-</div>
+
         </div>
       </div>
     </nav>
@@ -71,17 +72,203 @@
              
   <section id="nerea-documentation">
 <h1>NEREA documentation<a class="headerlink" href="#nerea-documentation" title="Link to this heading"></a></h1>
-<p>Add your content using <code class="docutils literal notranslate"><span class="pre">reStructuredText</span></code> syntax. See the
-<a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html">reStructuredText</a>
-documentation for details.</p>
+<p><a class="reference external" href="https://codecov.io/gh/GrimFe/NEREA"><img alt="codecov" src="https://codecov.io/gh/GrimFe/NEREA/branch/v0.1/graph/badge.svg" /></a>
+<a class="reference external" href="https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml"><img alt="CI" src="https://github.com/GrimFe/NEREA/actions/workflows/unit_test.yml/badge.svg" /></a>
+<a class="reference external" href="https://pypi.org/project/nerea/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/nerea.svg" /></a></p>
+<p><img alt="here" src="https://github.com/GrimFe/NEREA/blob/v0.1/img/logo.png" /></p>
+<h1 align="center" style="font-family:simplifica">NEREA</h1>
+<p>NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python package designed for the analysis and evaluation of spectral indices and reaction rates from fission fragment spectra. The package provides a comprehensive set of tools for handling, processing, and analyzing nuclear data, specifically focusing on fission fragment spectra, effective mass, and reaction rates.</p>
+<section id="main-features">
+<h2>Main features<a class="headerlink" href="#main-features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Pulse Height Spectrum Analysis</strong>: Tools to handle and analyze pulse height spectrum data.</p></li>
+<li><p><strong>Effective Mass Calculation</strong>: Methods to compute effective mass from integral data (i.e., fission chamber calibration).</p></li>
+<li><p><strong>Reaction Rate Computation</strong>: Functions to calculate reaction rates per unit power and mass using pulse height spectra and effective masses.</p></li>
+<li><p><strong>Spectral Index Calculation</strong>: Tools to compute spectral indices by comparing reaction rates.</p></li>
+<li><p><strong>Control Rod Calibration</strong>: Tools to compute the control rod calibration curve and measure reactivity worth.</p></li>
+<li><p><strong>Fission Traverse Processing</strong>: Tools to process fission traverse experiments.</p></li>
+<li><p><strong>C/E Calculation</strong>: Compute C/E values from simulated and experimental data.</p></li>
+</ul>
+</section>
+<section id="installation">
+<h2>🔧 Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<section id="user-installation-via-testpypi">
+<h3>User installation via TestPypi<a class="headerlink" href="#user-installation-via-testpypi" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">pip</span> <span class="n">install</span> <span class="o">--</span><span class="n">extra</span><span class="o">-</span><span class="n">index</span><span class="o">-</span><span class="n">url</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">test</span><span class="o">.</span><span class="n">pypi</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">simple</span><span class="o">/</span> <span class="n">nerea</span>
+</pre></div>
+</div>
+<p>To install NEREA with pip:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>nerea
+</pre></div>
+</div>
+<p>Or from Test PyPI:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>--index-url<span class="w"> </span>https://test.pypi.org/simple/<span class="w"> </span>--extra-index-url<span class="w"> </span>https://pypi.org/simple<span class="w"> </span>nerea
+</pre></div>
+</div>
+<p>Otherwise, clone the repository and use pip to install the dependencies:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/GrimFe/NEREA.git
+<span class="nb">cd</span><span class="w"> </span>nerea
+pip<span class="w"> </span>install<span class="w"> </span>.
+</pre></div>
+</div>
+</section>
+<section id="use-nerea-with-no-installation">
+<h3>Use NEREA with no installation<a class="headerlink" href="#use-nerea-with-no-installation" title="Link to this heading"></a></h3>
+<p>To import NEREA (without installation)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">sys</span>
+<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="sa">r</span><span class="s2">&quot;path/to/nerea&quot;</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">nerea</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="structure">
+<h2>🗺️ Structure<a class="headerlink" href="#structure" title="Link to this heading"></a></h2>
+<p>A schematic of the main structure of NEREA: <img alt="here" src="https://github.com/GrimFe/NEREA/blob/v0.1/img/Schematic_v0.1.0.png" />
+Some of the main features of NEREA are:</p>
+<ul class="simple">
+<li><p>DATA - dedicated to the interface with detector raw data and preprocessing:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">EffectiveMass</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/effective_mass.py"><code class="docutils literal notranslate"><span class="pre">EM</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PulseHeightSpectrum</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/pulse_height_spectrum.py"><code class="docutils literal notranslate"><span class="pre">PHS</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">PulseHeightSpectra</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/pulse_height_spectrum.py"><code class="docutils literal notranslate"><span class="pre">FFSa</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CountRate</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/count_rate.py"><code class="docutils literal notranslate"><span class="pre">RR</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CountRates</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/count_rates.py"><code class="docutils literal notranslate"><span class="pre">RRs</span></code></a></p></li>
+</ul>
+</li>
+<li><p>Experiemntal - objects created out of the DATA and related processing:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">NormalizedPulseHeightSpectrum</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/experimental.py"><code class="docutils literal notranslate"><span class="pre">NPHS</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SpectralIndex</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/experimental.py"><code class="docutils literal notranslate"><span class="pre">SI</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Traverse</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/experimental.py"><code class="docutils literal notranslate"><span class="pre">Traverse</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ControlRod</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/control_rod.py"><code class="docutils literal notranslate"><span class="pre">CR</span></code></a>.</p></li>
+</ul>
+</li>
+<li><p>CALCULATED - objects crated from model outputs:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CalculatedSpectralIndex</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/calculated.py"><code class="docutils literal notranslate"><span class="pre">CSI</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CalculatedTraverse</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/calculated.py"><code class="docutils literal notranslate"><span class="pre">CT</span></code></a></p></li>
+</ul>
+</li>
+<li><p>C/E - comparison of calculations to experiments:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">CoverE</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/comparisons.py"><code class="docutils literal notranslate"><span class="pre">CE</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CoverC</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/comparisons.py"><code class="docutils literal notranslate"><span class="pre">CC</span></code></a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">EoverE</span></code> or <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/comparisons.py"><code class="docutils literal notranslate"><span class="pre">EE</span></code></a></p></li>
+</ul>
+</li>
+<li><p>Useful functions are stored in</p>
+<ul>
+<li><p><a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/utils.py"><code class="docutils literal notranslate"><span class="pre">utils.py</span></code></a></p></li>
+<li><p><a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/utils.py"><code class="docutils literal notranslate"><span class="pre">functions.py</span></code></a>.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="examples-and-concept">
+<h2>💡 Examples and Concept<a class="headerlink" href="#examples-and-concept" title="Link to this heading"></a></h2>
+<p>NEREA comes with examples in the docstrings and <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/tests">test</a> that can serve a similar purpose.</p>
+<p>NEREA outputs are normally formatted as <code class="docutils literal notranslate"><span class="pre">pd.DataFrame</span></code> by the <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/utils.py"><code class="docutils literal notranslate"><span class="pre">_make_df()</span></code> function</a>.
+A standard workflow for spectral index processing is outlined in the following (slightly simplified with respect to some options), for control rod calibration and fission traverse measurement we refer you to docstrings and tests. Any keyword argument to customize your processing beyond <a class="reference external" href="https://github.com/GrimFe/NEREA/blob/main/nerea/defaults.py">default options</a> can be passed at any stage of the Normalized PHS processing. The SpectralIndex.processing() can take numerator and denominator kwargs.</p>
+<pre> ```python
+import nerea
+import pandas as pd
+
+# FISSION CHAMBER CALIBRATION
+# Composition and monitor for first detector
+composition1 = pd.DataFrame({"value": 100, "uncertainty": 0}, index=["U235"])
+pm_cal1 = nerea.CountRate.from_ascii("PM1.txt", detector=1, deposit_id="U235")
+em1 = (
+    nerea.PulseHeightSpectrum.from_formatted_TKA("cal1.TKA").calibrate(
+        nerea.constants.KNBS,
+        composition1,
+        monitor=pm_cal1,
+        one_group_xs=nerea.Xs(nerea.constants.XS_FAST)
+    )
+)
+
+# Composition and monitor for second detector
+composition2 = pd.DataFrame({"value": 100, "uncertainty": 0}, index=["U238"])
+pm_cal2 = nerea.CountRate.from_ascii("PM2.txt", detector=2, deposit_id="U235")
+em2 = (
+    nerea.PulseHeightSpectrum.from_formatted_TKA("cal2.TKA").calibrate(
+        nerea.constants.KNBS,
+        composition2,
+        monitor=pm_cal2,
+        one_group_xs=nerea.Xs(nerea.constants.XS_FAST)
+    )
+)
+
+# SPECTRAL INDEX PROCESSING
+# Measured spectra
+phs1 = nerea.PulseHeightSpectrum.from_formatted_TKA("meas1.TKA")
+phs2 = nerea.PulseHeightSpectrum.from_formatted_TKA("meas2.TKA")
+
+# Count rates for measurements
+pm1 = nerea.CountRate.from_ascii("M1.txt", detector=1, deposit_id="U235")
+pm2 = nerea.CountRate.from_ascii("M2.txt", detector=1, deposit_id="U235")
+
+# Compute spectral index
+si = nerea.SpectralIndex(
+    nerea.NormalizedPulseHeightSpectrum(phs1, em1, pm1),
+    nerea.NormalizedPulseHeightSpectrum(phs2, em2, pm2)
+)
+
+# C/E calculation
+# Calculated spectral index from model detectors
+c = nerea.CalculatedSpectralIndex.from_detectors("model_det0.m", ["d1", "d2"])
+
+# C/E - 1 [%] calculation
+ce = nerea.CoverE(c, si).process(minus_one_percent=True)
+
+# ce is a pandas.DataFrame with columns 'value' and 'uncertainty'
+
+``` </pre>
+</section>
+<section id="acknowledgments">
+<h2>🤝 Acknowledgments<a class="headerlink" href="#acknowledgments" title="Link to this heading"></a></h2>
+<p>NEREA was conceived and developed as a part of the PhD thesis on <em>Neutron Data Benchmarking at the VENUS-F zero power reactor for MYRRHA</em> in the framework of a collaboration between <a class="reference external" href="https://www.sckcen.be">SCK CEN</a> and <a class="reference external" href="http://www.ulb.ac.be">ULB</a>, supported financially by Association Vinçotte Nuclear (AVN).</p>
+<p>The authors thank Agnese Carlotti for designing the logo of NEREA.</p>
+</section>
+<section id="reference">
+<h2>📋 Reference<a class="headerlink" href="#reference" title="Link to this heading"></a></h2>
+<section id="the-nerea-package">
+<h3>The NEREA package<a class="headerlink" href="#the-nerea-package" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>F. Grimaldi, F. Di Croce, A. Krása, J. Wagemans, G. Vittiglio, <a class="reference external" href="https://doi.org/10.1051/epjconf/202533804028"><em>The NEREA Python Package for Integral Experiment Analysis: a Fission Chamber Calibration Case Study</em></a>, EPJ Web of Conferences 338, 04028 (2025), ANIMMA 2025</p></li>
+</ul>
+</section>
+<section id="spectral-indices-first-use">
+<h3>Spectral Indices (first use)<a class="headerlink" href="#spectral-indices-first-use" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>F. Grimaldi F. Di Croce, A. Krása, G. de Izarra, L. Barbot, P. Blaise, P.E. Labeau, L. Fiorito. G. Vittiglio, J. Wagemans, <a class="reference external" href="https://doi.org/10.1016/j.anucene.2025.111425"><em>The CoRREx neutron spectrum filtering campaign at VENUS-F for calculation-to-experiment discrepancy interpretation</em></a>,     Annals of Nuclear Energy, Volume 219, 2025, 111425, ISSN 0306-4549.</p></li>
+</ul>
+</section>
+</section>
+<section id="publications">
+<h2>🌍 Publications<a class="headerlink" href="#publications" title="Link to this heading"></a></h2>
+<p>This is a not complete list of publications featuring NEREA.</p>
+<ul class="simple">
+<li><p>F. Grimaldi F. Di Croce, A. Krása, G. de Izarra, L. Barbot, P. Blaise, P.E. Labeau, L. Fiorito. G. Vittiglio, J. Wagemans, <a class="reference external" href="https://doi.org/10.1016/j.anucene.2025.111425"><em>The CoRREx neutron spectrum filtering campaign at VENUS-F for calculation-to-experiment discrepancy interpretation</em></a>,     Annals of Nuclear Energy, Volume 219, 2025, 111425, ISSN 0306-4549.</p></li>
+</ul>
+</section>
 <div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="modules.html">nerea</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="nerea.html">nerea package</a></li>
+</ul>
+</li>
+</ul>
 </div>
 </section>
 
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-right" title="nerea" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
