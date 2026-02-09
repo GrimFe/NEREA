@@ -4,8 +4,6 @@ import numpy as np
 from datetime import datetime, timedelta
 from nerea.count_rate import CountRate
 from nerea.classes import EffectiveDelayedParams
-from nerea.utils import _make_df
-
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -131,7 +129,6 @@ def linear_monitor():
         timebase=1
     )
 
-
 @pytest.fixture
 def exponential_monitor():
     counts = [10050.        ,  9700.        , 10300.        ,  9908.        ,
@@ -185,6 +182,21 @@ def exponential_monitor():
     return CountRate(
         data=pd.DataFrame({"Time": times, "value": counts}),
         start_time=t_start,
+        campaign_id="TEST",
+        experiment_id="TEST_EXPONENTIAL_MONITOR",
+        detector_id="A",
+        deposit_id="U235",
+        timebase=10,
+        _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
+    )
+
+@pytest.fixture
+def cut_exponential_monitor(exponential_monitor):
+    # data generated with period T = 50s
+    data = exponential_monitor.data.iloc[40:-40]
+    return CountRate(
+        data=data,
+        start_time=data.Time.min(),
         campaign_id="TEST",
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
@@ -356,36 +368,73 @@ def test_dead_time_corrected(dtc_monitor):
     assert dtc_monitor.dead_time_corrected().timebase == dtc_monitor.timebase
     assert dtc_monitor.dead_time_corrected()._dead_time_corrected == True
 
-def test_get_asymptotic_counts(exponential_monitor):
-    t_start, t_end = datetime(2025, 4, 3, 15, 33, 58), datetime(2025, 4, 3, 15, 35, 39)
-    asymptotic = exponential_monitor.get_asymptotic_counts(t_left=0.012).data
-    assert asymptotic.Time.iloc[0] == t_start
-    assert asymptotic.Time.iloc[-1] == t_end
-
-    # test continuity in time
-    assert ((asymptotic.index.values - np.roll(asymptotic.index.values, 1))[1:] == 1).all()
+def test_cut(exponential_monitor, cut_exponential_monitor):
+    ts = datetime(2025, 4, 3, 15, 34, 0)
+    te = datetime(2025, 4, 3, 15, 35, 40)
+    cut = exponential_monitor.cut(ts, te)
+    pd.testing.assert_frame_equal(
+        cut.data,
+        cut_exponential_monitor.data
+    )
+    assert(cut.start_time == ts)
+    assert(cut.campaign_id == exponential_monitor.campaign_id)
+    assert(cut.experiment_id == exponential_monitor.experiment_id)
+    assert(cut.detector_id == exponential_monitor.detector_id)
+    assert(cut.deposit_id == exponential_monitor.deposit_id)
+    assert(cut.timebase == exponential_monitor.timebase)
+    assert(cut._dead_time_corrected == exponential_monitor._dead_time_corrected)
 
 def test_linear_fit(linear_monitor):
     fitted_data, popt, pcov, out = linear_monitor._linear_fit(preprocessing=None)
     np.testing.assert_array_equal(fitted_data, linear_monitor.data.value.values)
     np.testing.assert_almost_equal(popt, np.array([1., 1.]))
-    np.testing.assert_almost_equal(pcov, np.array([[0.1, 0.2],
-                                                  [0.2, 0.6]]))
+    np.testing.assert_almost_equal(pcov, np.array([[0.] * 2,
+                                                   [0.] * 2]))
     np.testing.assert_almost_equal(out['fvec'], np.array([0.] * 5))
 
-def test_period(exponential_monitor):
-    target = pd.DataFrame({"value": [49.61310925],
-                           "uncertainty": [8.27759428],
-                           "uncertainty [%]": [16.68428849]},
-                           index=["value"])
-    pd.testing.assert_frame_equal(exponential_monitor.get_asymptotic_counts(t_left=0.012).period, target)
+def test_get_asymptotic_period(cut_exponential_monitor, caplog):
+    # test logging
+    with caplog.at_level("INFO"):
+        cut_exponential_monitor.get_asymptotic_period()
+    msg = 'Reactor period fit R^2 = 0.9999'
+    records = caplog.records
+    assert any(
+        record.levelname == "INFO" and record.message == msg
+        for record in records
+    )
+    # no scan
+    target = pd.DataFrame({'value': 49.49970769,
+                           'uncertainty': 0.05527809,
+                           'uncertainty [%]': 0.11167358},
+                           index=['value'])
+    pd.testing.assert_frame_equal(
+        cut_exponential_monitor.get_asymptotic_period(log=False),
+        target)
+    # scan
+    target = pd.DataFrame({'value': 49.48098903394187,
+                           'uncertainty': 0.05397294278656929,
+                           'uncertainty [%]': 0.10907814059566623},
+                           index=['value'])
+    pd.testing.assert_frame_equal(
+        cut_exponential_monitor.get_asymptotic_period(1., 20., 1e-2, log=True),
+        target)
+    # test logging with scan
+    with caplog.at_level("INFO"):
+        cut_exponential_monitor.get_asymptotic_period(1., 20., 1e-2, log=True)
+    msg = 'Reactor period fit R^2 = 0.9999'
+    records = caplog.records
+    assert any(
+        record.levelname == "INFO" and record.message == msg
+        for record in records
+    )
 
-def test_get_reactivity(exponential_monitor):
+
+def test_get_reactivity(cut_exponential_monitor):
     dd = EffectiveDelayedParams(_make_df(np.array([1, 2]), np.array([0.01, 0.01]), relative=True),
                                 _make_df(np.array([10, 20]), np.array([0.1, 0.1]), relative=True))
-    T = 49.61310925
-    uT = 8.27759428
-    data = exponential_monitor.get_asymptotic_counts(t_left=0.012).get_reactivity(dd)
+    T = 49.49970769
+    uT = 0.05527809
+    data = cut_exponential_monitor.get_reactivity(dd)
 
     a = (1 / (1 + T) * 0.1)**2
     b = (1 / (1 + 2*T) * 0.1)**2

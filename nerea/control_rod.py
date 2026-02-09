@@ -106,7 +106,7 @@ class ControlRodCalibration:
     def _get_rhos(self,
                   delayed_data: EffectiveDelayedParams,
                   dtc_kwargs: dict={},
-                  ac_kwargs: dict={}) -> pd.DataFrame:
+                  ap_kwargs: dict={}) -> pd.DataFrame:
         """"
         `nerea.ControlRodCalibration._get_rhos()`
         -----------------------------------------
@@ -121,20 +121,19 @@ class ControlRodCalibration:
         **dtc_kwargs** : ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is ``{}``.
-        **ac_kwargs** : dict, optional
-            kwargs for nerea.CountRate.asymptotic_counts.
+        **ap_kwargs** : dict, optional
+            kwargs for nerea.CountRate.asymptotic_period.
             Default is ``{}``.
 
         Returns
         -------
         ``pd.DataFrame``"""
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
-        ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
+        ap_kw = DEFAULT_AP_KWARGS | ap_kwargs
         rhos = [_make_df(0, 0, False).assign(h=self.critical_height)]
         for h, r in self.count_rates.items():
             dtc = r.dead_time_corrected(**dtc_kw)
-            ac = dtc.get_asymptotic_counts(**ac_kw)
-            rho = ac.get_reactivity(delayed_data)
+            rho = dtc.get_reactivity(delayed_data, ap_kw)
             rhos.append(rho.assign(h=h))
         rhos = pd.concat(rhos)
         return rhos.fillna(0)
@@ -153,7 +152,7 @@ class ControlRodCalibration:
                              delayed_data: EffectiveDelayedParams,
                              order: int,
                              dtc_kwargs: dict={},
-                             ac_kwargs: dict={}) -> pd.DataFrame:
+                             ap_kwargs: dict={}) -> pd.DataFrame:
         """
         `nerea.ControlRodCalibration.get_reactivity_worth()`
         ----------------------------------------------------
@@ -172,7 +171,7 @@ class ControlRodCalibration:
         **dtc_kwargs**: ``dict``, optional
             keyword arguments for count rate dead time correction.
             Default is ``{}`` taking values from nerea.defaults.py.
-        **ac_kwargs**: ``dict``, optional
+        **ap_kwargs**: ``dict``, optional
             keyword arguments for asymptotic count rate identification.
             Default is ``{}`` taking values from nerea.defaults.py.
 
@@ -181,7 +180,7 @@ class ControlRodCalibration:
         ``pd.DataFrame``
             The reactivity worth associated with the chosen control
             rod movement."""    
-        rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ac_kwargs)[['h', 'value', 'uncertainty']].copy()
+        rho = self.get_reactivity_curve(delayed_data, dtc_kwargs, ap_kwargs)[['h', 'value', 'uncertainty']].copy()
         rho.columns = ['x', 'y', 'u']
         coef, coef_cov = polyfit(order, rho)
         i0 = self._evaluate_integral(x0, order, coef, coef_cov)
@@ -190,7 +189,7 @@ class ControlRodCalibration:
                         ).assign(VAR_PORT_X1=i1.uncertainty **2,
                                     VAR_PORT_X0=i0.uncertainty **2)
     
-    def plot(self, dtc_kwargs: dict={}, ac_kwargs: dict={}
+    def plot(self, dtc_kwargs: dict={}, ap_kwargs: dict={}
              ) -> tuple[plt.Figure, plt.Axes]:
         """
         `nerea.ControlRodCalibration.plot()`
@@ -203,7 +202,7 @@ class ControlRodCalibration:
         **dtc_kwargs**: ``dict``, optional
             keyword arguments for count rate dead time correction.
             Default is `{}` taking values from nerea.defaults.py.
-        **ac_kwargs**: ``dict``, optional
+        **ap_kwargs**: ``dict``, optional
             keyword arguments for asymptotic count rate identification.
             Default is `{}` taking values from nerea.defaults.py.
 
@@ -212,13 +211,13 @@ class ControlRodCalibration:
         ``tuple[plt.Figure, plt.Axes]``
             The Figure and Axes produced."""   
         dtc_kw = DEFAULT_DTC_KWARGS | dtc_kwargs
-        ac_kw = DEFAULT_AC_KWARGS | ac_kwargs
+        ap_kw = DEFAULT_AP_KWARGS | ap_kwargs
         fig, axs = plt.subplots(len(self.count_rates), 2,
                               figsize=(15, 30 / len(self.count_rates)))
         for i, (h, rr) in enumerate(self.count_rates.items()):
             # data preparation
             dtc = rr.dead_time_corrected(**dtc_kw)
-            ac = dtc.get_asymptotic_counts(**ac_kw)
+            ac = dtc.get_asymptotic_period(**ap_kw)
             # raw data
             rr.plot(ax=axs[i][0])
             axs[i][0].plot([], [], c='k', label=f'Raw count rate @ H={h}')
@@ -257,7 +256,7 @@ class DifferentialNoCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
-                             ac_kwargs: dict={},
+                             ap_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -274,8 +273,8 @@ class DifferentialNoCompensation(ControlRodCalibration):
         **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is ``{}``.
-        **ac_kwargs**: ``dict``, optional
-            kwargs for nerea.CountRate.asymptotic_counts.
+        **ap_kwargs**: ``dict``, optional
+            kwargs for nerea.CountRate.asymptotic_period.
             Default is ``{}``.
         **visual**: ``bool``, optional
             Whether to plot the processed data.
@@ -287,7 +286,7 @@ class DifferentialNoCompensation(ControlRodCalibration):
         Returns
         -------
         ``pd.DataFrame``"""
-        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ap_kwargs)
         drho_v = (rho["value"].diff() / rho["h"].diff()).fillna(0).values
         VAR_PORT_T = rho["VAR_PORT_T"].rolling(2).sum() / rho["h"].diff() **2
         VAR_PORT_B = rho["VAR_PORT_B"].rolling(2).sum() / rho["h"].diff() **2
@@ -299,7 +298,7 @@ class DifferentialNoCompensation(ControlRodCalibration):
                                                                                      h=rho['h'].rolling(2).mean()
                                                                                      )
         if visual or savefig:
-            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            fig, _ = self.plot(dtc_kwargs, ap_kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -356,7 +355,7 @@ class IntegralNoCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
-                             ac_kwargs: dict={},
+                             ap_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -373,8 +372,8 @@ class IntegralNoCompensation(ControlRodCalibration):
         **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is ``{}``.
-        **ac_kwargs**: ``dict``, optional
-            kwargs for nerea.CountRate.asymptotic_counts.
+        **ap_kwargs**: ``dict``, optional
+            kwargs for nerea.CountRate.asymptotic_period.
             Default is ``{}``.
         **visual**: ``bool``, optional
             Whether to plot the processed data.
@@ -390,9 +389,9 @@ class IntegralNoCompensation(ControlRodCalibration):
         Note
         ----
         alias for ``self._get_rhos``."""
-        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ap_kwargs)
         if visual or savefig:
-            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            fig, _ = self.plot(dtc_kwargs, ap_kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -449,7 +448,7 @@ class DifferentialCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
-                             ac_kwargs: dict={},
+                             ap_kwargs: dict={},
                              visual: bool=False,
                              savefig: str='') -> pd.DataFrame:
         """"
@@ -466,8 +465,8 @@ class DifferentialCompensation(ControlRodCalibration):
         **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is `{}`.
-        **ac_kwargs**: ``dict``, optional
-            kwargs for nerea.CountRate.asymptotic_counts.
+        **ap_kwargs**: ``dict``, optional
+            kwargs for nerea.CountRate.asymptotic_period.
             Default is `{}`.
         **visual**: ``bool``, optional
             Whether to plot the processed data.
@@ -479,7 +478,7 @@ class DifferentialCompensation(ControlRodCalibration):
         Returns
         -------
         ``pd.DataFrame``"""
-        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ap_kwargs)
         # no need to differenciate rho as with compensation the measured reactivity
         # is already related with a differential movement of the control rod
         drho_v = rho.value / rho["h"].diff()
@@ -493,7 +492,7 @@ class DifferentialCompensation(ControlRodCalibration):
                                                                                      h=rho['h'].rolling(2).mean()
                                                                                      )
         if visual or savefig:
-            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            fig, _ = self.plot(dtc_kwargs, ap_kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -550,7 +549,7 @@ class IntegralCompensation(ControlRodCalibration):
     def get_reactivity_curve(self,
                              delayed_data: EffectiveDelayedParams,
                              dtc_kwargs: dict={},
-                             ac_kwargs: dict={},
+                             ap_kwargs: dict={},
                              visual: bool=False,
                              savefig: str = '') -> pd.DataFrame:
         """"
@@ -567,8 +566,8 @@ class IntegralCompensation(ControlRodCalibration):
         **dtc_kwargs**: ``dict``, optional
             kwargs for nerea.CountRate.dead_time_corrected.
             Default is ``{}``.
-        **ac_kwargs**: ``dict``, optional
-            kwargs for nerea.CountRate.asymptotic_counts.
+        **ap_kwargs**: ``dict``, optional
+            kwargs for nerea.CountRate.asymptotic_period.
             Default is ``{}``.
         **visual**: ``bool``, optional
             Whether to plot the processed data.
@@ -584,9 +583,9 @@ class IntegralCompensation(ControlRodCalibration):
         Note
         ----
         alias for ``self._get_rhos``."""
-        rho = self._get_rhos(delayed_data, dtc_kwargs, ac_kwargs)
+        rho = self._get_rhos(delayed_data, dtc_kwargs, ap_kwargs)
         if visual or savefig:
-            fig, _ = self.plot(dtc_kwargs, ac_kwargs)
+            fig, _ = self.plot(dtc_kwargs, ap_kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
