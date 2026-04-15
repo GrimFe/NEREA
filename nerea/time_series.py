@@ -151,7 +151,7 @@ class TimeSeries:
 class Position(TimeSeries):
     """
     ``nerea.Position``
-    ====================
+    ==================
     Class to handle time dependent position data.
     Inherits from ``nerea.TimeSeries``.
 
@@ -173,7 +173,7 @@ class Position(TimeSeries):
 
         Parameters
         ----------
-        **smooth** : bool
+        **smooth** : ``bool``
             flag to smooth the data before plateau search.
             Default is ``False``.
 
@@ -480,6 +480,42 @@ class CountRate(TimeSeries):
         if plateau_end_time == self.data.Time.min():
             raise Exception(f"No plateau found in for detector {self.detector_id} in experiment {self.experiment_id}.")
         return self.data.query("Time > @max_plateau_start_time and Time <= @max_plateau_end_time")
+
+    def filter_on_position_plateau(self, position: Position, **kwargs) -> list[Self]:
+        """
+        `nerea.CountRate.filter_on_position_plateau()`
+        ----------------------------------------------
+        Filters the count rate data based on plateau found on
+        a `nerea.Position` instance.
+
+        Parameters
+        ----------
+        **position** : ``nerea.Position``
+            the position based on which plateau the data should
+            be filtered.
+
+        **kwargs
+        - **smooth** (``bool``) flag smoothing position data before plateau search.
+        Additional arguments for
+            
+            - ``nerea.functions.find_plateau()``
+                - **tol** (``float``) tolerance for plateau finding.
+                - **absolute_tolerance** (``bool``) flag for absolute ``tol``.
+                - **min_length** (``int``) minimal number of bins in plateau.
+
+            - ``nerea.functions.smoothing()``
+                - **renormalize** (``bool``): Whether to renormalize the data.
+                - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+                - arguments for the chosen ``nerea.functions.smoothing``.
+        
+        Returns
+        -------
+        ``list[nere.CountRate]``
+            corresponding to the different plateau."""
+        out = []
+        for _, p in position.plateau(**kwargs).T.iterrows():
+            out.append(self.cut(p['start'], p['end'] + timedelta(seconds=self.timebase)))
+        return out
 
     def per_unit_power(self, monitor: Self, **kwargs) -> pd.DataFrame:
         """

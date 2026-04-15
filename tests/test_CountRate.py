@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.time_series import CountRate
+from nerea.time_series import CountRate,  Position
 from nerea.classes import EffectiveDelayedParams
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
@@ -330,6 +330,20 @@ def test_plateau_timebase(rr_plateau):
     assert rr_plateau.plateau(2, timebase=7).Time.min() == MIN_T
     assert rr_plateau.plateau(2, timebase=7).Time.max() == MAX_T
     assert rr_plateau.plateau(2, timebase=7).value.sum() == COUNTS
+
+def test_filter_on_position_plateau(power_monitor):
+    position = Position(pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(7)],
+        'value': [1, 1, 1, 15, 20, 20, 20]
+    }))
+    result = power_monitor.filter_on_position_plateau(position, tol=1, absolute_tolerance=True, min_length=2)
+    test = [pd.DataFrame({'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(3)],
+                          'value': [0, 10, 15]}),
+            pd.DataFrame({'Time': [datetime(2024, 5, 19, 20, 5, 4) + timedelta(seconds=i) for i in range(3)],
+                          'value': [20, 15, 10]}, index=[4, 5, 6])]
+    assert len(test) == len(result)
+    for i, j in zip(result, test):
+        pd.testing.assert_frame_equal(i.data, j)
 
 def test_per_unit_power(rr_plateau, plateau_monitor):
     expected_df = pd.DataFrame({'value': 532.84,

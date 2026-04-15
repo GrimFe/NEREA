@@ -1139,6 +1139,7 @@ class SpectralIndex(_Experimental):
                                     )
         return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
 
+
 @dataclass(slots=True)
 class Traverse(_Experimental):
     """
