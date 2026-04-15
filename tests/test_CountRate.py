@@ -85,7 +85,7 @@ def plateau_data():
           3.7,3.8,3.9,4,4,4.2,4.1,3.5,3.2,3,2.5,2.2,2,2,1.5,1.5,1.6,1,1,1,
           .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,
           3.7,3.8,3.9,4,4,4.2,4.1,3.5,3.2,3,2.5,2.2,2,2,1.5,1.5,1.6,1,1,1,
-          .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,]
+          .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0]
     time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
     return pd.DataFrame({'Time': time, 'value': counts})
 
@@ -351,6 +351,11 @@ def test_per_unit_power(rr_plateau, plateau_monitor):
                                 'uncertainty [%]': 0.06783245}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor))
 
+    expected_df = pd.DataFrame({'value': 572.8164866666667,
+                                'uncertainty': 0.2892491432525306,
+                                'uncertainty [%]': 0.050495952889856394}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor, check_count_rate_plateau=False))
+
 def test_per_unit_time_power(rr_plateau, plateau_monitor):
     MIN_T = datetime(2024,5,27,13,21,1)
     MAX_T = datetime(2024,5,27,13,24,20)
@@ -359,6 +364,12 @@ def test_per_unit_time_power(rr_plateau, plateau_monitor):
     target = rr_plateau.per_unit_time_power(plateau_monitor)
     assert np.isclose(target.value.values[0], V, atol=0.00001)
     assert np.isclose(target.uncertainty.values[0], U, atol=0.00001)
+    expected_df = pd.DataFrame({'value': 1.190887,
+                                'uncertainty': 0.000601,
+                                'uncertainty [%]': 0.050496}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_time_power(plateau_monitor,
+                                                                              check_count_rate_plateau=False),
+                                    atol=1e-5, check_exact=False)
 
 def test_smooth(plateau_monitor):
     # individual smoothings tested in test_utils.py

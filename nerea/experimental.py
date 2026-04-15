@@ -10,12 +10,14 @@ from .utils import ratio_v_u, product_v_u, _make_df
 from .functions import impurity_correction
 from .constants import ATOMIC_MASS
 from .defaults import *
-from .classes import Xs
+from .classes import Xs, TimeSeriesImporter
 
 import pandas as pd
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
+from datetime import timedelta
+from inspect import signature
 
 import logging
 
@@ -1201,7 +1203,6 @@ class Traverse(_Experimental):
                 normalization: int|str=None,
                 visual: bool=False,
                 savefig: str='',
-                palette: str='tab10',
                 **kwargs) -> pd.DataFrame:
         """
         ``nerea.Traverse.process()``
@@ -1226,14 +1227,12 @@ class Traverse(_Experimental):
         **savefig** : ``str``, optional
             File name to save the plotted data to.
             Default is `''` for not saving.
-        **palette** : ``str``, optional
-            Color palette to use for plotting.
-            Default is ``'tab10'``.
         **kwargs
             for `nerea.CountRate.plateau()`.
 
             - **sigma** (``int``): standard deviations for plateau finding
             - **timebase** (``int``): time base for integration in plateau search.
+            - **check_count_rate_plateau** (``bool``) consider count rate plateau only.
         
         Returns
         -------
@@ -1243,21 +1242,30 @@ class Traverse(_Experimental):
 
         Note
         ----
-        - Working with ``nerea.CountRates`` instances, the first count rate is used."""
+        - Working with ``nerea.CountRates`` instances, the first count rate is used.
+        - ``normalization`` < 0 is interpreted as no normalization."""
         normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.count_rates.items()):
             n = rr.per_unit_time_power(monitors[i], **kwargs)
             normalized[k] = n if isinstance(rr, CountRate) else list(n.values())[0]
             if normalized[k]['value'].value > m:
-                max_k, m = k, normalized[k].value[0]
-        norm_k = max_k if normalization is None else normalization
+                max_k, m = k, normalized[k].value.iloc[0]
+        if normalization is None:
+            normalization_ = normalized[max_k]
+        elif isinstance(normalization, str) or (isinstance(normalization, int)
+                                                and normalization >= 0):
+            normalization_ = normalized[normalization]
+        elif isinstance(normalization, int) and normalization < 0:
+            normalization_ = _make_df(1, 0)
+        else:
+            raise ValueError(f"Passed invalid normalization value: {normalization}.")
         out = []
         for k, v in normalized.items():
-            out.append(_make_df(*ratio_v_u(v, normalized[norm_k])).assign(traverse=k))
+            out.append(_make_df(*ratio_v_u(v, normalization_)).assign(traverse=k))
         # plot
         if visual or savefig:
-            fig, _ = self.plot(monitors, palette, **kwargs)
+            fig, _ = self.plot(monitors, **kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
@@ -1265,7 +1273,6 @@ class Traverse(_Experimental):
 
     def plot(self,
              monitors: Iterable[CountRate| int],
-             palette: str='tab10',
              **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
         ``nerea.Traverse.plot()``
@@ -1280,9 +1287,6 @@ class Traverse(_Experimental):
             and ``int`` when mapped to ``nerea.CountRates``. The normalization
             is passed to ``CountRate.per_unit_time_power()`` or
             ``CountRates.per_unit_time_power()``.
-        **palette** : ``str``, optional
-            plt palette to use for plotting.
-            Default is ``'tab10'``.
         **kwargs
             for `nerea.CountRate.plateau()`.
             - **sigma** (``int``): standard deviations for plateau finding
@@ -1291,32 +1295,122 @@ class Traverse(_Experimental):
         Returns
         -------
         ``tuple[plt.Figure, Iterable[plt.Axes]]``"""
+        import matplotlib.colors as mcolors
         fig, axs = plt.subplots(len(self.count_rates), 2,
-                              figsize=(15, 30 / len(self.count_rates)))
-        j = 0
+                              figsize=(15, 3 * len(self.count_rates)))
+        colors = plt.cm.hsv(np.linspace(0, 1, len(self.count_rates.keys())))
         for i, (k, rr) in enumerate(self.count_rates.items()):
-            c = plt.get_cmap(palette)(j)
-            plat = rr.plateau(**kwargs)
+            c = mcolors.to_hex(colors[i])
+            use_plateau = kwargs.get('check_count_rate_plateau', False)
+            if use_plateau:
+                kw = {k: v for k, v in kwargs.items() if k in signature(CountRate.plateau)}
+                plat = rr.plateau(**kw)
+            else:
+                plat = rr.data
             dur = (plat.Time.max() - plat.Time.min()).total_seconds()
             # plot data
-            rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0], c=c)
-            axs[i][0].plot([], [], c=c, label=f"Traverse count rate {k}")
+            rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0],
+                    c=c, label=f"{i}: {k:.0f} mm")
+            axs[i][0].set_ylabel("Traverse Count Rate [1/s]")
             # plot monitor
-            axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1], c=c)
-            axs[i][1].plot([], [], c=c, label=f"Monitor count rate {k}")
-
-            h, l = axs[i][0].get_legend_handles_labels()
-            axs[i][0].legend(h[1:], l[1:])
-            h, l = axs[i][1].get_legend_handles_labels()
-            axs[i][1].legend(h[1:], l[1:])
-
-            j = j + 1 if i < plt.get_cmap(palette).N else 0
+            axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1],
+                    c=c, label=f"{i}: {k:.0f} mm")
         return fig, axs
     
     @classmethod
-    def from_countrate_position(count_rate: CountRate, position: Position) -> Self:
-        pass
+    def from_countrate_position(cls,
+                                count_rate: CountRate,
+                                position: Position,
+                                plateau_kw: dict={},
+                                visual: bool=False,
+                                **kwargs) -> Self:
+        """
+        `nerea.Traverse.from_countrate_position()`
+        ------------------------------------------
+        Creates an instance of ``nerea.Traverse`` filtering
+        count rate data on position plateau.
+
+        Parameters
+        ----------
+        **count_rate** : ``nerea.CountRate``
+            count rate data of the traverse.
+        **position** : ``nerea.Position``
+            position data to base the filter on.
+        **plateau_kw** : ``dict``, optional
+            paramters for position plateau search.
+            Default is {}.
+        **visual** : ``bool``, optional
+            flag to visualize the imported data.
+            Default is {}.
+
+        **kwargs
+            additional arguments for class creation
+            - **_enable_checks**: turns consistency checks on/off.
+
+        Returns
+        -------
+        ``nerea.Traverse``
+            with filtered information."""
+        plateau = position.plateau(**plateau_kw)
+        if visual:
+            fig, ax = plt.subplots(figsize=(15, 5), ncols=2)
+            position.plot_data(ax=ax[0])
+            colors = plt.cm.hsv(np.linspace(0, 1, plateau.shape[1]))
+        out = {}
+        for i, p in plateau.T.iterrows():
+            st = p['start']
+            et = p['end'] + timedelta(seconds=position.timebase)
+            d = (et - st).total_seconds()
+            cut = count_rate.cut(st, et)
+            pos = position.average(st, d)['value'].value
+            out[pos] = cut
+            if visual:
+                import matplotlib.colors as mcolors
+                c = mcolors.to_hex(colors[i])
+                position.plot_data(st, d, ax=ax[0], c=c, label=i)
+                cc = 'gray' if i%2 else 'pink'
+                ax[0].axvspan(p['start'], p['end'], alpha=0.5, color=cc)
+                cut.plot(ax=ax[1], c=c)
+        return cls(out, **kwargs)
 
     @classmethod
-    def from_file(filename: str, detector_kwargs: dict={}, position_kwargs={}) -> Self:
-        pass
+    def from_ascii(cls,
+                   file: str,
+                   detector_kw: dict,
+                   position_kw: dict,
+                   plateau_kw: dict={},
+                   visual: bool=False,
+                   **kwargs) -> Self:
+        """
+        `nerea.Traverse.from_countrate_position()`
+        ------------------------------------------
+        Creates an instance of ``nerea.Traverse`` filtering
+        count rate data on position plateau. Reading data from
+        an ASCII file.
+
+        Parameters
+        ----------
+        **file** : ``str``
+            path to the ASCII file.
+        **detector_kw** : ``dict``
+            arguments for ``nerea.TimeSeriesImporter`` to read detector data.
+        **position_kw** : ``dict``
+            arguments for ``nerea.TimeSeriesImporter`` to read position data.
+        **plateau_kw** : ``dict``, optional
+            paramters for position plateau search.
+            Default is {}.
+        **visual** : ``bool``, optional
+            flag to visualize the imported data.
+            Default is {}.
+
+        **kwargs
+            additional arguments for class creation
+            - **_enable_checks**: turns consistency checks on/off.
+
+        Returns
+        -------
+        ``nerea.Traverse``
+            initialized with the data from the ASCII file."""
+        detector = CountRate.from_importer(TimeSeriesImporter.from_ascii(file, **detector_kw))
+        position = Position.from_importer(TimeSeriesImporter.from_ascii(file, **position_kw))
+        return cls.from_countrate_position(detector, position, plateau_kw, visual, **kwargs)

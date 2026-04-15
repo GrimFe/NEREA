@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "TimeSeries",
+    "Position",
     "CountRate",
     "CountRates"]
 
@@ -136,11 +137,11 @@ class TimeSeries:
         if experiment_time:
             data.Time = range(data.Time.shape[0])
         ax = data.plot(x="Time",
-                        y='value',
-                        ax=ax,
-                        color=c,
-                        kind='scatter',
-                        **kwargs)
+                       y='value',
+                       ax=ax,
+                       color=c,
+                       kind='scatter',
+                       **kwargs)
         return ax
 
     def average(self,
@@ -194,14 +195,13 @@ class TimeSeries:
         v, u = time_integral_v_u(series)
         delta = (series.Time.iloc[-1] - series.Time.iloc[0]).total_seconds()
         v /= delta
-        if uncertainty == 'poisson':
+        uncertainty_ = 'std' if v <= 0 else uncertainty
+        if uncertainty_ == 'poisson':
             u /= delta
-        elif uncertainty == 'std':
+        elif uncertainty_ == 'std':
             # time_integral_v_u ignores last point
             u = np.std(series['value'][:-1], ddof=1)
-            print('$$$$$')
-            print(series['value'])
-        elif uncertainty == 'sem':
+        elif uncertainty_ == 'sem':
         # time_integral_v_u ignores last point
             u = np.std(series['value'][:-1], ddof=1
                        ) / np.sqrt(np.size(series['value']) - 1)
@@ -218,7 +218,7 @@ class TimeSeries:
 
     @classmethod
     def from_importer(cls, importer: TimeSeriesImporter):
-        return cls(importer.data)
+        return cls(importer.data, importer.metadata['timebase'])
 
 
 @dataclass(slots=True)
@@ -279,10 +279,9 @@ class Position(TimeSeries):
     def from_plateau(self, **kwargs):
         out = []
         for i, p in self.plateau(**kwargs).T.iterrows():
-            out.append(self.cut_data(p['start'],
-                                     p['end'] + timedelta(seconds=self.timebase)
-                                     ).data.assign(PLATEAU=i))
-            
+            cut = self.cut_data(p['start'],
+                                p['end'] + timedelta(seconds=self.timebase))
+            out.append(cut.data.assign(PLATEAU=i))
         return self.__class__(pd.concat(out, ignore_index=True), timebase=self.timebase)
 
 
@@ -476,7 +475,7 @@ class CountRate(TimeSeries):
             with ``'Time'`` and ``'value'`` columns."""
         time = self.data.Time.min()
         plateau_start_time, plateau_end_time = self.data.Time.min(), self.data.Time.min()
-        sum, max = 1, 0
+        sum, max = 1, -1
         while time < self.data.Time.max():
             # compute the integral over timebase
             time_plus_timedelta = time + timedelta(seconds=timebase)
@@ -537,7 +536,7 @@ class CountRate(TimeSeries):
             out.append(self.cut(p['start'], p['end'] + timedelta(seconds=self.timebase)))
         return out
 
-    def per_unit_power(self, monitor: Self, **kwargs) -> pd.DataFrame:
+    def per_unit_power(self, monitor: Self, check_count_rate_plateau: bool=True, **kwargs) -> pd.DataFrame:
         """
         `nerea.CountRate.per_unit_power()`
         ----------------------------------
@@ -547,6 +546,9 @@ class CountRate(TimeSeries):
         ----------
         **monitor** : ``nerea.CountRate``
             The power monitor for the count rate normalization.
+        **check_count_rate_plateau** : ``bool``, optional
+            flag to define whether to check for count rate plateau to
+            compute the traverse or not. Default is ``True``.
         **kwargs
             arguments for ``self.plateau()``.
             - **sigma** (``int``): standard deviations for plateau finding.
@@ -555,13 +557,20 @@ class CountRate(TimeSeries):
         Returns
         -------
         ``pd.DataFrame``
-            with ``'value'`` and ``'uncertainty'`` columns."""
-        plateau = self.plateau(**kwargs)
+            with ``'value'`` and ``'uncertainty'`` columns.
+            
+        Notes
+        -----
+        ``kwargs`` ignored if ``check_count_rate_plateau == False``."""
+        if check_count_rate_plateau:
+            plateau = self.plateau(**kwargs)
+        else:
+            plateau = self.data
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
         normalization = monitor.average(plateau.Time.min(), duration) 
         return _make_df(*ratio_v_u(_make_df(*integral_v_u(plateau.value)), normalization))
 
-    def per_unit_time_power(self, monitor: Self, *args, **kwargs) -> pd.DataFrame:
+    def per_unit_time_power(self, monitor: Self, check_count_rate_plateau: bool=True, *args, **kwargs) -> pd.DataFrame:
         """
         `nerea.CountRate.per_unit_time_power()`
         ---------------------------------------
@@ -570,8 +579,11 @@ class CountRate(TimeSeries):
 
         Parameters
         ----------
-        monitor : CountRate
+        **monitor** : CountRate
             The power monitor for the count rate normalization.
+        **check_count_rate_plateau** : ``bool``, optional
+            flag to define whether to check for count rate plateau to
+            compute the traverse or not. Default is ``True``.
         
         Parameters
         ----------
@@ -585,10 +597,17 @@ class CountRate(TimeSeries):
         Returns
         -------
         ``pd.DataFrame``
-            with ``'value'`` and ``'uncertainty'`` columns."""
-        plateau = self.plateau(*args, **kwargs)
+            with ``'value'`` and ``'uncertainty'`` columns.
+            
+        Notes
+        -----
+        ``kwargs`` ignored if ``check_count_rate_plateau == False``."""
+        if check_count_rate_plateau:
+            plateau = self.plateau(**kwargs)
+        else:
+            plateau = self.data
         duration = (plateau.Time.max() - plateau.Time.min()).seconds
-        unit_p = self.per_unit_power(monitor, *args, **kwargs)
+        unit_p = self.per_unit_power(monitor, check_count_rate_plateau, *args, **kwargs)
         return _make_df(unit_p.value / duration, unit_p.uncertainty / duration)
 
     def dead_time_corrected(self, tau_p: float = 88e-9, tau_np: float = 108e-9) -> Self:
@@ -807,7 +826,7 @@ class CountRate(TimeSeries):
                             ax,
                             c,
                             **kwargs)
-        if not experiment_time:
+        if not experiment_time and self._vlines:
             for v in self._vlines:
                 ax.axvline(v, ls='--', c='gray', label="File joining")
             ax.legend()
