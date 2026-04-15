@@ -447,10 +447,11 @@ def find_plateau(x: Iterable,
     -------
     ``pd.DataFrame``
         data frame with time and counts columns."""
-    tol_ = tol if absolute_tolerance else tol * y[1:]
-    dy = np.abs(np.diff(y))
+    x_, y_ = np.array(x), np.array(y)
+    tol_ = tol if absolute_tolerance else tol * y_[1:]
+    dy = np.abs(np.diff(y_))
     change_idx = np.where(dy > tol_)[0] + 1
-    idx = np.concatenate(([0], change_idx, [len(y)]))
+    idx = np.concatenate(([0], change_idx, [len(y_)]))
     starts = idx[:-1]
     ends = idx[1:]
     plateaus = []
@@ -459,9 +460,10 @@ def find_plateau(x: Iterable,
         length = e - s
         if length >= min_length:
             plateaus.append(pd.DataFrame({
-                "start": x[s],
-                "end": x[e - 1],
-                "first value": y[s],
+                "start": x_[s],
+                "end": x_[e - 1],
+                "first value": y_[s],
+                "mean value": np.mean(y_[s : e]),
                 "length": length
             }, index=[i]).T)
             i += 1

@@ -45,33 +45,33 @@ counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3
 def rr1():
     time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
     data =  pd.DataFrame({'Time': time, 'value': counts})
-    return CountRate(data, data.Time.min(),
+    return CountRate(data, start_time=data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def rr2():
     time = [datetime(2024,5,27,15,12,42) + timedelta(seconds=i) for i in range(len(counts))]
     data = pd.DataFrame({'Time': time, 'value': np.array(counts) / 2})
-    return CountRate(data, data.Time.min(),
+    return CountRate(data, start_time=data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def monitor1(rr1):
     data_ = rr1.data.copy()
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2, deposit_id='dep')
+                        detector_id=2, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def monitor2(rr2):
     data_ = rr2.data.copy()
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2, deposit_id='dep')
+                        detector_id=2, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def sample_traverse_rr(rr1, rr2):
@@ -90,3 +90,13 @@ def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.process([monitor1,
                                                                            monitor2]))
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2]))
+
+    # test normalizations
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2], normalization=None))
+    pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2], normalization='loc A'))
+    # no normalization
+    expected_df_ = pd.DataFrame({'value': [6.648846960167715, 3.3163627152988853],
+                                'uncertainty': [0.02308856634367043, 0.00851562256284556],
+                                'uncertainty [%]': [0.3472566970181553, 0.25677597096245536],
+                                'traverse': ['loc A', 'loc B']})
+    pd.testing.assert_frame_equal(expected_df_, sample_traverse_rrs.process([2, 2], normalization=-1))

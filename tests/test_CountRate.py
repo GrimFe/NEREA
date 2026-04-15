@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.time_series import CountRate
+from nerea.time_series import CountRate,  Position
 from nerea.classes import EffectiveDelayedParams
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
@@ -18,7 +18,7 @@ def sample_data():
 @pytest.fixture
 def power_monitor(sample_data):
     return CountRate(data=sample_data, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def sample_data_02s():
@@ -45,7 +45,7 @@ def sample_data_uncertain_time_binning():
 @pytest.fixture
 def power_monitor_uncertain_time_binning(sample_data_uncertain_time_binning):
     return CountRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def plateau_data():
@@ -85,23 +85,23 @@ def plateau_data():
           3.7,3.8,3.9,4,4,4.2,4.1,3.5,3.2,3,2.5,2.2,2,2,1.5,1.5,1.6,1,1,1,
           .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,
           3.7,3.8,3.9,4,4,4.2,4.1,3.5,3.2,3,2.5,2.2,2,2,1.5,1.5,1.6,1,1,1,
-          .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0,]
+          .5,.6,.4,.3,.5,.3,.5,.6,.1,.3,.2,.1,0,0,0,0,0,0,0]
     time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
     return pd.DataFrame({'Time': time, 'value': counts})
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return CountRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, start_time=plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
     data_.value = [15000] * len(data_.value)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2, deposit_id='dep')
+                        detector_id=2, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def dtc_monitor():
@@ -113,7 +113,7 @@ def dtc_monitor():
         experiment_id="TEST_DTC_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -126,7 +126,7 @@ def linear_monitor():
         experiment_id="TEST_LINEAR_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -186,7 +186,7 @@ def exponential_monitor():
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -201,7 +201,7 @@ def cut_exponential_monitor(exponential_monitor):
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -223,7 +223,7 @@ def linear_monitor():
         experiment_id="TEST_LINEAR_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -283,7 +283,7 @@ def exponential_monitor():
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -331,11 +331,30 @@ def test_plateau_timebase(rr_plateau):
     assert rr_plateau.plateau(2, timebase=7).Time.max() == MAX_T
     assert rr_plateau.plateau(2, timebase=7).value.sum() == COUNTS
 
+def test_filter_on_position_plateau(power_monitor):
+    position = Position(pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(7)],
+        'value': [1, 1, 1, 15, 20, 20, 20]
+    }), timebase=1.)
+    result = power_monitor.filter_on_position_plateau(position, tol=1, absolute_tolerance=True, min_length=2)
+    test = [pd.DataFrame({'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(3)],
+                          'value': [0, 10, 15]}),
+            pd.DataFrame({'Time': [datetime(2024, 5, 19, 20, 5, 4) + timedelta(seconds=i) for i in range(3)],
+                          'value': [20, 15, 10]}, index=[4, 5, 6])]
+    assert len(test) == len(result)
+    for i, j in zip(result, test):
+        pd.testing.assert_frame_equal(i.data, j)
+
 def test_per_unit_power(rr_plateau, plateau_monitor):
     expected_df = pd.DataFrame({'value': 532.84,
                                 'uncertainty': 0.36143842,
                                 'uncertainty [%]': 0.06783245}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor))
+
+    expected_df = pd.DataFrame({'value': 572.8164866666667,
+                                'uncertainty': 0.2892491432525306,
+                                'uncertainty [%]': 0.050495952889856394}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor, check_count_rate_plateau=False))
 
 def test_per_unit_time_power(rr_plateau, plateau_monitor):
     MIN_T = datetime(2024,5,27,13,21,1)
@@ -345,6 +364,12 @@ def test_per_unit_time_power(rr_plateau, plateau_monitor):
     target = rr_plateau.per_unit_time_power(plateau_monitor)
     assert np.isclose(target.value.values[0], V, atol=0.00001)
     assert np.isclose(target.uncertainty.values[0], U, atol=0.00001)
+    expected_df = pd.DataFrame({'value': 1.190887,
+                                'uncertainty': 0.000601,
+                                'uncertainty [%]': 0.050496}, index=['value'])
+    pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_time_power(plateau_monitor,
+                                                                              check_count_rate_plateau=False),
+                                    atol=1e-5, check_exact=False)
 
 def test_smooth(plateau_monitor):
     # individual smoothings tested in test_utils.py

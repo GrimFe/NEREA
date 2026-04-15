@@ -214,7 +214,7 @@ def test_calibrate(sample_spectrum):
                              experiment_id="CALIBRATION 1",
                              detector_id='test',
                              deposit_id="U235",
-                             timebase= 1)
+                             timebase=1.)
     k, uk = 8720., 0.02 * 8720.
     m, um = 27000, 51.96152422706632
     c, uc = 3.815094702900616e-09, 2.562134210123782e-12

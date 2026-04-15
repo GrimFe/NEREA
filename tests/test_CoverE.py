@@ -60,7 +60,7 @@ def effective_mass_2(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-        return CountRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
+        return CountRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def rr_1(fission_fragment_spectrum_1, effective_mass_1, power_monitor):
@@ -126,31 +126,31 @@ counts = [0,0,0,0,0,.3,.3,.4,.1,.2,.5,0,.0,1,1,1.5,2,2.5,2,3,3.5,4,4.2,3.8,4.2,3
 def rr1():
     time = [datetime(2024,5,27,13,19,20) + timedelta(seconds=i) for i in range(len(counts))]
     data =  pd.DataFrame({'Time': time, 'value': counts})
-    return CountRate(data, data.Time.min(),
+    return CountRate(data, start_time=data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def rr2():
     time = [datetime(2024,5,27,15,12,42) + timedelta(seconds=i) for i in range(len(counts))]
     data = pd.DataFrame({'Time': time, 'value': np.array(counts) / 2})
-    return CountRate(data, data.Time.min(),
+    return CountRate(data, start_time=data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def monitor1(rr1):
     data_ = rr1.data.copy()
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2, deposit_id='dep')
+                        detector_id=2, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def monitor2(rr2):
     data_ = rr2.data.copy()
     data_.value = data_.value.apply(lambda x: 600 if x > 1000 else 1)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
                         detector_id=2, deposit_id='dep')
 
