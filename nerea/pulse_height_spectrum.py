@@ -14,7 +14,7 @@ from .utils import integral_v_u, _make_df, ratio_v_u, product_v_u
 from .functions import smoothing, get_relative_array, impurity_correction
 from .constants import AVOGADRO, ATOMIC_MASS
 from .effective_mass import EffectiveMass
-from .count_rate import CountRate
+from .time_series import CountRate
 from .defaults import *
 from .classes import Xs
 

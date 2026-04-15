@@ -14,7 +14,7 @@ from .classes import Xs
 from .utils import *
 
 __all__ = ['fitting_polynomial', 'polynomial', 'get_fit_R2', 'polyfit', 'smoothing',
-           '_normalize_array', 'get_relative_array', 'impurity_correction']
+           '_normalize_array', 'get_relative_array', 'impurity_correction', 'find_plateau']
 
 
 def polynomial(order: int, c: Iterable[float], x: float):
@@ -416,3 +416,53 @@ def impurity_correction(one_group_xs: Xs,
         u = np.sqrt(var_ni + var_na + var_xi + var_xd)
         out = _make_df(v, u, **kwargs)
     return out
+
+def find_plateau(x: Iterable,
+                 y: Iterable,
+                 tol: float=1e-2,
+                 absolute_tolerance: bool=False,
+                 min_length: int=1) -> pd.DataFrame:
+    """
+    `nerea.functions.find_plateau()`
+    --------------------------------
+    Finds the plateau(s) in a x-y series within a given tolerance.
+
+    Parameters
+    ----------
+    **x**  : ``Iterable``
+        x axis of x-y series.
+    **y**  : ``Iterable``
+        y axis of x-y series.
+    **tol** : ``float|None``
+        tolerance for plateau finding (absolute or relative).
+        Default is ``1e-2``.
+    **absolute_tolerance** : ``bool``
+        flag defining whether ``tol`` is absolute or not.
+        Default is ``False``.
+    **min_length** : ``int``
+        minimal number of bins to consider in a plateau.
+        Default is 1.
+
+    Returns
+    -------
+    ``pd.DataFrame``
+        data frame with time and counts columns."""
+    tol_ = tol if absolute_tolerance else tol * y[1:]
+    dy = np.abs(np.diff(y))
+    change_idx = np.where(dy > tol_)[0] + 1
+    idx = np.concatenate(([0], change_idx, [len(y)]))
+    starts = idx[:-1]
+    ends = idx[1:]
+    plateaus = []
+    i = 0
+    for s, e in zip(starts, ends):
+        length = e - s
+        if length >= min_length:
+            plateaus.append(pd.DataFrame({
+                "start": x[s],
+                "end": x[e - 1],
+                "first value": y[s],
+                "length": length
+            }, index=[i]).T)
+            i += 1
+    return pd.concat(plateaus, axis=1)

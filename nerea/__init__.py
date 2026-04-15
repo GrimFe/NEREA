@@ -2,7 +2,7 @@ from .classes import *
 
 from .pulse_height_spectrum import *
 from .effective_mass import *
-from .count_rate import *
+from .time_series import *
 
 from .experimental import *
 
@@ -14,11 +14,8 @@ from .control_rod import *
 
 from .logging_config import setup_logging
 import logging
-import os
 
 setup_logging()  # sets up once
 logger = logging.getLogger(__name__)
 
-__version__ = '0.1.1'
-
-logger.info(f"Starting NEREA version {__version__} from {__file__}")
+__version__ = '0.1.2'
