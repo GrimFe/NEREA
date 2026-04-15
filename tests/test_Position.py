@@ -50,6 +50,18 @@ def test_plateau(position):
     pd.testing.assert_frame_equal(position.plateau(tol=1,
                                                    absolute_tolerance=False),
                                   plateau)
+    plateau = pd.DataFrame({
+        0: [data["Time"][0], data["Time"][3], 0., 4],
+        1: [data["Time"][4], data["Time"][4], 11., 1],
+        2: [data["Time"][5], data["Time"][6], 20., 2],
+        }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(position.plateau(tol=2,
+                                                   absolute_tolerance=True,
+                                                   smooth=True,
+                                                   smoothing_method='moving_average',
+                                                   window=2,
+                                                   renormalize=False),
+                                  plateau)
 
 
 def test_from_plateau(position):

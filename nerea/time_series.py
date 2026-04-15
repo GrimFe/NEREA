@@ -6,6 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import warnings
+from inspect import signature
 
 from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u
 from .functions import get_fit_R2, smoothing, find_plateau
@@ -157,8 +158,7 @@ class Position(TimeSeries):
     Attributes
     ----------
     **data**: ``pd.DataFrame``
-        data frame with time dependent data.
-    """
+        data frame with time dependent data."""
     @property
     def timebase(self):
         return self.data.Time.diff().mean().total_seconds()
@@ -202,8 +202,9 @@ class Position(TimeSeries):
             - ``'ewm'``
             - ``'savgol_filter'`` (requires ``window_length``, ``polyorder``)
             - ``'fit'``(requires ``ch_before_max``, ``order``)"""
+        plateau_kw = {k: v for k, v in kwargs.items() if k in set(signature(find_plateau).parameters)}
         data = self.smooth_data(**kwargs).data if smooth else self.data.copy()
-        return find_plateau(data['Time'], data['value'], **kwargs)
+        return find_plateau(data['Time'], data['value'], **plateau_kw)
 
     def from_plateau(self, **kwargs):
         out = []
