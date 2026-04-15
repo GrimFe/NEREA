@@ -63,7 +63,7 @@ def effective_mass_2(sample_integral_data):
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
-    return CountRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
+    return CountRate(experiment_id="B", data=sample_power_monitor_data, start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def rr_1(sample_spectrum_1, effective_mass_1, power_monitor):

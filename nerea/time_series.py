@@ -37,6 +37,7 @@ class TimeSeries:
         data frame with time dependent data.
     """
     data: pd.DataFrame
+    timebase: float  # seconds
 
     def smooth_data(self, **kwargs) -> Self:
         """
@@ -67,7 +68,7 @@ class TimeSeries:
         kw = DEFAULT_SMOOTH_KWARGS | kwargs
         out = pd.DataFrame({"Time": self.data["Time"],
                             "value": smoothing(self.data["value"], **kw)})
-        return TimeSeries(data=out)
+        return TimeSeries(data=out, timebase=self.timebase)
 
     def cut_data(self, start: datetime, end: datetime) -> Self:
         """
@@ -91,7 +92,7 @@ class TimeSeries:
         -----
         Left boundary included, right boundary excluded."""
         data = self.data.query("Time >= @start and Time < @end")
-        return TimeSeries(data)
+        return TimeSeries(data, timebase=self.timebase)
 
     def plot_data(self,
         start_time: datetime=None,
@@ -142,6 +143,79 @@ class TimeSeries:
                         **kwargs)
         return ax
 
+    def average(self,
+                start_time: datetime,
+                duration: float,
+                uncertainty: str='poisson') -> pd.DataFrame:
+        """
+        `nerea.TimeSeries.average()`
+        ---------------------------
+        Calculates the average value and uncertainty of
+        time series data within a specified duration.
+
+        Parameters
+        ----------
+        **start_time** : ``datetime.datetime``
+            The starting time for the data to be analyzed.
+        **duration** : ``float``
+            The length of time in seconds for which
+            the average is calculated.
+        **uncertainty** : ``str``, optional
+            policy for uncertainty calculation.
+            Available options are:
+            - ``'poisson'``
+            - ``'std'``
+            - ``'sem'``
+            Default is ``'poisson'``.
+
+        Returns
+        -------
+        ``pd.DataFrame``
+            data frame containing average `'value'` and `'uncertainty'` columns.
+
+        Notes
+        -----
+        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)
+            
+        Examples
+        --------
+        >>> from datetime import datetime
+        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
+                                 'value': np.random.rand(100)})
+        >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
+                              campaign_id='C1', experiment_id='E1', detector_id='M1')
+        >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
+        >>> print(avg_df)"""
+        # end_time should be 1 timebase after the real end time to use
+        end_time = start_time + timedelta(seconds=duration + self.timebase)
+        series = self.cut_data(start_time, end_time).data
+        if series.empty:
+            raise ValueError("No time series data in the requested interval.")
+        v, u = time_integral_v_u(series)
+        delta = (series.Time.iloc[-1] - series.Time.iloc[0]).total_seconds()
+        v /= delta
+        if uncertainty == 'poisson':
+            u /= delta
+        elif uncertainty == 'std':
+            # time_integral_v_u ignores last point
+            u = np.std(series['value'][:-1], ddof=1)
+            print('$$$$$')
+            print(series['value'])
+        elif uncertainty == 'sem':
+        # time_integral_v_u ignores last point
+            u = np.std(series['value'][:-1], ddof=1
+                       ) / np.sqrt(np.size(series['value']) - 1)
+        else:
+            raise ValueError(f"'{uncertainty}' is not an allowed uncertainty policy.")
+        relative = True if v != 0 else False
+        # Time Normalization of the Average
+        # If the RR time binning is not 1 s, there is a chance the query truncated
+        # the time series so that the difference between first and last time in
+        # `series` are closer than duration. Hence I define delta.
+        # iloc[-1] explained by the use of time_integral_v_u(): we stop at the 
+        # beginning of the next step-post time stamp.
+        return _make_df(v, u, relative)
+
     @classmethod
     def from_importer(cls, importer: TimeSeriesImporter):
         return cls(importer.data)
@@ -158,11 +232,7 @@ class Position(TimeSeries):
     Attributes
     ----------
     **data**: ``pd.DataFrame``
-        data frame with time dependent data."""
-    @property
-    def timebase(self):
-        return self.data.Time.diff().mean().total_seconds()
-    
+        data frame with time dependent data."""    
     def plateau(self,
                 smooth: bool=False,
                 **kwargs) -> pd.DataFrame:
@@ -212,7 +282,8 @@ class Position(TimeSeries):
             out.append(self.cut_data(p['start'],
                                      p['end'] + timedelta(seconds=self.timebase)
                                      ).data.assign(PLATEAU=i))
-        return self.__class__(pd.concat(out, ignore_index=True))
+            
+        return self.__class__(pd.concat(out, ignore_index=True), timebase=self.timebase)
 
 
 @dataclass(slots=True)
@@ -247,13 +318,11 @@ class CountRate(TimeSeries):
     _vlines: ``Iterable[datetime]``, optional
         lines to draw plotting. Handled internally.
         Default is ``[]``."""
-    data: pd.DataFrame
     start_time: datetime
     campaign_id: str
     experiment_id: str
     detector_id: str
     deposit_id: str
-    timebase: float = 1. ## in seconds
     _dead_time_corrected: bool = False
     _vlines: Iterable[datetime] = field(default_factory=lambda: [])
 
@@ -301,55 +370,6 @@ class CountRate(TimeSeries):
                                           full_output=True,
                                           absolute_sigma=False)  # sigma scaled to math sample variance
         return y, popt, pcov, out
-
-    def average(self, start_time: datetime, duration: float) -> pd.DataFrame:
-        """
-        `nerea.CountRate.average()`
-        ---------------------------
-        Calculates the average value and uncertainty of
-        time series data within a specified duration.
-
-        Parameters
-        ----------
-        **start_time** : ``datetime.datetime``
-            The starting time for the data to be analyzed.
-        **duration** : ``float``
-            The length of time in seconds for which
-            the average is calculated.
-
-        Returns
-        -------
-        ``pd.DataFrame``
-            data frame containing average `'value'` and `'uncertainty'` columns.
-
-        Notes
-        -----
-        - uncertainty computed assuming Poisson distribution: 1/sqrt(`value`)
-            
-        Examples
-        --------
-        >>> from datetime import datetime
-        >>> data = pd.DataFrame({'Time': pd.date_range('2021-01-01', periods=100, freq='S'),
-                                 'value': np.random.rand(100)})
-        >>> pm = CountRate(data=data, start_time=datetime(2021, 1, 1), 
-                              campaign_id='C1', experiment_id='E1', detector_id='M1')
-        >>> avg_df = pm.average(datetime(2021, 1, 1, 0, 0, 30), 10)
-        >>> print(avg_df)"""
-        # end_time should be 1 timebase after the real end time to use
-        end_time = start_time + timedelta(seconds=duration + self.timebase)
-        series = self.cut(start_time, end_time).data
-        if series.empty:
-            raise ValueError("No count rate data in the requested interval.")
-        v, u = time_integral_v_u(series)
-        relative = True if v != 0 else False
-        # Time Normalization of the Average
-        # If the RR time binning is not 1 s, there is a chance the query truncated
-        # the time series so that the difference between first and last time in
-        # `series` are closer than duration. Hence I define delta.
-        # iloc[-1] explained by the use of time_integral_v_u(): we stop at the 
-        # beginning of the next step-post time stamp.
-        delta = (series.Time.iloc[-1] - series.Time.iloc[0]).total_seconds()
-        return _make_df(v / delta, u / delta, relative)
 
     def smooth(self, **kwargs) -> Self:
         """
@@ -605,12 +625,12 @@ class CountRate(TimeSeries):
                                                         dead_time_correction(n, x, tau_p, tau_np),
                                                         x))
         return self.__class__(pm,
-                              self.start_time,
-                              self.campaign_id,
-                              self.experiment_id,
-                              self.detector_id,
-                              self.deposit_id,
-                              self.timebase,
+                              start_time=self.start_time,
+                              campaign_id=self.campaign_id,
+                              experiment_id=self.experiment_id,
+                              detector_id=self.detector_id,
+                              deposit_id=self.deposit_id,
+                              timebase=self.timebase,
                               _dead_time_corrected=True)
 
     def cut(self, start: datetime, end: datetime) -> Self:

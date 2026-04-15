@@ -14,7 +14,7 @@ def sample_data():
 
 @pytest.fixture
 def position(sample_data):
-    return Position(sample_data)
+    return Position(sample_data, timebase=1.)
 
 def test_timebase(position):
     assert position.timebase == 1
@@ -22,39 +22,39 @@ def test_timebase(position):
 def test_plateau(position):
     data = position.data
     plateau = pd.DataFrame({
-        0: [data["Time"][0], data["Time"][2], 1, 3],
-        1: [data["Time"][3], data["Time"][3], 2, 1],
-        2: [data["Time"][4], data["Time"][6], 20, 3],
-    }, index=["start", "end", "first value", "length"])
+        0: [data["Time"][0], data["Time"][2], 1, 1, 3],
+        1: [data["Time"][3], data["Time"][3], 2, 2, 1],
+        2: [data["Time"][4], data["Time"][6], 20, 20, 3],
+    }, index=["start", "end", "first value", "mean value","length"])
     pd.testing.assert_frame_equal(position.plateau(tol=0,
                                                    absolute_tolerance=True),
                                   plateau)
     plateau = pd.DataFrame({
-        0: [data["Time"][0], data["Time"][2], 1, 3],
-        1: [data["Time"][4], data["Time"][6], 20, 3],
-    }, index=["start", "end", "first value", "length"])
+        0: [data["Time"][0], data["Time"][2], 1, 1, 3],
+        1: [data["Time"][4], data["Time"][6], 20, 20, 3],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(position.plateau(tol=0,
                                                    min_length=2,
                                                    absolute_tolerance=True),
                                   plateau)
     plateau = pd.DataFrame({
-        0: [data["Time"][0], data["Time"][3], 1, 4],
-        1: [data["Time"][4], data["Time"][6], 20, 3],
-    }, index=["start", "end", "first value", "length"])
+        0: [data["Time"][0], data["Time"][3], 1, 1.25, 4],
+        1: [data["Time"][4], data["Time"][6], 20, 20., 3],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(position.plateau(tol=1,
                                                    absolute_tolerance=True),
                                   plateau)
     plateau = pd.DataFrame({
-        0: [data["Time"][0], data["Time"][6], 1, 7],
-        }, index=["start", "end", "first value", "length"])
+        0: [data["Time"][0], data["Time"][6], 1, 9.28571428571, 7],
+        }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(position.plateau(tol=1,
                                                    absolute_tolerance=False),
                                   plateau)
     plateau = pd.DataFrame({
-        0: [data["Time"][0], data["Time"][3], 0., 4],
-        1: [data["Time"][4], data["Time"][4], 11., 1],
-        2: [data["Time"][5], data["Time"][6], 20., 2],
-        }, index=["start", "end", "first value", "length"])
+        0: [data["Time"][0], data["Time"][3], 0., 0.875, 4],
+        1: [data["Time"][4], data["Time"][4], 11., 11., 1],
+        2: [data["Time"][5], data["Time"][6], 20., 20., 2],
+        }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(position.plateau(tol=2,
                                                    absolute_tolerance=True,
                                                    smooth=True,

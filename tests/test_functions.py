@@ -346,8 +346,8 @@ def test_find_plateau():
 
     result = find_plateau(x, y, tol=0, min_length=1)
     plateau = pd.DataFrame({
-        0: [x[0], x[-1], 10, 5],
-    }, index=["start", "end", "first value", "length"])
+        0: [x[0], x[-1], 10, 10., 5],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test multiple plateaus
@@ -355,12 +355,12 @@ def test_find_plateau():
     y = np.array([1, 1, 2, 2, 2, 5, 5, 1])
 
     result = find_plateau(x, y, tol=0, min_length=1)
-    plateau = plateau = pd.DataFrame({
-        0: [x[0], x[1], 1, 2],
-        1: [x[2], x[4], 2, 3],
-        2: [x[5], x[6], 5, 2],
-        3: [x[7], x[7], 1, 1],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[0], x[1], 1, 1., 2],
+        1: [x[2], x[4], 2, 2., 3],
+        2: [x[5], x[6], 5, 5., 2],
+        3: [x[7], x[7], 1, 1., 1],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
 
     # test relative tolerance
@@ -369,11 +369,13 @@ def test_find_plateau():
     result = find_plateau(x, y, tol=0.01, min_length=1, absolute_tolerance=False)
     pd.testing.assert_frame_equal(result, find_plateau(x, y, tol=0, min_length=1))
     result = find_plateau(x, y, tol=0.5, min_length=1, absolute_tolerance=False)
-    plateau = plateau = pd.DataFrame({
-        0: [x[0], x[4], 1, 5],
-        1: [x[5], x[6], 5, 2],
-        2: [x[7], x[7], 1, 1],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[0], x[4], 1, 1.6, 5],
+        1: [x[5], x[6], 5, 5., 2],
+        2: [x[7], x[7], 1, 1., 1],
+    }, index=["start", "end", "first value", "mean value", "length"])
+    print("###########")
+    print(result)
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test min length filter
@@ -381,9 +383,9 @@ def test_find_plateau():
     y = np.array([1, 1, 2, 2, 2, 5, 5, 1])
 
     result = find_plateau(x, y, tol=0, min_length=3)
-    plateau = plateau = pd.DataFrame({
-        0: [x[2], x[4], 2, 3],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[2], x[4], 2, 2., 3],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test tolerance merging
@@ -391,9 +393,9 @@ def test_find_plateau():
     y = np.array([10, 10.01, 10.02, 10.0, 10.01, 10])
 
     result = find_plateau(x, y, tol=0.05, min_length=1)
-    plateau = plateau = pd.DataFrame({
-        0: [x[0], x[5], 10., 6],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[0], x[5], 10., y.mean(), 6],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
     
     ## test single point plateaus
@@ -401,12 +403,12 @@ def test_find_plateau():
     y = np.array([1, 2, 3, 4])
 
     result = find_plateau(x, y, tol=0, min_length=1)
-    plateau = plateau = pd.DataFrame({
-        0: [x[0], x[0], 1, 1],
-        1: [x[1], x[1], 2, 1],
-        2: [x[2], x[2], 3, 1],
-        3: [x[3], x[3], 4, 1],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[0], x[0], 1, 1., 1],
+        1: [x[1], x[1], 2, 2., 1],
+        2: [x[2], x[2], 3, 3., 1],
+        3: [x[3], x[3], 4, 4., 1],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test non uniform x
@@ -414,10 +416,10 @@ def test_find_plateau():
     y = np.array([5, 5, 5, 2, 2])
 
     result = find_plateau(x, y, tol=0, min_length=1)
-    plateau = plateau = pd.DataFrame({
-        0: [x[0], x[2], 5, 3],
-        1: [x[3], x[4], 2, 2],
-    }, index=["start", "end", "first value", "length"])
+    plateau = pd.DataFrame({
+        0: [x[0], x[2], 5, 5., 3],
+        1: [x[3], x[4], 2, 2., 2],
+    }, index=["start", "end", "first value", "mean value", "length"])
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test noise stability

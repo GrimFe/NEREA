@@ -18,7 +18,7 @@ def sample_data():
 @pytest.fixture
 def power_monitor(sample_data):
     return CountRate(data=sample_data, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def sample_data_02s():
@@ -45,7 +45,7 @@ def sample_data_uncertain_time_binning():
 @pytest.fixture
 def power_monitor_uncertain_time_binning(sample_data_uncertain_time_binning):
     return CountRate(data=sample_data_uncertain_time_binning, campaign_id="C1", experiment_id="E1",
-                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep')
+                        start_time=datetime(2024, 5, 19, 20, 5, 0), detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def plateau_data():
@@ -91,17 +91,17 @@ def plateau_data():
 
 @pytest.fixture
 def rr_plateau(plateau_data):
-    return CountRate(plateau_data, plateau_data.Time.min(),
+    return CountRate(plateau_data, start_time=plateau_data.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=1, deposit_id='dep')
+                        detector_id=1, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def plateau_monitor(plateau_data):
     data_ = plateau_data.copy()
     data_.value = [15000] * len(data_.value)
-    return CountRate(data_, data_.Time.min(),
+    return CountRate(data_, start_time=data_.Time.min(),
                         campaign_id='A', experiment_id='B',
-                        detector_id=2, deposit_id='dep')
+                        detector_id=2, deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def dtc_monitor():
@@ -113,7 +113,7 @@ def dtc_monitor():
         experiment_id="TEST_DTC_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -126,7 +126,7 @@ def linear_monitor():
         experiment_id="TEST_LINEAR_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -186,7 +186,7 @@ def exponential_monitor():
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -201,7 +201,7 @@ def cut_exponential_monitor(exponential_monitor):
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -223,7 +223,7 @@ def linear_monitor():
         experiment_id="TEST_LINEAR_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=1
+        timebase=1.
     )
 
 @pytest.fixture
@@ -283,7 +283,7 @@ def exponential_monitor():
         experiment_id="TEST_EXPONENTIAL_MONITOR",
         detector_id="A",
         deposit_id="U235",
-        timebase=10,
+        timebase=10.,
         _dead_time_corrected=True  # here I assume it to me already corrected to ease the testing
     )
 
@@ -335,7 +335,7 @@ def test_filter_on_position_plateau(power_monitor):
     position = Position(pd.DataFrame({
         'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(7)],
         'value': [1, 1, 1, 15, 20, 20, 20]
-    }))
+    }), timebase=1.)
     result = power_monitor.filter_on_position_plateau(position, tol=1, absolute_tolerance=True, min_length=2)
     test = [pd.DataFrame({'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(3)],
                           'value': [0, 10, 15]}),

@@ -65,7 +65,7 @@ def effective_mass_one_lld(sample_integral_data_one_lld):
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
         return CountRate(experiment_id="B", data=sample_power_monitor_data,
-                            start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep')
+                            start_time=datetime(2024, 5, 29, 12, 25, 10), campaign_id='C', detector_id='M', deposit_id='dep', timebase=1.)
 
 @pytest.fixture
 def nffs(phs, effective_mass, power_monitor):

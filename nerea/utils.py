@@ -54,10 +54,8 @@ def time_integral_v_u(s: pd.DataFrame) -> tuple[float, float]:
     Notes
     -----
     - ``s`` is assumed to be steps-post and the data are treated accordingly,
-        hence ``s`` should end 1 time step after the desired end of integration.
-        To allow calculation of time differences, s should start 1 time spep
-        before the desired start time."""
-    v = (s.value * s.Time.diff().shift(-1).apply(lambda x: x.total_seconds())).sum()
+        hence ``s`` should end 1 time step after the desired end of integration."""
+    v = (s.value * s.Time.diff().shift(-1).dt.total_seconds()).sum()
     u = np.sqrt(v)
     return v, u
 

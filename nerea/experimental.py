@@ -1,10 +1,11 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Self
 
 from .pulse_height_spectrum import PulseHeightSpectrum
 from .effective_mass import EffectiveMass
-from .time_series import CountRate, CountRates
+from .time_series import CountRate, CountRates, Position
 from .utils import ratio_v_u, product_v_u, _make_df
 from .functions import impurity_correction
 from .constants import ATOMIC_MASS
@@ -1311,3 +1312,11 @@ class Traverse(_Experimental):
 
             j = j + 1 if i < plt.get_cmap(palette).N else 0
         return fig, axs
+    
+    @classmethod
+    def from_countrate_position(count_rate: CountRate, position: Position) -> Self:
+        pass
+
+    @classmethod
+    def from_file(filename: str, detector_kwargs: dict={}, position_kwargs={}) -> Self:
+        pass

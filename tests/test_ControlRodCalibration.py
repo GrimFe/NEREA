@@ -43,7 +43,8 @@ def rrs(periods):
                                     experiment_id="TEST01",
                                     detector_id="DET",
                                     deposit_id="DEP",
-                                    _dead_time_corrected=True).cut(ts, te)
+                                    _dead_time_corrected=True,
+                                    timebase=1.).cut(ts, te)
     return counts
 
 @pytest.fixture
