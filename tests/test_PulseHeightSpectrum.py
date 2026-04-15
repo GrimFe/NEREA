@@ -3,7 +3,7 @@ import datetime
 import pandas as pd
 import numpy as np
 from nerea.pulse_height_spectrum import PulseHeightSpectrum
-from nerea.count_rate import CountRate
+from nerea.time_series import CountRate
 from nerea.constants import KNBS
 from nerea.classes import Xs
 

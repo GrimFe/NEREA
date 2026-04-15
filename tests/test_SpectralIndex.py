@@ -2,7 +2,7 @@ import pytest
 from nerea.experimental import NormalizedPulseHeightSpectrum, SpectralIndex
 from nerea.pulse_height_spectrum import PulseHeightSpectrum
 from nerea.effective_mass import EffectiveMass
-from nerea.count_rate import CountRate
+from nerea.time_series import CountRate
 from nerea.classes import Xs
 from datetime import datetime
 import pandas as pd

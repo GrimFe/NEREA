@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.count_rate import CountRate
+from nerea.time_series import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df

@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from nerea.control_rod import *
-from nerea.count_rate import CountRate
+from nerea.time_series import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 

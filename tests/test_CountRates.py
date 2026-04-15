@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from nerea.count_rate import CountRate, CountRates
+from nerea.time_series import CountRate, CountRates
 
 @pytest.fixture
 def sample_data1():

@@ -338,3 +338,95 @@ def test_impurity_correction():
     np.testing.assert_equal(data.columns.values, nerea_.columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=5)
     np.testing.assert_almost_equal(data['uncertainty'].values, nerea_['uncertainty'].values, decimal=6)
+
+def test_find_plateau():
+    ## test single plateau
+    x = np.arange(5)
+    y = np.array([10, 10, 10, 10, 10])
+
+    result = find_plateau(x, y, tol=0, min_length=1)
+    plateau = pd.DataFrame({
+        0: [x[0], x[-1], 10, 5],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    ## test multiple plateaus
+    x = np.arange(8)
+    y = np.array([1, 1, 2, 2, 2, 5, 5, 1])
+
+    result = find_plateau(x, y, tol=0, min_length=1)
+    plateau = plateau = pd.DataFrame({
+        0: [x[0], x[1], 1, 2],
+        1: [x[2], x[4], 2, 3],
+        2: [x[5], x[6], 5, 2],
+        3: [x[7], x[7], 1, 1],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    # test relative tolerance
+    result = find_plateau(x, y, tol=0, min_length=1, absolute_tolerance=False)
+    pd.testing.assert_frame_equal(result, find_plateau(x, y, tol=0, min_length=1))
+    result = find_plateau(x, y, tol=0.01, min_length=1, absolute_tolerance=False)
+    pd.testing.assert_frame_equal(result, find_plateau(x, y, tol=0, min_length=1))
+    result = find_plateau(x, y, tol=0.5, min_length=1, absolute_tolerance=False)
+    plateau = plateau = pd.DataFrame({
+        0: [x[0], x[4], 1, 5],
+        1: [x[5], x[6], 5, 2],
+        2: [x[7], x[7], 1, 1],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    ## test min length filter
+    x = np.arange(8)
+    y = np.array([1, 1, 2, 2, 2, 5, 5, 1])
+
+    result = find_plateau(x, y, tol=0, min_length=3)
+    plateau = plateau = pd.DataFrame({
+        0: [x[2], x[4], 2, 3],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    ## test tolerance merging
+    x = np.arange(6)
+    y = np.array([10, 10.01, 10.02, 10.0, 10.01, 10])
+
+    result = find_plateau(x, y, tol=0.05, min_length=1)
+    plateau = plateau = pd.DataFrame({
+        0: [x[0], x[5], 10., 6],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+    
+    ## test single point plateaus
+    x = np.arange(4)
+    y = np.array([1, 2, 3, 4])
+
+    result = find_plateau(x, y, tol=0, min_length=1)
+    plateau = plateau = pd.DataFrame({
+        0: [x[0], x[0], 1, 1],
+        1: [x[1], x[1], 2, 1],
+        2: [x[2], x[2], 3, 1],
+        3: [x[3], x[3], 4, 1],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    ## test non uniform x
+    x = np.array([0, 1, 3, 6, 10])
+    y = np.array([5, 5, 5, 2, 2])
+
+    result = find_plateau(x, y, tol=0, min_length=1)
+    plateau = plateau = pd.DataFrame({
+        0: [x[0], x[2], 5, 3],
+        1: [x[3], x[4], 2, 2],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    ## test noise stability
+    np.random.seed(0)
+
+    x = np.arange(100)
+    y = np.ones(100) * 10 + np.random.normal(0, 0.01, 100)
+
+    result = find_plateau(x, y, tol=0.05, min_length=10)
+
+    # should detect one big plateau
+    assert result.shape[1] == 1
