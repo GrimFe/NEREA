@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from .pulse_height_spectrum import PulseHeightSpectrum
 from .effective_mass import EffectiveMass
-from .count_rate import CountRate, CountRates
+from .time_series import CountRate, CountRates
 from .utils import ratio_v_u, product_v_u, _make_df
 from .functions import impurity_correction
 from .constants import ATOMIC_MASS

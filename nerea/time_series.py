@@ -3,32 +3,225 @@ from typing import Self
 from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
-import linecache
+import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import warnings
-import matplotlib.pyplot as plt
 
 from .utils import ratio_v_u, _make_df, time_integral_v_u, integral_v_u
-from .functions import get_fit_R2, smoothing
+from .functions import get_fit_R2, smoothing, find_plateau
 from .defaults import *
-from .classes import EffectiveDelayedParams
-from .constants import BASE_DATE
+from .classes import EffectiveDelayedParams, TimeSeriesImporter
 
 import logging
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "TimeSeries",
     "CountRate",
     "CountRates"]
 
+
 @dataclass(slots=True)
-class CountRate:
+class TimeSeries:
+    """
+    ``nerea.TimeSeries``
+    ====================
+    Class to handle time dependent data.
+    Supports `nerea.CountRate` and `nerea.Position`.
+
+    Attributes
+    ----------
+    **data**: ``pd.DataFrame``
+        data frame with time dependent data.
+    """
+    data: pd.DataFrame
+
+    def smooth_data(self, **kwargs) -> Self:
+        """
+        `nerea.TimeSeries.smooth()`
+        ---------------------------
+        Smooths the time series data to ease feature recognition.
+
+        Parameters
+        ----------
+        **kwargs
+        Argumnents for ``nerea.functions.smoothing()``
+            - **renormalize** (``bool``): Whether to renormalize the data.
+            - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+            - arguments for the chosen ``nerea.functions.smoothing``.
+        
+        Returns
+        -------
+        ``pd.TimeSeries``
+            data frame with time and counts columns.
+        
+        Notes
+        -----
+        Allowed methods are
+            - ``'moving_average'`` (requires ``window``)
+            - ``'ewm'``
+            - ``'savgol_filter'`` (requires ``window_length``, ``polyorder``)
+            - ``'fit'``(requires ``ch_before_max``, ``order``)"""
+        kw = DEFAULT_SMOOTH_KWARGS | kwargs
+        out = pd.DataFrame({"Time": self.data["Time"],
+                            "value": smoothing(self.data["value"], **kw)})
+        return TimeSeries(data=out)
+
+    def cut_data(self, start: datetime, end: datetime) -> Self:
+        """
+        `nerea.TimeSeries.cut()`
+        -----------------------
+        Cuts time series data from a set start to an end.
+        
+        Parameters
+        ----------
+        **start** : ``datetime``
+            start time of the new `nerea.CountRate`.
+        **end** : ``datetime``
+            end time of the new `nerea.CountRate`.
+        
+        Returns
+        -------
+        ``nerea.TimeSeries``
+            instance with truncated data.
+            
+        Notes
+        -----
+        Left boundary included, right boundary excluded."""
+        data = self.data.query("Time >= @start and Time < @end")
+        return TimeSeries(data)
+
+    def plot_data(self,
+        start_time: datetime=None,
+        duration: int=None,
+        experiment_time: bool=False,
+        ax: plt.Axes=None,
+        c: str='k',
+        **kwargs) -> plt.Axes:
+        """
+        `nerea.TimeSeries.plot()`
+        ------------------------
+        Plot data in this TimeSeries instance.
+
+        Parameters
+        ----------
+        **start_time** : ``datetime.datetime``, optional
+            The time the count rate is considered from.
+            Default is ``None`` for first acquisition time.
+        **duration** : ``int``, optional
+            The time-span the count rate is considered for.
+            Default is ``None`` for until last acquisition time.
+        **ax** : ``plt.Axes``, optional
+            The ax where the plot is drawn.
+            Defauls is ``None`` for a new axes.
+        **c** : ``str``, optional
+            The color of the plotted seriese.
+            Default is ``'k'``.
+        **kwargs
+            Additional arguments for ``pd.DataFrame.plot()``
+        
+        Returns
+        -------
+        ``plt.Axes``
+            with the plotted data."""
+        start_time_ = start_time if start_time is not None else self.data.Time.min()
+        duration_ = duration if duration is not None else (
+            self.data.Time.max() - start_time_).total_seconds()
+        data = self.cut_data(start_time_,
+                             start_time_ + timedelta(seconds=duration_)
+                             ).data
+        if experiment_time:
+            data.Time = range(data.Time.shape[0])
+        ax = data.plot(x="Time",
+                        y='value',
+                        ax=ax,
+                        color=c,
+                        kind='scatter',
+                        **kwargs)
+        return ax
+
+    @classmethod
+    def from_importer(cls, importer: TimeSeriesImporter):
+        return cls(importer.data)
+
+
+@dataclass(slots=True)
+class Position(TimeSeries):
+    """
+    ``nerea.Position``
+    ====================
+    Class to handle time dependent position data.
+    Inherits from ``nerea.TimeSeries``.
+
+    Attributes
+    ----------
+    **data**: ``pd.DataFrame``
+        data frame with time dependent data.
+    """
+    @property
+    def timebase(self):
+        return self.data.Time.diff().mean().total_seconds()
+    
+    def plateau(self,
+                smooth: bool=False,
+                **kwargs) -> pd.DataFrame:
+        """
+        `nerea.TimeSeries.plateau()`
+        ----------------------------
+        Identifies plateaus in the time series.
+
+        Parameters
+        ----------
+        **smooth** : bool
+            flag to smooth the data before plateau search.
+            Default is ``False``.
+
+        **kwargs
+        Additional arguments for
+            
+            - ``nerea.functions.find_plateau()``
+                - **tol** (``float``) tolerance for plateau finding.
+                - **absolute_tolerance** (``bool``) flag for absolute ``tol``.
+                - **min_length** (``int``) minimal number of bins in plateau.
+
+            - ``nerea.functions.smoothing()``
+                - **renormalize** (``bool``): Whether to renormalize the data.
+                - **smoothing_method** (``str``): The mehtod to implement for smoothing.
+                - arguments for the chosen ``nerea.functions.smoothing``.
+        
+        Returns
+        -------
+        ``pd.DataFrame``
+            data frame with time and counts columns.
+        
+        Notes
+        -----
+        Allowed methods are
+            - ``'moving_average'`` (requires ``window``)
+            - ``'ewm'``
+            - ``'savgol_filter'`` (requires ``window_length``, ``polyorder``)
+            - ``'fit'``(requires ``ch_before_max``, ``order``)"""
+        data = self.smooth_data(**kwargs).data if smooth else self.data.copy()
+        return find_plateau(data['Time'], data['value'], **kwargs)
+
+    def from_plateau(self, **kwargs):
+        out = []
+        for i, p in self.plateau(**kwargs).T.iterrows():
+            out.append(self.cut_data(p['start'],
+                                     p['end'] + timedelta(seconds=self.timebase)
+                                     ).data.assign(PLATEAU=i))
+        return self.__class__(pd.concat(out, ignore_index=True))
+
+
+@dataclass(slots=True)
+class CountRate(TimeSeries):
     """
     ``nerea.CountRate``
     ===================
     Class storing and processing count rate data acquired as 
     a function of time.
+    Inherits from ``nerea.TimeSeries``.
 
     Attributes
     ----------
@@ -167,14 +360,13 @@ class CountRate:
         ----------
         **kwargs
         Argumnents for ``nerea.functions.smoothing()``
-        
             - **renormalize** (``bool``): Whether to renormalize the data.
             - **smoothing_method** (``str``): The mehtod to implement for smoothing.
             - arguments for the chosen ``nerea.functions.smoothing``.
         
         Returns
         -------
-        ``pd.DataFrame``
+        ``pd.CountRate``
             data frame with time and counts columns.
         
         Notes
@@ -189,18 +381,17 @@ class CountRate:
             if w < self.timebase:  ## if nor window nor window_length are passed w is False
                 raise ValueError("Smoothing window length should be larger than the Count Rate timebase.")
         else:
-            out = pd.DataFrame({"Time": self.data["Time"],
-                                "value": smoothing(self.data["value"], **kwargs)})
-        return self.__class__(
-            data=out,
-            start_time=self.start_time,
-            campaign_id=self.campaign_id,
-            experiment_id=self.experiment_id,
-            detector_id=self.detector_id,
-            deposit_id=self.deposit_id,
-            timebase=self.timebase,
-            _dead_time_corrected=self._dead_time_corrected
-        )
+            out = self.smooth_data(**kwargs).data
+            return self.__class__(
+                data=out,
+                start_time=self.start_time,
+                campaign_id=self.campaign_id,
+                experiment_id=self.experiment_id,
+                detector_id=self.detector_id,
+                deposit_id=self.deposit_id,
+                timebase=self.timebase,
+                _dead_time_corrected=self._dead_time_corrected
+            )
 
     def integrate(self, timebase: int, start_time: datetime | None = None) -> pd.DataFrame:
         """
@@ -406,7 +597,7 @@ class CountRate:
         Notes
         -----
         Left boundary included, right boundary excluded."""
-        data = self.data.query("Time >= @start and Time < @end")
+        data = self.cut_data(start, end).data
         return self.__class__(data,
                               start_time=data.Time.min(),
                               campaign_id=self.campaign_id,
@@ -521,16 +712,16 @@ class CountRate:
                                                                                    VAR_PORT_L=VAR_PORT_L)
 
     def plot(self,
-             start_time: datetime=None,
-             duration: int=None,
-             experiment_time: bool=False,
-             ax: plt.Axes=None,
-             c: str='k',
-             **kwargs) -> plt.Axes:
+        start_time: datetime=None,
+        duration: int=None,
+        experiment_time: bool=False,
+        ax: plt.Axes=None,
+        c: str='k',
+        **kwargs) -> plt.Axes:
         """
-        `nerea.CountRate.plot()`
+        `nerea.TimeSeries.plot()`
         ------------------------
-        Plot data in this CountRate instance.
+        Plot data in this TimeSeries instance.
 
         Parameters
         ----------
@@ -553,321 +744,27 @@ class CountRate:
         -------
         ``plt.Axes``
             with the plotted data."""
-        start_time_ = start_time if start_time is not None else self.start_time
-        duration_ = duration if duration is not None else (
-            self.data.Time.max() - start_time_).total_seconds()
+        ax = self.plot_data(start_time,
+                            duration,
+                            experiment_time,
+                            ax,
+                            c,
+                            **kwargs)
         if not experiment_time:
-            ax = self.data.plot(x="Time", y='value', ax=ax, color=c, kind='scatter', **kwargs)
-            # vspans and vlines plotted only when x is real time
-            ax.axvspan(self.start_time, start_time_, alpha=0.5, color='gray')
-            ax.axvspan(start_time_ + timedelta(seconds=duration_),
-                    self.data.Time.max(), alpha=0.5, color='gray',
-                    label='Ingored')
             for v in self._vlines:
                 ax.axvline(v, ls='--', c='gray', label="File joining")
-        else:
-            data = self.data.copy()
-            data.Time = range(data.Time.shape[0])
-            ax = data.plot(x="Time", y='value', ax=ax, color=c, kind='scatter', **kwargs)
+            ax.legend()
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
         ax.set_ylabel("Power monitor count rate [1/s]")
         ax.tick_params(axis='y', left=False, labelleft=False, right=True, labelright=True)
         ax.yaxis.set_label_position("right")
         t = ax.yaxis.get_offset_text()
         t.set_x(1.01)
-        ax.legend()
         return ax
-    
-    @classmethod
-    def _from_formatted_ads(cls, file: str, **kwargs) -> Self:
-        """
-        `nerea.CountRate._from_formatted_ads()`
-        ---------------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file generated by ADS DAQ.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **kwargs
-            Additional arguments for class creation
-            **detector_id** (``int|str``): metadata for detector identification
-            **deposit_id** (``str``): metadata for detector deposit.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``nerea.CountRate`` instance.
-
-        Note
-        ----
-        - infers ``campaign_id`` and ``experiment_id`` from file name.
-        - file format: ``'CAMP_EXP.ads'``.
-        - ``detector_id`` kwarg is also used to select the detector to read."""
-        detector = kwargs.pop('detector_id', None)
-        if detector is None:
-            raise ValueError("`'detector'` kwarg required to read CountRate.")
-        start_time = datetime.strptime(linecache.getline(file, 1), "%d-%m-%Y %H:%M:%S\n")
-        read = pd.read_csv(file, sep='\t', skiprows=[0,1], decimal=',')
-        read["Time"] = read["Time"].apply(lambda x: start_time + timedelta(seconds=x))
-        metadata = file.split('\\')[-1].split('.')[0]
-        campaign_id, experiment_id = metadata.split('_')
-        return cls(read[["Time", f"Det {detector}"]].rename(columns={f"Det {detector}": "value"}),
-                   start_time=start_time,
-                   campaign_id=campaign_id,
-                   experiment_id=experiment_id,
-                   detector_id=f"Det {detector}",
-                   timebase=(read['Time'][1] - read['Time'][0]).total_seconds(),
-                   **kwargs)
-    
-    @classmethod
-    def _from_phspa(cls, file: str, **kwargs) -> Self:
-        """
-        `nerea.CountRate._from_phspa()`
-        -------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file generated by PHSPA DAQ.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **kwargs
-            additional arguments for class creation
-            **detector_id** (``int``): metadata for detector identification
-            **deposit_id** (``str``): metadata for detector deposit
-            **campaign_id** (``str``): metadata for experimental campaign identification
-            **experiment_id** (``str``): metadata for experiment identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``nerea.CountRate`` instance."""
-        detector = kwargs.pop('detector', None)
-        if detector is None:
-            raise ValueError("`'detector'` kwarg required to read CountRate.")
-        data = pd.read_csv(file, sep="\t", skiprows=18, decimal=',').iloc[:,:-1]
-        data.columns = ["Time", "value"]
-        data.Time = data.Time.apply(lambda x: BASE_DATE + timedelta(days=x))
-        warnings.warn("Average timebase considered for PHSPA acquisitions.")
-        timebase = data.Time.diff().dt.total_seconds().mean()
-        return cls(data,
-                   start_time=data.Time.min(),
-                   detector_id=detector,
-                   timebase=timebase,
-                   **kwargs)
-    
-    @classmethod
-    def _from_formatted_phspa(cls, file: str, **kwargs) -> Self:
-        """
-        `nerea.CountRate._from_formatted_phspa()`
-        -----------------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file generated by PHSPA DAQ.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **kwargs
-            additional arguments for class creation
-            **deposit_id** (``str``): metadata for detector deposit
-            **campaign_id** (``str``): metadata for experimental campaign identification
-            **experiment_id** (``str``): metadata for experiment identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``nerea.CountRate`` instance.
-
-        Note
-        ----
-        - infers ``detector_id``, ``campaign_id`` and ``experiment_id`` from file name.
-        - file format: ``'CAMP_EXP_DET.log'``."""
-        metadata = file.split('\\')[-1].split('.')[0]
-        campaign_id, experiment_id, det = metadata.split('_')
-        return cls._from_phspa(file,
-                               detector=det,
-                               campaign_id=campaign_id,
-                               experiment_id=experiment_id,
-                               **kwargs)
 
     @classmethod
-    def _from_formatted_br1(cls, file: str, **kwargs) -> Self:
-        """
-        `nerea.CountRate._from_formatted_br1()`
-        ---------------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file generated by the NBS chamber
-        DAQ at BR1.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **kwargs
-            additional arguments for class creation
-            **experiment_id** (``str``): metadata for experiment identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``nerea.CountRate`` instance.
-
-        Note
-        ----
-        - sets ``detector_id`` to ``'NBS'``, ``deposit_id`` to ``'U235'`` and ``campaign_id`` to `'CAL'`."""
-        read = pd.read_csv(file, sep=';', header=None)[[0,4]]
-        read.columns = ["Time", "value"]
-        read["Time"] = pd.to_datetime(read["Time"])
-        campaign_id, detector_id, deposit_id = "CAL", "NBS", "U235"
-        warnings.warn("Average timebase considered for BR1 acquisitions.")
-        timebase = read.Time.diff().dt.total_seconds().mean()
-        return cls(read,
-                   start_time=read.Time.iloc[0],
-                   campaign_id=campaign_id,
-                   detector_id=detector_id,
-                   timebase=timebase,
-                   deposit_id=deposit_id,
-                   **kwargs)
-
-    @classmethod
-    def _from_formatted_vf(cls, file: str, **kwargs) -> Self:
-        """
-        `nerea.CountRate._from_formatted_vf()`
-        --------------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file generated by the VENUS-F
-        monitoring system.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **kwargs
-            additional arguments for class creation
-            **deposit_id** (``str``): metadata for detector deposit
-            **detector_id** (``str``): metadata for detector identification
-            **experiment_id** (``str``): metadata for experiment identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``nerea.CountRate`` instance.
-
-        Note
-        ----
-        - infers ``campaign_id`` and ``experiment_id`` from file name.
-        - file format: ``'CAMP_EXP_DATE.vf'``
-        - reads experiment date from file name.
-        - DATE format: %Y-%m-%d."""
-        detector = kwargs.pop('detector_id', None)
-        if detector is None:
-            raise ValueError("`'detector_id'` kwarg required to read CountRate.")
-        data = pd.read_csv(file, encoding='unicode_escape', sep=r'\s+', index_col=False)
-        md = file.split('\\')[-1].split('.')[0]
-        cmp, exp, time = md.split('_')[0], md.split('_')[1], md.split('_')[2]
-        data["Time"] = pd.to_datetime(time + ' '+ data.time.astype(str),
-                                      format="%Y-%m-%d %H:%M:%S")
-        data["value"] = data[detector]
-        timebase = data.Time.iloc[1] - data.Time.iloc[1]
-        return cls(data[["Time", "value"]],
-                   start_time=data.Time.iloc[0],
-                   timebase=timebase,
-                   campaign_id=cmp,
-                   experiment_id=exp,
-                   detector_id=detector,
-                   **kwargs)
-
-    @classmethod
-    def from_ascii(cls, file: str, filetype: str='infer', **kwargs) -> Self:
-        """
-        `nerea.CountRate.from_ascii()`
-        ------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        from an ASCII file.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **filetype** : ``str``, optional
-            Type of ASCII file to process.
-            Default is ``'infer'`` to infer it from
-            file extension.
-        **kwargs
-            additional arguments for class creation
-            **deposit_id** (``str``): metadata for detector deposit
-            **detector_id** (``str``): metadata for detector identification
-            **experiment_id** (``str``): metadata for experiment identification
-            **campaign_id** (``str``): metadata for experimental campaign identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``CountRate`` instance."""
-        ft = file.split('.')[-1] if filetype == 'infer' else filetype
-        match ft:
-            case 'ads':
-                out = cls._from_formatted_ads(file, **kwargs)
-            case 'phspa':
-                out = cls._from_phspa(file, **kwargs)
-            case 'log':
-                out = cls._from_formatted_phspa(file, **kwargs)
-            case 'br1':
-                out = cls._from_formatted_br1(file, **kwargs)
-            case 'vf':
-                out = cls._from_formatted_vf(file, **kwargs)
-            case _:
-                raise ValueError("ASCII file type processing not implemented")
-        return out
-
-    @classmethod
-    def from_files(cls, files: Iterable[str], filetype: str='infer', **kwargs) -> Self:
-        """
-        `nerea.CountRate.from_files()`
-        ------------------------------
-        Method to create a ``nerea.CountRate`` instance
-        joing data from ASCII files of the same type.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            Path to the ASCII file.
-        **filetype** : ``str``, optional
-            Type of ASCII file to process.
-            Default is ``'infer'`` to infer it from
-            file extension.
-        **kwargs
-            additional arguments for class creation
-            **deposit_id** (``str``): metadata for detector deposit
-            **detector_id** (``str``): metadata for detector identification
-            **experiment_id** (``str``): metadata for experiment identification
-            **campaign_id** (``str``): metadata for experimental campaign identification.
-
-        Returns
-        -------
-        ``nerea.CountRate``
-            A new ``CountRate`` instance."""
-        data = []
-        vlines = []
-        for i, f in enumerate(files):
-            rr = cls.from_ascii(f, filetype, **kwargs)
-            data.append(rr.data)
-            vlines.append(data[-1].Time.iloc[-1])
-            if i == 0:
-                _kwargs = {'campaign_id': rr.campaign_id,
-                           'experiment_id': rr.experiment_id,
-                           'detector_id': rr.detector_id,
-                           'deposit_id': rr.deposit_id}
-        data = pd.concat(data, ignore_index=True)
-        timebase = data.Time.diff().dt.total_seconds().mean()
-        return cls(data,
-                   start_time=data.Time.min(),
-                   timebase=timebase,
-                   _vlines=vlines,
-                   **_kwargs)
+    def from_importer(cls, importer: TimeSeriesImporter):
+        return cls(importer.data, **importer.metadata)
 
 
 @dataclass(slots=True)
@@ -1148,83 +1045,26 @@ class CountRates:
         return self.__class__(dts, self._enable_checks)
 
     @classmethod
-    def from_ascii(cls,
-                   files: dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]],
-                   filetypes: Iterable[str]='infer',
-                   **kwargs) -> Self:
+    def from_importers(cls, importers: list[TimeSeriesImporter], **kwargs) -> Self:
         """
-        `nerea.CountRates.from_ascii()`
-        -------------------------------
-        Creates an instance of ``nerea.CountRates`` using data extracted from an ASCII file.
-
-        The ASCII file should contain columns of data including timestamps and power readings.
-
-        The filename is supposed to be formatted as:
-        {Campaign}_{experiment} (ADS) or
-        {Campaign}_{experiment}_{detector} (PHSPA)
+        `nerea.CountRates.from_importers()`
+        -----------------------------------
+        Creates an instance of ``nerea.CountRates`` using data extracted
+        from an ASCII file through ``nerea.TimeSeriesImporter``.
 
         Parameters
         ----------
-        **files** : ``dict[str, tuple[Iterable[str]|Iterable[int]|None, Iterable[str]]]``
-            Maps each file to the detectors to read there and
-            the corresponding deposit id.
-
-            - key: ``str``
-                Path to the ASCII files containing the power monitor data.
-            - values: ``tuple``
-                first: ``Iterable[str]|Iterable[int]``
-                    detector ids for ADS files
-                    or ``None`` for PHSPA file (detector id inferred from filename)
-                second: ``Iterable[str]``
-                    deposit ids
-
-        **filetype** : ``Iterable[str]``, optional
-            Type of ASCII file to process.
-            Default is ``'infer'`` to infer it from
-            file extension for each file.
-
+        **importers** : list[TimeSeriesImporter]
+            The importers to use for initialization.
         **kwargs
             additional arguments for class creation
-            **_enable_checks** (``bool``): enables consistency checks among detectors
+            - **_enable_checks**: turns consistency checks on/off.
 
         Returns
         -------
         ``nerea.CountRates``
-            initialized with the data from the ASCII file.
-
-        Note
-        ----
-        - allows only for formatted source files.
-        - ADS files requires detectors to be passed as an iterable
-            in the same order as the ADS processed files."""
-        ft = ['infer'] * len(files) if filetypes == 'infer' else filetypes
+            initialized with the data from the ASCII file."""
         out = {}
-        for i, (f, (dets, deps)) in enumerate(files.items()):
-            ft_ = f.split('.')[-1] if ft[i] == 'infer' else ft[i]
-            match ft_:
-                case 'ads':
-                    for d, d_ in zip(dets, deps):
-                        out[d] = CountRate.from_ascii(f,
-                                                      filetype=ft_,
-                                                      detector_id=d,
-                                                      deposit_id=d_)
-                case 'phspa':
-                    d = f.split('\\')[-1].split('.')[0].split('_')[-1]
-                    d_ = deps[0]
-                    out[d] = CountRate.from_ascii(f,
-                                                  filetype=ft_,
-                                                  detector_id=d,
-                                                  deposit_id=d_)
-                case 'log':
-                    d = f.split('\\')[-1].split('.')[0].split('_')[-1]
-                    d_ = deps[0]
-                    out[d] = CountRate.from_ascii(f,
-                                                  filetype=ft_,
-                                                  deposit_id=d_)
-                case 'vf':
-                    for d, d_ in zip(dets, deps):
-                        out[d] = CountRate.from_ascii(f,
-                                                      filetype=ft_,
-                                                      detector_id=d,
-                                                      deposit_id=d_)
+        for i in importers:
+            out[i.metadata['detector_id']] = CountRate.from_importer(i)
         return cls(out, **kwargs)

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .count_rate import CountRate
+from .time_series import CountRate
 from .utils import _make_df
 from .functions import polyfit, polynomial
 from .defaults import *

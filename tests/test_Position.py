@@ -1,0 +1,80 @@
+import pandas as pd
+import pytest
+from datetime import datetime, timedelta
+
+from nerea.time_series import Position
+
+@pytest.fixture
+def sample_data():
+    data = pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i) for i in range(7)],
+        'value': [1, 1, 1, 2, 20, 20, 20]
+    })
+    return data
+
+@pytest.fixture
+def position(sample_data):
+    return Position(sample_data)
+
+def test_timebase(position):
+    assert position.timebase == 1
+
+def test_plateau(position):
+    data = position.data
+    plateau = pd.DataFrame({
+        0: [data["Time"][0], data["Time"][2], 1, 3],
+        1: [data["Time"][3], data["Time"][3], 2, 1],
+        2: [data["Time"][4], data["Time"][6], 20, 3],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(position.plateau(tol=0,
+                                                   absolute_tolerance=True),
+                                  plateau)
+    plateau = pd.DataFrame({
+        0: [data["Time"][0], data["Time"][2], 1, 3],
+        1: [data["Time"][4], data["Time"][6], 20, 3],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(position.plateau(tol=0,
+                                                   min_length=2,
+                                                   absolute_tolerance=True),
+                                  plateau)
+    plateau = pd.DataFrame({
+        0: [data["Time"][0], data["Time"][3], 1, 4],
+        1: [data["Time"][4], data["Time"][6], 20, 3],
+    }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(position.plateau(tol=1,
+                                                   absolute_tolerance=True),
+                                  plateau)
+    plateau = pd.DataFrame({
+        0: [data["Time"][0], data["Time"][6], 1, 7],
+        }, index=["start", "end", "first value", "length"])
+    pd.testing.assert_frame_equal(position.plateau(tol=1,
+                                                   absolute_tolerance=False),
+                                  plateau)
+
+
+def test_from_plateau(position):
+    data = position.data
+    result = position.from_plateau(tol=0)
+
+    # --- check plateau labels ---
+    assert set(result.data["PLATEAU"]) == {0, 1, 2}
+
+    grouped = result.data.groupby("PLATEAU")
+
+    # --- plateau 0 ---
+    p0 = grouped.get_group(0)
+    assert p0["value"].eq(1).all()
+    assert p0["Time"].min() == data["Time"][0]
+    assert p0["Time"].max() == data["Time"][2]
+
+    # --- plateau 1 (single point) ---
+    p1 = grouped.get_group(1)
+    assert p1["value"].eq(2).all()
+    assert p1["Time"].min() == data["Time"][3]
+    assert p1["Time"].max() == data["Time"][3]
+
+    # --- plateau 2 ---
+    p2 = grouped.get_group(2)
+    assert p2["value"].eq(20).all()
+    assert p2["Time"].min() == data["Time"][4]
+    assert p2["Time"].max() == data["Time"][6]  # end excluded
