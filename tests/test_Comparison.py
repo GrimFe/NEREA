@@ -167,7 +167,7 @@ def sample_traverse_rr(rr1, rr2):
 def sample_c_traverse_data():
     return pd.DataFrame({'value': [1.01, 0.5],
                          'uncertainty': [0.01, 0.01],
-                         'traverse': ['loc A', 'loc B']})
+                         'position': ['loc A', 'loc B']})
 
 @pytest.fixture
 def sample_c_traverse(sample_c_traverse_data):
@@ -210,7 +210,8 @@ def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
     expected_df = pd.DataFrame({'value': [1., 0.99250555],
                                 'uncertainty': [0.01483835, 0.02256028],
                                 'uncertainty [%]': [1.48383507, 2.27306339],
-                                'traverse': ['loc A', 'loc B']})
+                                'position': ['loc A', 'loc B'],
+                                'position_uncertainty': [np.nan] * 2})
     pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute(monitors=[monitor1, monitor2]))
 
 def test_minus_one_per_cent(sample_si_ce):

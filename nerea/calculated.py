@@ -204,7 +204,7 @@ class CalculatedTraverse(_Calculated):
         out = []
         for d in detector_names:
             v, u = sts.read(file).detectors[d].bins[0][-2:]
-            out.append(_make_df(v, u * v).assign(traverse=d))
+            out.append(_make_df(v, u * v).assign(position=d))
         out = pd.concat(out)
         return cls(data=out, **kwargs)
 
@@ -225,10 +225,10 @@ class CalculatedTraverse(_Calculated):
         ``pd.DataFrame``
             data frame containing C `'value'` and `'uncertainty'` columns."""
         out = []
-        max_d = self.data.query("value == @self.data.value.max()").traverse.iloc[0]
+        max_d = self.data.query("value == @self.data.value.max()").position.iloc[0]
         norm_d = max_d if normalization is None else normalization
-        den = self.data.query('traverse == @norm_d')
+        den = self.data.query('position == @norm_d')
         den = _make_df(den.value.iloc[0], den.uncertainty.iloc[0])
         num = _make_df(self.data.value, self.data.uncertainty)
-        out = _make_df(*ratio_v_u(num, den)).assign(traverse=self.data.traverse.values)
+        out = _make_df(*ratio_v_u(num, den)).assign(position=self.data.position.values)
         return out.reset_index(drop=True)

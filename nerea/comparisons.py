@@ -165,14 +165,15 @@ class _Comparison:
         -------
         ``pd.DataFrame``
             the C/E value and uncertainty"""
-        n = self.num.calculate(normalization=normalization).set_index('traverse')
-        d = self.den.process(normalization=normalization, **kwargs).set_index('traverse')
+        n = self.num.calculate(normalization=normalization).set_index('position')
+        d = self.den.process(normalization=normalization, **kwargs).set_index('position')
         v, u = ratio_v_u(n, d)
         if not _minus_one_percent:
             out = _make_df(v, u, idx=v.index)
         else:
             out = _make_df((v - 1) * 100 , u * 100, relative=False, idx=v.index)
-        return out.reset_index(names='traverse')[['value', 'uncertainty', 'uncertainty [%]', 'traverse']]
+        out = out.reset_index(names='position').assign(position_uncertainty=d.position_uncertainty)
+        return out[['value', 'uncertainty', 'uncertainty [%]', 'position', 'position_uncertainty']]
 
     def compute(self, _minus_one_percent: bool=False, normalization: str =None,
                 **kwargs) -> pd.DataFrame:

@@ -86,7 +86,8 @@ def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
     expected_df = pd.DataFrame({'value': [1.        , 0.49878764],
                                 'uncertainty': [0.00491095, 0.00215417],
                                 'uncertainty [%]': [0.49109513, 0.4318809],
-                                'traverse': ['loc A', 'loc B']})
+                                'position': ['loc A', 'loc B'],
+                                'position_uncertainty': [np.nan] * 2})
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.process([monitor1,
                                                                            monitor2]))
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2]))
@@ -98,5 +99,6 @@ def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
     expected_df_ = pd.DataFrame({'value': [6.648846960167715, 3.3163627152988853],
                                 'uncertainty': [0.02308856634367043, 0.00851562256284556],
                                 'uncertainty [%]': [0.3472566970181553, 0.25677597096245536],
-                                'traverse': ['loc A', 'loc B']})
+                                'position': ['loc A', 'loc B'],
+                                'position_uncertainty': [np.nan] * 2})
     pd.testing.assert_frame_equal(expected_df_, sample_traverse_rrs.process([2, 2], normalization=-1))
