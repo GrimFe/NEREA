@@ -421,7 +421,9 @@ def find_plateau(x: Iterable,
                  y: Iterable,
                  tol: float=1e-2,
                  absolute_tolerance: bool=False,
-                 min_length: int=1) -> pd.DataFrame:
+                 min_length: int=1,
+                 skip_l: int=0,
+                 skip_r: int=0) -> pd.DataFrame:
     """
     `nerea.functions.find_plateau()`
     --------------------------------
@@ -431,32 +433,44 @@ def find_plateau(x: Iterable,
     ----------
     **x**  : ``Iterable``
         x axis of x-y series.
-    **y**  : ``Iterable``
+    **y**  : ``Iterable``, optional
         y axis of x-y series.
     **tol** : ``float|None``
         tolerance for plateau finding (absolute or relative).
         Default is ``1e-2``.
-    **absolute_tolerance** : ``bool``
+    **absolute_tolerance** : ``bool``, optional
         flag defining whether ``tol`` is absolute or not.
         Default is ``False``.
-    **min_length** : ``int``
+    **min_length** : ``int``, optional
         minimal number of bins to consider in a plateau.
         Default is 1.
+    **skip_l** : ``int``, optional
+        bins to discard after plateau beginning.
+        Default is 0.
+    **skip_r** : ``int``, optional
+        bins to discard before plateau end.
+        Default is 0.    
 
     Returns
     -------
     ``pd.DataFrame``
-        data frame with time and counts columns."""
+        data frame with time and counts columns.
+        
+    Notes
+    -----
+    - ``min_lenght`` is considered for the final plateau,
+    after skipping left and right."""
     x_, y_ = np.array(x), np.array(y)
     tol_ = tol if absolute_tolerance else tol * y_[1:]
     dy = np.abs(np.diff(y_))
     change_idx = np.where(dy > tol_)[0] + 1
     idx = np.concatenate(([0], change_idx, [len(y_)]))
-    starts = idx[:-1]
-    ends = idx[1:]
+    starts = idx[:-1] + skip_l
+    ends = idx[1:] - skip_r
     plateaus = []
     i = 0
     for s, e in zip(starts, ends):
+        # negative length if skip makes them exchange -> no plateau
         length = e - s
         if length >= min_length:
             plateaus.append(pd.DataFrame({

@@ -13,13 +13,26 @@ def sample_data():
     return data
 
 @pytest.fixture
+def sample_data_2s_timebase():
+    data = pd.DataFrame({
+        'Time': [datetime(2024, 5, 19, 20, 5, 0) + timedelta(seconds=i * 2) for i in range(7)],
+        'value': [1, 1, 1, 2, 20, 20, 20]
+    })
+    return data
+
+@pytest.fixture
 def position(sample_data):
     return Position(sample_data, timebase=1.)
 
-def test_timebase(position):
-    assert position.timebase == 1
+@pytest.fixture
+def position_2s_timebase(sample_data_2s_timebase):
+    return Position(sample_data_2s_timebase, timebase=2.)
 
-def test_plateau(position):
+def test_timebase(position, position_2s_timebase):
+    assert position.timebase == 1
+    assert position_2s_timebase.timebase == 2
+
+def test_plateau(position, position_2s_timebase):
     data = position.data
     plateau = pd.DataFrame({
         0: [data["Time"][0], data["Time"][2], 1, 1, 3],
@@ -61,6 +74,31 @@ def test_plateau(position):
                                                    smoothing_method='moving_average',
                                                    window=2,
                                                    renormalize=False),
+                                  plateau)
+    
+    # test skip_left and skip_right
+    data = position_2s_timebase.data
+    plateau = pd.DataFrame({
+        0: [data["Time"][1], data["Time"][1], 1, 1, 1],
+        1: [data["Time"][5], data["Time"][5], 20, 20, 1],
+    }, index=["start", "end", "first value", "mean value","length"])
+    pd.testing.assert_frame_equal(position_2s_timebase.plateau(
+                                                tol=0,
+                                                absolute_tolerance=True,
+                                                skip_left=2, # seconds = 1 bin
+                                                skip_right=2),
+                                  plateau)
+    # np.floor() applied if fractional bins need to be skipped
+    data = position_2s_timebase.data
+    plateau = pd.DataFrame({
+        0: [data["Time"][1], data["Time"][2], 1, 1, 2],
+        1: [data["Time"][5], data["Time"][6], 20, 20, 2],
+    }, index=["start", "end", "first value", "mean value","length"])
+    pd.testing.assert_frame_equal(position_2s_timebase.plateau(
+                                                tol=0,
+                                                absolute_tolerance=True,
+                                                skip_left=2, # seconds = 1 bin
+                                                skip_right=1),
                                   plateau)
 
 

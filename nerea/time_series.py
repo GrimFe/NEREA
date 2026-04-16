@@ -234,6 +234,8 @@ class Position(TimeSeries):
     **data**: ``pd.DataFrame``
         data frame with time dependent data."""    
     def plateau(self,
+                skip_left: float=0.,
+                skip_right: float=0.,
                 smooth: bool=False,
                 **kwargs) -> pd.DataFrame:
         """
@@ -243,7 +245,13 @@ class Position(TimeSeries):
 
         Parameters
         ----------
-        **smooth** : ``bool``
+        **skip_left** : ``float``, optional
+            seconds to skip from begining of plateau.
+            Default is ``0.``.
+        **skip_right** : ``float``, optional
+            seconds to skip from end of plateau.
+            Default is ``0.``.
+        **smooth** : ``bool``, optional
             flag to smooth the data before plateau search.
             Default is ``False``.
 
@@ -273,6 +281,14 @@ class Position(TimeSeries):
             - ``'savgol_filter'`` (requires ``window_length``, ``polyorder``)
             - ``'fit'``(requires ``ch_before_max``, ``order``)"""
         plateau_kw = {k: v for k, v in kwargs.items() if k in set(signature(find_plateau).parameters)}
+        if plateau_kw.get('skip_l', False):
+            warnings.warn(f"Double value passed for `skip_l`, using {plateau_kw.get('skip_l')}")
+        else:
+            plateau_kw['skip_l'] = int(np.floor(skip_left / self.timebase))
+        if plateau_kw.get('skip_r', False):
+            warnings.warn(f"Double value passed for `skip_r`, using {plateau_kw.get('skip_r')}")
+        else:
+            plateau_kw['skip_r'] = int(np.floor(skip_right / self.timebase))
         data = self.smooth_data(**kwargs).data if smooth else self.data.copy()
         return find_plateau(data['Time'], data['value'], **plateau_kw)
 
