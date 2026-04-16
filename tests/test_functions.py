@@ -374,8 +374,6 @@ def test_find_plateau():
         1: [x[5], x[6], 5, 5., 2],
         2: [x[7], x[7], 1, 1., 1],
     }, index=["start", "end", "first value", "mean value", "length"])
-    print("###########")
-    print(result)
     pd.testing.assert_frame_equal(result, plateau)
 
     ## test min length filter
