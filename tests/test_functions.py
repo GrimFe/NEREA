@@ -432,3 +432,34 @@ def test_find_plateau():
 
     # should detect one big plateau
     assert result.shape[1] == 1
+
+    # test skip left and right
+    x = np.arange(5)
+    y = np.array([10, 10, 10, 10, 10])
+
+    result = find_plateau(x, y, tol=0, min_length=1, skip_l=1)
+    plateau = pd.DataFrame({
+        0: [x[0] + 1, x[-1], 10, 10., 4],
+    }, index=["start", "end", "first value", "mean value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    result = find_plateau(x, y, tol=0, min_length=1, skip_r=1)
+    plateau = pd.DataFrame({
+        0: [x[0], x[-1] - 1, 10, 10., 4],
+    }, index=["start", "end", "first value", "mean value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    result = find_plateau(x, y, tol=0, min_length=1, skip_l=1, skip_r=1)
+    plateau = pd.DataFrame({
+        0: [x[0] + 1, x[-1] - 1, 10, 10., 3],
+    }, index=["start", "end", "first value", "mean value", "length"])
+    pd.testing.assert_frame_equal(result, plateau)
+
+    x = np.arange(15)
+    y = np.array([10] * 5 + [20] * 10)
+    result = find_plateau(x, y, tol=0, min_length=1, skip_l=3, skip_r=3)
+    plateau = pd.DataFrame({
+        0: [x[5] + 3, x[-1] - 3, 20, 20., 4],
+    }, index=["start", "end", "first value", "mean value", "length"])
+    # skips the first plateau (len 5) as I discard +3 and -3 elements
+    pd.testing.assert_frame_equal(result, plateau)
