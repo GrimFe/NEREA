@@ -1158,9 +1158,15 @@ class Traverse(_Experimental):
         ``key`` is the position identifier, ``value`` is the 
         corresponding ``nerea.CountRate`` or `nerea`.CountRates``.
         If ``nerea.CountRates``, the first is considered.
+    **position_uncertainty** : ``Iterable[float] | None``, optional
+        ``count_rates.keys()``-long iterable with the uncertainty
+        of each position.
+        Defaults to ``None`` for ``np.nan`` uncertainty at each
+        position.
     _enable_checks: ``bool``, optoinal
         flag enabling consistency checks. Default is ``True``."""
     count_rates: dict[str, CountRate | CountRates]
+    position_uncertainty: Iterable[float] | None=None
     _enable_checks: bool = True
     
     def __post_init__(self):
@@ -1238,7 +1244,7 @@ class Traverse(_Experimental):
         -------
         ``pd.DataFrame``
             with ``'value'``, ``'uncertainty'``, ``'uncertainty [%]'`` and
-            ``'traverse'`` columns.
+            ``'position'`` columns.
 
         Note
         ----
@@ -1262,14 +1268,21 @@ class Traverse(_Experimental):
             raise ValueError(f"Passed invalid normalization value: {normalization}.")
         out = []
         for k, v in normalized.items():
-            out.append(_make_df(*ratio_v_u(v, normalization_)).assign(traverse=k))
+            out.append(_make_df(*ratio_v_u(v, normalization_)).assign(position=k))
         # plot
         if visual or savefig:
             fig, _ = self.plot(monitors, **kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
-        return pd.concat(out, ignore_index=True)
+        if self.position_uncertainty is None:
+            up = [np.nan] * len(self.count_rates.keys())
+        elif len(self.position_uncertainty) != len(self.count_rates.keys()):
+            warnings.warn("`position_uncertainty` does not match the size of `count_rates`.")
+            up = [np.nan] * len(self.count_rates.keys())
+        else:
+            up = self.position_uncertainty
+        return pd.concat(out, ignore_index=True).assign(position_uncertainty=up)
 
     def plot(self,
              monitors: Iterable[CountRate| int],
@@ -1350,19 +1363,27 @@ class Traverse(_Experimental):
         Returns
         -------
         ``nerea.Traverse``
-            with filtered information."""
+            with filtered information.
+        
+        Notes
+        -----
+        ``self.position_uncertainty`` computed as standard error of
+        position data."""
         plateau = position.plateau(**plateau_kw)
         if visual:
             fig, ax = plt.subplots(figsize=(15, 5), ncols=2)
             position.plot_data(ax=ax[0])
             colors = plt.cm.hsv(np.linspace(0, 1, plateau.shape[1]))
         out = {}
+        up = []
         for i, p in plateau.T.iterrows():
             st = p['start']
             et = p['end'] + timedelta(seconds=position.timebase)
             d = (et - st).total_seconds()
             cut = count_rate.cut(st, et)
-            pos = position.average(st, d)['value'].value
+            avg = position.average(st, d, uncertainty='sem')
+            pos = avg['value'].value
+            up.append(avg['uncertainty'].value)
             out[pos] = cut
             if visual:
                 import matplotlib.colors as mcolors
@@ -1371,7 +1392,7 @@ class Traverse(_Experimental):
                 cc = 'gray' if i%2 else 'pink'
                 ax[0].axvspan(p['start'], p['end'], alpha=0.5, color=cc)
                 cut.plot(ax=ax[1], c=c)
-        return cls(out, **kwargs)
+        return cls(out, np.array(up), **kwargs)
 
     @classmethod
     def from_ascii(cls,
