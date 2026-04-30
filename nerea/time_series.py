@@ -569,12 +569,12 @@ class CountRate(TimeSeries):
             arguments for ``self.plateau()``.
             - **sigma** (``int``): standard deviations for plateau finding.
             - **timebase** (``int``): integration timebase in seconds.
-        
+
         Returns
         -------
         ``pd.DataFrame``
             with ``'value'`` and ``'uncertainty'`` columns.
-            
+
         Notes
         -----
         ``kwargs`` ignored if ``check_count_rate_plateau == False``."""
@@ -582,9 +582,9 @@ class CountRate(TimeSeries):
             plateau = self.plateau(**kwargs)
         else:
             plateau = self.data
-        duration = (plateau.Time.max() - plateau.Time.min()).seconds
+        duration = (plateau.Time.max() - plateau.Time.min()).total_seconds()
         normalization = monitor.average(plateau.Time.min(), duration) 
-        return _make_df(*ratio_v_u(_make_df(*integral_v_u(plateau.value)), normalization))
+        return _make_df(*ratio_v_u(_make_df(*time_integral_v_u(plateau)), normalization))
 
     def per_unit_time_power(self, monitor: Self, check_count_rate_plateau: bool=True, *args, **kwargs) -> pd.DataFrame:
         """
@@ -622,7 +622,7 @@ class CountRate(TimeSeries):
             plateau = self.plateau(**kwargs)
         else:
             plateau = self.data
-        duration = (plateau.Time.max() - plateau.Time.min()).seconds
+        duration = (plateau.Time.max() - plateau.Time.min()).total_seconds()
         unit_p = self.per_unit_power(monitor, check_count_rate_plateau, *args, **kwargs)
         return _make_df(unit_p.value / duration, unit_p.uncertainty / duration)
 

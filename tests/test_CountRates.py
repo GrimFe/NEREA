@@ -98,9 +98,9 @@ def test_best(pms, power_monitor_1):
     assert pms.best == power_monitor_1
 
 def test_per_unit_power(rr_plateau, plateau_monitor):
-    expected_df = pd.DataFrame({'value': 13321.,
-                                'uncertainty': 38.83779782,
-                                'uncertainty [%]': 0.29155317},
+    expected_df = pd.DataFrame({'value': 13254.5,
+                                'uncertainty': 38.64534180813177,
+                                'uncertainty [%]': 0.2915639353286187},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                                   CountRates({1: rr_plateau,

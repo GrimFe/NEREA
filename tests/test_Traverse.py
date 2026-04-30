@@ -83,9 +83,9 @@ def sample_traverse_rrs(rr1, monitor1, rr2, monitor2):
                      'loc B': CountRates({1: rr2, 2: monitor2})})
 
 def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
-    expected_df = pd.DataFrame({'value': [1.        , 0.49878764],
-                                'uncertainty': [0.00491095, 0.00215417],
-                                'uncertainty [%]': [0.49109513, 0.4318809],
+    expected_df = pd.DataFrame({'value': [1.        , 0.500460605452604],
+                                'uncertainty': [0.004913039412717138, 0.002162265889693348],
+                                'uncertainty [%]': [0.49130394127171384, 0.4320551640099323],
                                 'position': ['loc A', 'loc B'],
                                 'position_uncertainty': [np.nan] * 2})
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rr.process([monitor1,
@@ -96,9 +96,9 @@ def test_process(sample_traverse_rr, monitor1, monitor2, sample_traverse_rrs):
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2], normalization=None))
     pd.testing.assert_frame_equal(expected_df, sample_traverse_rrs.process([2, 2], normalization='loc A'))
     # no normalization
-    expected_df_ = pd.DataFrame({'value': [6.648846960167715, 3.3163627152988853],
-                                'uncertainty': [0.02308856634367043, 0.00851562256284556],
-                                'uncertainty [%]': [0.3472566970181553, 0.25677597096245536],
+    expected_df_ = pd.DataFrame({'value': [6.60587002096436, 3.3059777102330297],
+                                'uncertainty': [0.022949079708883675, 0.008492044769710844],
+                                'uncertainty [%]': [0.34740434849690616, 0.2568693897549679],
                                 'position': ['loc A', 'loc B'],
                                 'position_uncertainty': [np.nan] * 2})
     pd.testing.assert_frame_equal(expected_df_, sample_traverse_rrs.process([2, 2], normalization=-1))

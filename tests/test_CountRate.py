@@ -346,9 +346,9 @@ def test_filter_on_position_plateau(power_monitor):
         pd.testing.assert_frame_equal(i.data, j)
 
 def test_per_unit_power(rr_plateau, plateau_monitor):
-    expected_df = pd.DataFrame({'value': 532.84,
-                                'uncertainty': 0.36143842,
-                                'uncertainty [%]': 0.06783245}, index=['value'])
+    expected_df = pd.DataFrame({'value': 530.18,
+                                'uncertainty': 0.35987930807690177,
+                                'uncertainty [%]': 0.067878703096477}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor))
 
     expected_df = pd.DataFrame({'value': 572.8164866666667,
@@ -356,11 +356,14 @@ def test_per_unit_power(rr_plateau, plateau_monitor):
                                 'uncertainty [%]': 0.050495952889856394}, index=['value'])
     pd.testing.assert_frame_equal(expected_df, rr_plateau.per_unit_power(plateau_monitor, check_count_rate_plateau=False))
 
+    # Test it with timebase < 1
+    
+
 def test_per_unit_time_power(rr_plateau, plateau_monitor):
     MIN_T = datetime(2024,5,27,13,21,1)
     MAX_T = datetime(2024,5,27,13,24,20)
     D = (MAX_T - MIN_T).seconds
-    V, U = 532.84 / D, 0.36143842 / D
+    V, U = 530.18 / D, 0.35987930807690177 / D
     target = rr_plateau.per_unit_time_power(plateau_monitor)
     assert np.isclose(target.value.values[0], V, atol=0.00001)
     assert np.isclose(target.uncertainty.values[0], U, atol=0.00001)

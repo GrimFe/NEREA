@@ -38,7 +38,8 @@ def time_integral_v_u(s: pd.DataFrame) -> tuple[float, float]:
     """
     `nerea.utils.integral_v_u()`
     ----------------------------
-    Compute the time integral (c.dot(dt)) of a series and its associated uncertainty.
+    Compute the time integral (c.dot(dt)) of a data frame
+    and its associated uncertainty.
 
     Parameters
     ----------
