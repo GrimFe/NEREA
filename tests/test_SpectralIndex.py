@@ -83,7 +83,7 @@ def synthetic_one_g_xs_data():
                          'U238': [0.9, 0.003], 'U235': [0.6, 0.004]}).T.reset_index()
     data.columns = ['nuclide', 'value', 'uncertainty']
     data = data.set_index('nuclide')
-    return Xs(data, mass_normalized=True, volume_normalized=True)
+    return Xs(data, atomic_mass_normalized=True, volume_normalized=True)
 
 def test_deposit_ids(si):
     assert si.deposit_ids == ['U238', 'U235']
@@ -147,13 +147,13 @@ def test_process(si):
     pd.testing.assert_frame_equal(expected_df,
                                   si.process(numerator_kwargs={'raw_integral': False, 'renormalize': False},
                                              denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                             mass_normalized=True),
+                                             atomic_mass_normalized=True),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
                                    expected_df['uncertainty'].iloc[0] **2, decimal=5)
     
-    # test mass_normalized=False
+    # test atomic_mass_normalized=False
     m = 238.050783 / 235.043923
     expected_df = pd.DataFrame({'value': 1.0 * m,
                                 'uncertainty': 0.06588712284729072 * m,
@@ -170,7 +170,7 @@ def test_process(si):
     pd.testing.assert_frame_equal(expected_df,
                                   si.process(numerator_kwargs={'raw_integral': False, 'renormalize': False},
                                              denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                             mass_normalized=False),
+                                             atomic_mass_normalized=False),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
@@ -215,7 +215,7 @@ def test_compute_with_correction(si, synthetic_one_g_xs_data):
     nerea_ = si.process(synthetic_one_g_xs_data,
                         numerator_kwargs={'raw_integral': False, 'renormalize': False},
                         denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                        mass_normalized=True)
+                        atomic_mass_normalized=True)
     np.testing.assert_equal(data.index.values, nerea_.index.values)
     np.testing.assert_equal(data.columns.values, nerea_[['value', 'uncertainty', 'uncertainty [%]']].columns.values)
     np.testing.assert_almost_equal(data['value'].values, nerea_['value'].values, decimal=4)

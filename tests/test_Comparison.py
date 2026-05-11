@@ -200,7 +200,7 @@ def test_compute_si(sample_si_ce):
                                   sample_si_ce.compute(
                                       numerator_kwargs={'raw_integral': False, 'renormalize': False},
                                       denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      mass_normalized=True),
+                                      atomic_mass_normalized=True),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
@@ -234,7 +234,7 @@ def test_minus_one_per_cent(sample_si_ce):
                                   sample_si_ce.minus_one_percent(
                                       numerator_kwargs={'raw_integral': False, 'renormalize': False},
                                       denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      mass_normalized=True),
+                                      atomic_mass_normalized=True),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
