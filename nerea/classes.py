@@ -70,7 +70,7 @@ class Xs:
     ----------
     **data**: ``pd.DataFrame``
         data frame with cross section data (index is nuclide identifier).
-    **mass_normalized**: ``bool``, optional
+    **atomic_mass_normalized**: ``bool``, optional
         whether the cross section is mass-normalized.
         Default is `False`.
     **volume_normalized**: ``bool``, optional
@@ -79,7 +79,7 @@ class Xs:
     **volume**: ``float``, optional
         volume for volume normalization. Default is `1.0`."""
     data : pd.DataFrame
-    mass_normalized : bool=False
+    atomic_mass_normalized : bool=False
     volume_normalized : bool=False
     volume: float = 1.
 
@@ -94,7 +94,7 @@ class Xs:
         -------
         `nerea.Xs`"""
         return self.__class__(self.data.copy(),
-                              self.mass_normalized,
+                              self.atomic_mass_normalized,
                               self.volume_normalized,
                               self.volume)
 
@@ -118,7 +118,7 @@ class Xs:
         **args, **kwargs
             Additional arguments for instance creation
             
-            - **mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.
+            - **atomic_mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.
             - **volume_normalized** (``bool``, optional), whether the cross section is volume-normalized.
             - **volume** (``float``, optional), volume for volume normalization.
 
@@ -146,14 +146,14 @@ class Xs:
         `nerea.Xs`"""
         if not self.volume_normalized:
             self.data /= self.volume
-        if not self.mass_normalized:
+        if not self.atomic_mass_normalized:
             idx = self.data.index.copy()
             self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS),
                                  relative=False)[['value', 'uncertainty']
                                                  ].dropna()
             self.data.index = idx
         self.volume_normalized = True
-        self.mass_normalized = True
+        self.atomic_mass_normalized = True
         return self
 
 

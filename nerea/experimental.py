@@ -999,7 +999,7 @@ class SpectralIndex(_Experimental):
                 nuc_dec_from_file : dict[str, str] = None,
                 numerator_kwargs: dict={},
                 denominator_kwargs: dict={},
-                mass_normalized: bool=False) -> pd.DataFrame:
+                atomic_mass_normalized: bool=False) -> pd.DataFrame:
         """
         `nerea.SpectralIndex.process()`
         -------------------------------
@@ -1075,7 +1075,7 @@ class SpectralIndex(_Experimental):
             - ``self.pulse_height_spectrum.get_max()``
                 - **fst_ch** (``int | str``): channel to start max search or max search method.
 
-        **mass_normalized** : ``bool``, optional
+        **atomic_mass_normalized** : ``bool``, optional
             defines whether the result is the ratio of fission rates or of
             fission rates per unit mass.
             Default is ``False``.
@@ -1091,7 +1091,7 @@ class SpectralIndex(_Experimental):
         for impurities are mass-normalized (nerea.Xs.normalized). Then the processed 
         spectral index result is multiplied by the ratio between numerator and denominator
         atomic mass to be consistent with the definition of one-group cross section ratio.
-        Else the ``mass_normalized`` argument should be used passing consistent one group
+        Else the ``atomic_mass_normalized`` argument should be used passing consistent one group
         cross sections for impurity correction."""
         if numerator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
@@ -1119,7 +1119,10 @@ class SpectralIndex(_Experimental):
         # atomic mass ratio for EM renormalization
         # see docstring note
         # assumed to have no uncertainty
-        if not mass_normalized:
+        if not atomic_mass_normalized:
+            # I multiply numerator and denominator by A to
+            # allow for comparison with Serpent fission
+            # rate tally directly
             an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
             ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
             mass_ratio = an / ad
