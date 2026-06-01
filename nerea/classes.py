@@ -141,7 +141,9 @@ class Xs:
         if not self.volume_normalized:
             self.data /= self.volume
         if not self.mass_normalized:
-            idx = self.data.index.copy()
+            # index sorting required as sorted-index values
+            # are returned by df.value / df_.value
+            idx = self.data.index.sort_values().copy()
             self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS),
                                  relative=False)[['value', 'uncertainty']
                                                  ].dropna()

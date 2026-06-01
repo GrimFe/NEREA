@@ -19,6 +19,10 @@ NEREA (Neutron Energy-integrated Reactor Experiment Analysis) is a Python packag
 - **C/E Calculation**: Compute C/E values from simulated and experimental data.
 
 ## 🔧 Installation
+### User installation via TestPypi
+```
+python -m pip install --extra-index-url https://test.pypi.org/simple/ nerea
+```
 
 To install NEREA with pip:
 ```sh
@@ -35,7 +39,7 @@ git clone https://github.com/GrimFe/NEREA.git
 cd nerea
 pip install .
 ```
-
+### Use NEREA with no installation
 To import NEREA (without installation)
 ```
 import sys
