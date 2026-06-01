@@ -50,3 +50,35 @@ def test_xs_normalized():
     xs.mass_normalized = True
     xsc = xs.copy().normalized
     pd.testing.assert_frame_equal(xsc.data[['value', 'uncertainty']], start_data)
+
+    start_data = pd.DataFrame({"value": [2., 1.], "uncertainty": [2., 1.]},
+                         index=["U238", "U235"])
+    xs = Xs(start_data,
+            volume=1,
+            mass_normalized=False,
+            volume_normalized=False)
+    mass_norm = pd.DataFrame({"value": [1. / ATOMIC_MASS.loc['U235', 'value'],
+                                        2. / ATOMIC_MASS.loc['U238', 'value']],
+                              "uncertainty": [1. / ATOMIC_MASS.loc['U235', 'value'],
+                                             2. / ATOMIC_MASS.loc['U238', 'value']]},
+                         index=["U235", "U238"])
+    # full normalization volume = 1
+    xsc = xs.copy().normalized
+    pd.testing.assert_frame_equal(xsc.data[['value', 'uncertainty']], mass_norm)
+    assert xsc.mass_normalized == True
+    assert xsc.volume_normalized == True
+    # full normalization volume = 2
+    xs.volume = 2.
+    xsc = xs.copy().normalized
+    pd.testing.assert_frame_equal(xsc.data[['value', 'uncertainty']], mass_norm / 2.)
+    assert xsc.mass_normalized == True
+    assert xsc.volume_normalized == True
+    # mass normalization only (even with volume = 2)
+    xs.volume_normalized = True
+    xsc = xs.copy().normalized
+    pd.testing.assert_frame_equal(xsc.data[['value', 'uncertainty']], mass_norm)
+    assert xsc.volume_normalized == True
+    # no normalization when both normalizations are set to True
+    xs.mass_normalized = True
+    xsc = xs.copy().normalized
+    pd.testing.assert_frame_equal(xsc.data[['value', 'uncertainty']], start_data)
