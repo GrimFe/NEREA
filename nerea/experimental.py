@@ -937,7 +937,8 @@ class SpectralIndex(_Experimental):
             If xs is not given for all impurities."""
         comp = self.numerator.effective_mass.composition_.copy()
         # sum over impurities != self.numerator.deposit_id
-        return impurity_correction(one_g_xs, comp, drop_main=True,
+        ogx = one_g_xs.per_unit_volume
+        return impurity_correction(ogx, comp, drop_main=True,
                                    xs_den=self.denominator.deposit_id,
                                    relative = True if comp.shape[0] != 0 else False
                                    ).dropna()
@@ -1111,7 +1112,7 @@ class SpectralIndex(_Experimental):
 
         one_g_xs_ = read if one_g_xs is None else one_g_xs
         if one_g_xs_ is not None:
-            k = self._compute_correction(one_g_xs_.normalized)
+            k = self._compute_correction(one_g_xs_)
             v = v - k.value
             u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None
