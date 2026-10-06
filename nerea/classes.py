@@ -144,16 +144,40 @@ class Xs:
         Returns
         -------
         `nerea.Xs`"""
+        return self.per_unit_mass.per_unit_volume
+
+    @property
+    def per_unit_volume(self) -> Self:
+        """
+        `nerea.Xs.per_unit_volume()`
+        -----------------------
+        Normalizes the cross section data per unit volume.
+
+        Returns
+        -------
+        `nerea.Xs`"""
         if not self.volume_normalized:
             self.data /= self.volume
+            self.volume_normalized = True
+        return self
+
+    @property
+    def per_unit_mass(self) -> Self:
+        """
+        `nerea.Xs.per_unit_mass`
+        -----------------------
+        Normalizes the cross section data per unit atomic mass.
+
+        Returns
+        -------
+        `nerea.Xs`"""
         if not self.atomic_mass_normalized:
             idx = self.data.index.copy()
             self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS),
-                                 relative=False)[['value', 'uncertainty']
-                                                 ].dropna()
+                                    relative=False)[['value', 'uncertainty']
+                                                    ].dropna()
             self.data.index = idx
-        self.volume_normalized = True
-        self.atomic_mass_normalized = True
+            self.atomic_mass_normalized = True
         return self
 
 
