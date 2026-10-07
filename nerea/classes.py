@@ -144,16 +144,40 @@ class Xs:
         Returns
         -------
         `nerea.Xs`"""
+        return self.per_unit_mass.per_unit_volume
+
+    @property
+    def per_unit_volume(self) -> Self:
+        """
+        `nerea.Xs.per_unit_volume()`
+        -----------------------
+        Normalizes the cross section data per unit volume.
+
+        Returns
+        -------
+        `nerea.Xs`"""
         if not self.volume_normalized:
             self.data /= self.volume
+            self.volume_normalized = True
+        return self
+
+    @property
+    def per_unit_mass(self) -> Self:
+        """
+        `nerea.Xs.per_unit_mass`
+        -----------------------
+        Normalizes the cross section data per unit atomic mass.
+
+        Returns
+        -------
+        `nerea.Xs`"""
         if not self.atomic_mass_normalized:
             idx = self.data.index.copy()
             self.data = _make_df(*ratio_v_u(self.data, ATOMIC_MASS),
-                                 relative=False)[['value', 'uncertainty']
-                                                 ].dropna()
+                                    relative=False)[['value', 'uncertainty']
+                                                    ].dropna()
             self.data.index = idx
-        self.volume_normalized = True
-        self.atomic_mass_normalized = True
+            self.atomic_mass_normalized = True
         return self
 
 
@@ -261,11 +285,10 @@ class TimeSeriesImporter:
         md = {'timebase': data.Time.diff().dt.total_seconds().mean(),
               'start_time': data.Time.min(),
               'deposit_id': kwargs.get('deposit_id', DEFAULT_DETECTOR_DEPOSIT)}
-
         if formatted:
-            metadata = file.split('\\')[-1].split('.')[0]
+            metadata = file.split('\\')[-1].split('-')[0]
             md['campaign_id'], md['experiment_id'], md['detector_id'] = metadata.split('_')
-        return cls(file, kwargs | md)
+        return cls(data, kwargs | md)
 
     @classmethod
     def from_br1(cls, file: str, **kwargs) -> Self:
@@ -281,10 +304,7 @@ class TimeSeriesImporter:
             Path to the ASCII file.
         **kwargs
             additional arguments for class creation
-            **detector_id** (``int|str``): metadata for detector identification
-            **deposit_id** (``str``): metadata for detector deposit
             **experiment_id** (``str``): metadata for experiment identification
-            **campaign_id** (``str``): metadata for experimental campaign identification.
 
         Returns
         -------
@@ -294,7 +314,6 @@ class TimeSeriesImporter:
         Note
         ----
         - ``deposit_id`` set to ``'U235'`` by default if not explicitly passed
-        - ``experiment_id`` inferred from file name if `formatted == True`
         - ``campaign_id`` set to ``'CAL'`` if not explicitly passed
         - ``detector_id`` set tot ``'NBS'`` if not explicitly passed
         """
@@ -376,6 +395,8 @@ class TimeSeriesImporter:
             Type of ASCII file to process.
             Default is ``'infer'`` to infer it from
             file extension.
+        **formatted**: ``bool``, optional
+            argument for instance creation from ADS and PHSPA
         **kwargs
             additional arguments for class creation
             **detector_id** (``int|str``): metadata for detector identification
@@ -405,7 +426,7 @@ class TimeSeriesImporter:
             case 'phspa':
                 out = cls.from_phspa(file, formatted, **kwargs)
             case 'log':
-                out = cls.from_phspa(file, formatted=False, **kwargs)
+                out = cls.from_phspa(file, formatted, **kwargs)
             case 'br1':
                 out = cls.from_br1(file, **kwargs)
             case 'vf':
@@ -440,18 +461,23 @@ class TimeSeriesImporter:
         Returns
         -------
         ``nerea.CountRate``
-            A new ``CountRate`` instance."""
+            A new ``CountRate`` instance.
+            
+        Notes
+        -----
+        Filenames should be fomatted to access metadata."""
         data = []
         vlines = []
         for i, f in enumerate(files):
-            rr = cls.from_ascii(f, filetype, **kwargs)
+            rr = cls.from_ascii(f, filetype, formatted=True, **kwargs)
+            print(rr.metadata)
             data.append(rr.data)
             vlines.append(data[-1].Time.iloc[-1])
             if i == 0:
-                _kwargs = {'campaign_id': rr.campaign_id,
-                           'experiment_id': rr.experiment_id,
-                           'detector_id': rr.detector_id,
-                           'deposit_id': rr.deposit_id}
+                _kwargs = {'campaign_id': rr.metadata['campaign_id'],
+                           'experiment_id': rr.metadata['experiment_id'],
+                           'detector_id': rr.metadata['detector_id'],
+                           'deposit_id': rr.metadata['deposit_id']}
         data = pd.concat(data, ignore_index=True)
         _kwargs['timebase'] = data.Time.diff().dt.total_seconds().mean()
         _kwargs['start_time'] = data.Time.min()

@@ -54,40 +54,11 @@ class CalculatedSpectralIndex(_Calculated):
     deposit_ids: list[str]  # 0: num, 1: den
 
     @classmethod
-    def from_sts(cls, file: str, detector_name: str, **kwargs) -> Self:
-        """
-        `nerea.CalculatedSpectralIndex.from_sts()`
-        ------------------------------------------
-        Creates an instance using data extracted from a Serpent det.m
-        file for a specific detector.
-
-        Parameters
-        ----------
-        **file** : ``str``
-            The file path from which data will be read.
-        **detector_name** : ``str``
-            The name of the detector from which data will be extracted.
-
-        Returns
-        -------
-        ``nerea.CalculatedSpectralIndex``
-            An instance of the `nerea.CalculatedSpectralIndex` class created
-            from the specified file."""
-        v, u = sts.read(file).detectors[detector_name].bins[0][-2:]
-        n, d = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
-        mass_norm = ATOMIC_MASS.loc[d]['value'] / ATOMIC_MASS.loc[n]['value']
-        # Serpent detector uncertainty is relative
-        kwargs['data'] = _make_df(v * mass_norm, u * v * mass_norm
-                                  ).assign(VAR_PORT_C_n=None,
-                                           VAR_PORT_C_d=None)
-        return cls(**kwargs)
-
-    @classmethod
     def from_sts_detectors(cls,
                            file: str,
                            detector_names: dict[str, str],
-                           normalize=False,
-                           xs_kwargs: dict={},
+                           xs_n_kwargs: dict={},
+                           xs_d_kwargs: dict={},
                            **kwargs) -> Self:
         """
         `nerea.CalculatedSpectralIndex.from_sts_detectors()`
@@ -102,12 +73,18 @@ class CalculatedSpectralIndex(_Calculated):
         **detector_names** : ``dict[str, str]``
             Keys can be ``'numerator'`` or ``'denominator'``, while values are the names of
             the detectors from which data will be extracted.
-        **xs_kwargs** : ``dict``
-            Additional arguments for ``nerea.Xs`` instance creation
+        **xs_n_kwargs** : ``dict``
+            Additional arguments for ``nerea.Xs`` instance creation for numerator
                 
                 - **mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.
                 - **volume_normalized** (``bool``, optional), whether the cross section is volume-normalized.
                 - **volume** (``float``, optional), volume for volume normalization.
+        **xs_d_kwargs** : ``dict``
+                    Additional arguments for ``nerea.Xs`` instance creation for denominator
+                        
+                        - **mass_normalized** (``bool``, optional), whether the cross section is mass-normalized.
+                        - **volume_normalized** (``bool``, optional), whether the cross section is volume-normalized.
+                        - **volume** (``float``, optional), volume for volume normalization.
         *kwargs
             Additional arguments for instance creation
             
@@ -120,12 +97,12 @@ class CalculatedSpectralIndex(_Calculated):
             An instance of the `CalculatedSpectralIndex` class created from
             the specified file."""
         n_, d_ = kwargs['deposit_ids'][0], kwargs['deposit_ids'][1]
-        n = Xs.from_file(file, {n_: detector_names['numerator']}, **xs_kwargs)
-        d = Xs.from_file(file, {d_: detector_names['denominator']}, **xs_kwargs)
-        if normalize:
-            n, d = n.normalized.data, d.normalized.data
-        else:
-            n, d = n.data, d.data
+        n = Xs.from_file(file,
+                         {n_: detector_names['numerator']},
+                         **xs_n_kwargs).per_unit_volume.data
+        d = Xs.from_file(file,
+                         {d_: detector_names['denominator']},
+                         **xs_d_kwargs).per_unit_volume.data
         n.index = ['value']
         d.index = ['value']
 

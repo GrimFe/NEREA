@@ -42,22 +42,22 @@ def fission_fragment_spectrum_1(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    live_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
-                                   detector_id="C1", deposit_id="D1", location_id="E", measurement_id="F1")
+                                   detector_id="C1", deposit_id="U238", location_id="E", measurement_id="F1")
 
 @pytest.fixture
 def fission_fragment_spectrum_2(sample_spectrum_data):
     return PulseHeightSpectrum(start_time=datetime(2024, 5, 18, 20, 30, 15),
                                    live_time=10, real_time=10,
                                    data=sample_spectrum_data, campaign_id="A", experiment_id="B",
-                                   detector_id="C2", deposit_id="D2", location_id="E", measurement_id="F2")
+                                   detector_id="C2", deposit_id="U235", location_id="E", measurement_id="F2")
 
 @pytest.fixture
 def effective_mass_1(sample_integral_data):
-    return EffectiveMass(deposit_id="D1", detector_id="C1", data=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="U238", detector_id="C1", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def effective_mass_2(sample_integral_data):
-    return EffectiveMass(deposit_id="D2", detector_id="C2", data=sample_integral_data, bins=42)
+    return EffectiveMass(deposit_id="U235", detector_id="C2", data=sample_integral_data, bins=42)
 
 @pytest.fixture
 def power_monitor(sample_power_monitor_data):
@@ -81,7 +81,7 @@ def sample_c_si_data():
 
 @pytest.fixture
 def sample_c(sample_c_si_data):
-    return CalculatedSpectralIndex(sample_c_si_data, 'M', ['D1', 'D2'])
+    return CalculatedSpectralIndex(sample_c_si_data, 'M', ['U238', 'U235'])
 
 @pytest.fixture
 def sample_si_ce(sample_c, sample_spectral_index):
@@ -178,29 +178,30 @@ def sample_ce_traverse(sample_c_traverse, sample_traverse_rr):
     return _Comparison(sample_c_traverse, sample_traverse_rr)
 
 def test_deposit_ids(sample_si_ce):
-    assert sample_si_ce.deposit_ids == ['D1', 'D2']
+    assert sample_si_ce.deposit_ids == ['U238', 'U235']
 
 def test_compute_si(sample_si_ce):
-    expected_df = pd.DataFrame({'value': 1.01,
-                                'uncertainty': 0.08323682675073317,
+    m = 238.050783 / 235.043923
+
+    expected_df = pd.DataFrame({'value': 1.01 / m,
+                                'uncertainty': 0.08323682675073317 / m,
                                 'uncertainty [%]': 8.241269975320115,
-                                'VAR_PORT_C_n': 1.66666667e-03, 
-                                'VAR_PORT_C_d': 8.33333333e-04,
-                                'VAR_PORT_PHS_n': 0.0011603913092935957,
-                                'VAR_PORT_EM_n': 3.369335447218919e-05,
-                                'VAR_PORT_PM_n': 0.0010201000000000001,
-                                'VAR_PORT_t_n': 0.,
-                                'VAR_PORT_PHS_d': 0.0011603913092935955,
-                                'VAR_PORT_EM_d': 3.369335447218918e-05,
-                                'VAR_PORT_PM_d': 0.0010201000000000001,
-                                'VAR_PORT_t_d': 0.,
-                                'VAR_PORT_1GXS': 0.},
+                                'VAR_PORT_C_n': 1.66666667e-03 / m**2, 
+                                'VAR_PORT_C_d': 8.33333333e-04 / m**2,
+                                'VAR_PORT_PHS_n': 0.0011603913092935957 / m**2,
+                                'VAR_PORT_EM_n': 3.369335447218919e-05 / m**2,
+                                'VAR_PORT_PM_n': 0.0010201000000000001 / m**2,
+                                'VAR_PORT_t_n': 0. / m**2,
+                                'VAR_PORT_PHS_d': 0.0011603913092935955 / m**2,
+                                'VAR_PORT_EM_d': 3.369335447218918e-05 / m**2,
+                                'VAR_PORT_PM_d': 0.0010201000000000001 / m**2,
+                                'VAR_PORT_t_d': 0. / m**2,
+                                'VAR_PORT_1GXS': 0. / m**2},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                                   sample_si_ce.compute(
                                       numerator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      atomic_mass_normalized=True),
+                                      denominator_kwargs={'raw_integral': False, 'renormalize': False}),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
@@ -215,26 +216,27 @@ def test_compute_traverse(sample_ce_traverse, monitor1, monitor2):
     pd.testing.assert_frame_equal(expected_df, sample_ce_traverse.compute(monitors=[monitor1, monitor2]))
 
 def test_minus_one_per_cent(sample_si_ce):
-    expected_df = pd.DataFrame({'value': 1.,
-                                'uncertainty': 8.323682675073316,
+    m = 238.050783 / 235.043923
+
+    expected_df = pd.DataFrame({'value': (1.01 / m - 1) * 100,
+                                'uncertainty': 8.323682675073316 / m,
                                 'uncertainty [%]': np.nan,
-                                'VAR_PORT_C_n': 16.66666667, 
-                                'VAR_PORT_C_d': 8.33333333,
-                                'VAR_PORT_PHS_n': 11.603913092935958,
-                                'VAR_PORT_EM_n': 0.33693354472189185,
-                                'VAR_PORT_PM_n': 10.201,
-                                'VAR_PORT_t_n': 0.,
-                                'VAR_PORT_PHS_d': 11.603913092935956,
-                                'VAR_PORT_EM_d': 0.3369335447218918,
-                                'VAR_PORT_PM_d': 10.201,
-                                'VAR_PORT_t_d': 0.,
-                                'VAR_PORT_1GXS': 0.},
+                                'VAR_PORT_C_n': 16.66666667 / m**2,
+                                'VAR_PORT_C_d': 8.33333333 / m**2,
+                                'VAR_PORT_PHS_n': 11.603913092935958 / m**2,
+                                'VAR_PORT_EM_n': 0.33693354472189185 / m**2,
+                                'VAR_PORT_PM_n': 10.201 / m**2,
+                                'VAR_PORT_t_n': 0. / m**2,
+                                'VAR_PORT_PHS_d': 11.603913092935956 / m**2,
+                                'VAR_PORT_EM_d': 0.3369335447218918 / m**2,
+                                'VAR_PORT_PM_d': 10.201 / m**2,
+                                'VAR_PORT_t_d': 0. / m**2,
+                                'VAR_PORT_1GXS': 0. / m**2},
                                 index=['value'])
     pd.testing.assert_frame_equal(expected_df,
                                   sample_si_ce.minus_one_percent(
                                       numerator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      denominator_kwargs={'raw_integral': False, 'renormalize': False},
-                                      atomic_mass_normalized=True),
+                                      denominator_kwargs={'raw_integral': False, 'renormalize': False}),
                                   check_exact=False, atol=0.00001)
     # check that sum(VAR_PORT) == uncertainty **2
     np.testing.assert_almost_equal(expected_df[[c for c in expected_df.columns if c.startswith("VAR_PORT")]].sum(axis=1).iloc[0],
