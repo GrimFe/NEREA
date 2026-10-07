@@ -999,8 +999,7 @@ class SpectralIndex(_Experimental):
                 one_g_xs_file: str = None,
                 nuc_dec_from_file : dict[str, str] = None,
                 numerator_kwargs: dict={},
-                denominator_kwargs: dict={},
-                atomic_mass_normalized: bool=False) -> pd.DataFrame:
+                denominator_kwargs: dict={}) -> pd.DataFrame:
         """
         `nerea.SpectralIndex.process()`
         -------------------------------
@@ -1076,31 +1075,34 @@ class SpectralIndex(_Experimental):
             - ``self.pulse_height_spectrum.get_max()``
                 - **fst_ch** (``int | str``): channel to start max search or max search method.
 
-        **atomic_mass_normalized** : ``bool``, optional
-            defines whether the result is the ratio of fission rates or of
-            fission rates per unit mass.
-            Default is ``False``.
-
         Returns
         -------
         ``pd.DataFrame``
-            with ``'value'`` and ``'uncertainty'`` columns.
-            
-        Note
-        ----
-        - Working in the effective mass framework, it is assumed that all cross sections
-        for impurities are mass-normalized (nerea.Xs.normalized). Then the processed 
-        spectral index result is multiplied by the ratio between numerator and denominator
-        atomic mass to be consistent with the definition of one-group cross section ratio.
-        Else the ``atomic_mass_normalized`` argument should be used passing consistent one group
-        cross sections for impurity correction."""
+            with ``'value'`` and ``'uncertainty'`` columns."""
+        ## MEASURED PART
         if numerator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
         if denominator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX DENOMINATOR.")
         den = self.denominator.process(**denominator_kwargs)
+        # spectral index with atomic mass dependency
         v, u = ratio_v_u(num, den)
+        # normalizing atomic mass dependency out
+        # see eq. 7.13 in F. Grimaldi's Ph.D. thesis
+        # Avogadro number simplified and hence absent here
+        
+        # atomic mass ratio for EM renormalization
+        # assumed to have no uncertainty
+        # I multiply numerator and denominator by A to
+        # allow for comparison with Serpent fission
+        # rate tally directly
+        an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
+        ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
+        mass_ratio = an / ad
+        v *= mass_ratio
+        u *= mass_ratio
+        ## CALCULATED PART - Impurity Correction
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
@@ -1109,40 +1111,23 @@ class SpectralIndex(_Experimental):
             read = Xs.from_file(one_g_xs_file, nuc_dec_from_file)
         else:
             read = None
-
         one_g_xs_ = read if one_g_xs is None else one_g_xs
         if one_g_xs_ is not None:
             k = self._compute_correction(one_g_xs_)
             v = v - k.value
             u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None
-
-        # atomic mass ratio for EM renormalization
-        # see docstring note
-        # assumed to have no uncertainty
-        if not atomic_mass_normalized:
-            # I multiply numerator and denominator by A to
-            # allow for comparison with Serpent fission
-            # rate tally directly
-            an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
-            ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
-            mass_ratio = an / ad
-        else:
-            mass_ratio = 1
-        df = _make_df(v * mass_ratio, u * mass_ratio)
-
-        # compute fraction of variance
+        ## RESULT
+        df = _make_df(v, u)
+        ## PORTION OF VARIANCE
         var_cols = [c for c in num.columns if c.startswith("VAR_PORT")]
-        
         var_num = num[var_cols] / den['value'].value **2 * mass_ratio **2
         var_num.columns = [f"{c}_n" for c in var_cols]
-
         var_den = den[var_cols] * (num['value'] / den['value'] **2).value **2 * mass_ratio **2
         var_den.columns = [f"{c}_d" for c in var_cols]
-
         # concatenate variances to `df`
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
-                                    VAR_PORT_1GXS=(k.uncertainty * mass_ratio) **2 if k is not None else 0.
+                                    VAR_PORT_1GXS=(k.uncertainty) **2 if k is not None else 0.
                                     )
         return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
 
