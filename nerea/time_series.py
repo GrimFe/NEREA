@@ -651,7 +651,7 @@ class CountRate(TimeSeries):
             from scipy import optimize
             def dead_time_correction(n, m, tp, tnp): 
                 # Equation for dead time correction
-                return n / ((1 - tp / tnp) * n * tp + np.exp(tp * n)) - m
+                return n / ((1 - tnp / tp) * n * tp + np.exp(tp * n)) - m
             if self._dead_time_corrected:
                 logger.info("Dead time correction already applied to this detector.")
             pm = self.data.copy()
