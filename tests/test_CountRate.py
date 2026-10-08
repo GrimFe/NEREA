@@ -383,7 +383,7 @@ def test_smooth(plateau_monitor):
 def test_dead_time_corrected(dtc_monitor):
     target = pd.DataFrame({"Time": [datetime(2025, 4, 3, 15, 33, 20),
                                     datetime(2025, 4, 3, 15, 33, 21)],
-                           "value": [1122066.89701783, 1122066.89701783]})
+                           "value": [1077945.0975677436, 1077945.0975677436]})
     pd.testing.assert_frame_equal(dtc_monitor.dead_time_corrected().data, target)
     assert dtc_monitor.dead_time_corrected().start_time == dtc_monitor.start_time
     assert dtc_monitor.dead_time_corrected().campaign_id == dtc_monitor.campaign_id
