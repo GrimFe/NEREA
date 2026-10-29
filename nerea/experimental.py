@@ -1,20 +1,23 @@
 import serpentTools as sts  ## impurity correction
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import Self
 
 from .pulse_height_spectrum import PulseHeightSpectrum
 from .effective_mass import EffectiveMass
-from .count_rate import CountRate, CountRates
+from .time_series import CountRate, CountRates, Position
 from .utils import ratio_v_u, product_v_u, _make_df
 from .functions import impurity_correction
 from .constants import ATOMIC_MASS
 from .defaults import *
-from .classes import Xs
+from .classes import Xs, TimeSeriesImporter
 
 import pandas as pd
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
+from datetime import timedelta
+from inspect import signature
 
 import logging
 
@@ -934,7 +937,8 @@ class SpectralIndex(_Experimental):
             If xs is not given for all impurities."""
         comp = self.numerator.effective_mass.composition_.copy()
         # sum over impurities != self.numerator.deposit_id
-        return impurity_correction(one_g_xs, comp, drop_main=True,
+        ogx = one_g_xs.per_unit_volume
+        return impurity_correction(ogx, comp, drop_main=True,
                                    xs_den=self.denominator.deposit_id,
                                    relative = True if comp.shape[0] != 0 else False
                                    ).dropna()
@@ -995,8 +999,7 @@ class SpectralIndex(_Experimental):
                 one_g_xs_file: str = None,
                 nuc_dec_from_file : dict[str, str] = None,
                 numerator_kwargs: dict={},
-                denominator_kwargs: dict={},
-                mass_normalized: bool=False) -> pd.DataFrame:
+                denominator_kwargs: dict={}) -> pd.DataFrame:
         """
         `nerea.SpectralIndex.process()`
         -------------------------------
@@ -1072,31 +1075,34 @@ class SpectralIndex(_Experimental):
             - ``self.pulse_height_spectrum.get_max()``
                 - **fst_ch** (``int | str``): channel to start max search or max search method.
 
-        **mass_normalized** : ``bool``, optional
-            defines whether the result is the ratio of fission rates or of
-            fission rates per unit mass.
-            Default is ``False``.
-
         Returns
         -------
         ``pd.DataFrame``
-            with ``'value'`` and ``'uncertainty'`` columns.
-            
-        Note
-        ----
-        - Working in the effective mass framework, it is assumed that all cross sections
-        for impurities are mass-normalized (nerea.Xs.normalized). Then the processed 
-        spectral index result is multiplied by the ratio between numerator and denominator
-        atomic mass to be consistent with the definition of one-group cross section ratio.
-        Else the ``mass_normalized`` argument should be used passing consistent one group
-        cross sections for impurity correction."""
+            with ``'value'`` and ``'uncertainty'`` columns."""
+        ## MEASURED PART
         if numerator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX NUMERATOR.")
         num = self.numerator.process(**numerator_kwargs)
         if denominator_kwargs.get('verbose', False):
             logger.info("PROCESSING SPECTRAL INDEX DENOMINATOR.")
         den = self.denominator.process(**denominator_kwargs)
+        # spectral index with atomic mass dependency
         v, u = ratio_v_u(num, den)
+        # normalizing atomic mass dependency out
+        # see eq. 7.13 in F. Grimaldi's Ph.D. thesis
+        # Avogadro number simplified and hence absent here
+        
+        # atomic mass ratio for EM renormalization
+        # assumed to have no uncertainty
+        # I multiply numerator and denominator by A to
+        # allow for comparison with Serpent fission
+        # rate tally directly
+        an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
+        ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
+        mass_ratio = an / ad
+        v *= mass_ratio
+        u *= mass_ratio
+        ## CALCULATED PART - Impurity Correction
         if (one_g_xs is None and one_g_xs_file is None
             and self.numerator.effective_mass.composition_.shape[0] > 1):
             warnings.warn("Impurities in the fission chambers require one group xs" +\
@@ -1105,39 +1111,26 @@ class SpectralIndex(_Experimental):
             read = Xs.from_file(one_g_xs_file, nuc_dec_from_file)
         else:
             read = None
-
         one_g_xs_ = read if one_g_xs is None else one_g_xs
         if one_g_xs_ is not None:
-            k = self._compute_correction(one_g_xs_.normalized)
+            k = self._compute_correction(one_g_xs_)
             v = v - k.value
             u = np.sqrt(u **2 + k.uncertainty **2)
         else: k = None
-
-        # atomic mass ratio for EM renormalization
-        # see docstring note
-        # assumed to have no uncertainty
-        if not mass_normalized:
-            an = ATOMIC_MASS.loc[self.numerator.deposit_id].value 
-            ad = ATOMIC_MASS.loc[self.denominator.deposit_id].value 
-            mass_ratio = an / ad
-        else:
-            mass_ratio = 1
-        df = _make_df(v * mass_ratio, u * mass_ratio)
-
-        # compute fraction of variance
+        ## RESULT
+        df = _make_df(v, u)
+        ## PORTION OF VARIANCE
         var_cols = [c for c in num.columns if c.startswith("VAR_PORT")]
-        
         var_num = num[var_cols] / den['value'].value **2 * mass_ratio **2
         var_num.columns = [f"{c}_n" for c in var_cols]
-
         var_den = den[var_cols] * (num['value'] / den['value'] **2).value **2 * mass_ratio **2
         var_den.columns = [f"{c}_d" for c in var_cols]
-
         # concatenate variances to `df`
         df =  pd.concat([df, var_num, var_den], axis=1).assign(
-                                    VAR_PORT_1GXS=(k.uncertainty * mass_ratio) **2 if k is not None else 0.
+                                    VAR_PORT_1GXS=(k.uncertainty) **2 if k is not None else 0.
                                     )
         return pd.concat([df, self._get_long_output(num, den, k)], axis=1)
+
 
 @dataclass(slots=True)
 class Traverse(_Experimental):
@@ -1154,9 +1147,15 @@ class Traverse(_Experimental):
         ``key`` is the position identifier, ``value`` is the 
         corresponding ``nerea.CountRate`` or `nerea`.CountRates``.
         If ``nerea.CountRates``, the first is considered.
+    **position_uncertainty** : ``Iterable[float] | None``, optional
+        ``count_rates.keys()``-long iterable with the uncertainty
+        of each position.
+        Defaults to ``None`` for ``np.nan`` uncertainty at each
+        position.
     _enable_checks: ``bool``, optoinal
         flag enabling consistency checks. Default is ``True``."""
     count_rates: dict[str, CountRate | CountRates]
+    position_uncertainty: Iterable[float] | None=None
     _enable_checks: bool = True
     
     def __post_init__(self):
@@ -1199,7 +1198,6 @@ class Traverse(_Experimental):
                 normalization: int|str=None,
                 visual: bool=False,
                 savefig: str='',
-                palette: str='tab10',
                 **kwargs) -> pd.DataFrame:
         """
         ``nerea.Traverse.process()``
@@ -1224,46 +1222,59 @@ class Traverse(_Experimental):
         **savefig** : ``str``, optional
             File name to save the plotted data to.
             Default is `''` for not saving.
-        **palette** : ``str``, optional
-            Color palette to use for plotting.
-            Default is ``'tab10'``.
         **kwargs
             for `nerea.CountRate.plateau()`.
 
             - **sigma** (``int``): standard deviations for plateau finding
             - **timebase** (``int``): time base for integration in plateau search.
+            - **check_count_rate_plateau** (``bool``) consider count rate plateau only.
         
         Returns
         -------
         ``pd.DataFrame``
             with ``'value'``, ``'uncertainty'``, ``'uncertainty [%]'`` and
-            ``'traverse'`` columns.
+            ``'position'`` columns.
 
         Note
         ----
-        - Working with ``nerea.CountRates`` instances, the first count rate is used."""
+        - Working with ``nerea.CountRates`` instances, the first count rate is used.
+        - ``normalization`` < 0 is interpreted as no normalization."""
         normalized, m = {}, 0
         # Normalize to power
         for i, (k, rr) in enumerate(self.count_rates.items()):
             n = rr.per_unit_time_power(monitors[i], **kwargs)
             normalized[k] = n if isinstance(rr, CountRate) else list(n.values())[0]
             if normalized[k]['value'].value > m:
-                max_k, m = k, normalized[k].value[0]
-        norm_k = max_k if normalization is None else normalization
+                max_k, m = k, normalized[k].value.iloc[0]
+        if normalization is None:
+            normalization_ = normalized[max_k]
+        elif isinstance(normalization, str) or (isinstance(normalization, int)
+                                                and normalization >= 0):
+            normalization_ = normalized[normalization]
+        elif isinstance(normalization, int) and normalization < 0:
+            normalization_ = _make_df(1, 0)
+        else:
+            raise ValueError(f"Passed invalid normalization value: {normalization}.")
         out = []
         for k, v in normalized.items():
-            out.append(_make_df(*ratio_v_u(v, normalized[norm_k])).assign(traverse=k))
+            out.append(_make_df(*ratio_v_u(v, normalization_)).assign(position=k))
         # plot
         if visual or savefig:
-            fig, _ = self.plot(monitors, palette, **kwargs)
+            fig, _ = self.plot(monitors, **kwargs)
             if savefig:
                 fig.savefig(savefig)
                 plt.close()
-        return pd.concat(out, ignore_index=True)
+        if self.position_uncertainty is None:
+            up = [np.nan] * len(self.count_rates.keys())
+        elif len(self.position_uncertainty) != len(self.count_rates.keys()):
+            warnings.warn("`position_uncertainty` does not match the size of `count_rates`.")
+            up = [np.nan] * len(self.count_rates.keys())
+        else:
+            up = self.position_uncertainty
+        return pd.concat(out, ignore_index=True).assign(position_uncertainty=up)
 
     def plot(self,
              monitors: Iterable[CountRate| int],
-             palette: str='tab10',
              **kwargs) -> tuple[plt.Figure, Iterable[plt.Axes]]:
         """
         ``nerea.Traverse.plot()``
@@ -1278,9 +1289,6 @@ class Traverse(_Experimental):
             and ``int`` when mapped to ``nerea.CountRates``. The normalization
             is passed to ``CountRate.per_unit_time_power()`` or
             ``CountRates.per_unit_time_power()``.
-        **palette** : ``str``, optional
-            plt palette to use for plotting.
-            Default is ``'tab10'``.
         **kwargs
             for `nerea.CountRate.plateau()`.
             - **sigma** (``int``): standard deviations for plateau finding
@@ -1289,24 +1297,130 @@ class Traverse(_Experimental):
         Returns
         -------
         ``tuple[plt.Figure, Iterable[plt.Axes]]``"""
+        import matplotlib.colors as mcolors
         fig, axs = plt.subplots(len(self.count_rates), 2,
-                              figsize=(15, 30 / len(self.count_rates)))
-        j = 0
+                              figsize=(15, 3 * len(self.count_rates)))
+        colors = plt.cm.hsv(np.linspace(0, 1, len(self.count_rates.keys())))
         for i, (k, rr) in enumerate(self.count_rates.items()):
-            c = plt.get_cmap(palette)(j)
-            plat = rr.plateau(**kwargs)
+            c = mcolors.to_hex(colors[i])
+            use_plateau = kwargs.get('check_count_rate_plateau', False)
+            if use_plateau:
+                kw = {k: v for k, v in kwargs.items() if k in signature(CountRate.plateau)}
+                plat = rr.plateau(**kw)
+            else:
+                plat = rr.data
             dur = (plat.Time.max() - plat.Time.min()).total_seconds()
             # plot data
-            rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0], c=c)
-            axs[i][0].plot([], [], c=c, label=f"Traverse count rate {k}")
+            rr.plot(start_time=plat.Time.min(), duration=dur, ax=axs[i][0],
+                    c=c, label=f"{i}: {k:.0f} mm")
+            axs[i][0].set_ylabel("Traverse Count Rate [1/s]")
             # plot monitor
-            axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1], c=c)
-            axs[i][1].plot([], [], c=c, label=f"Monitor count rate {k}")
-
-            h, l = axs[i][0].get_legend_handles_labels()
-            axs[i][0].legend(h[1:], l[1:])
-            h, l = axs[i][1].get_legend_handles_labels()
-            axs[i][1].legend(h[1:], l[1:])
-
-            j = j + 1 if i < plt.get_cmap(palette).N else 0
+            axs[i][1] = monitors[i].plot(plat.Time.min(), dur, ax=axs[i][1],
+                    c=c, label=f"{i}: {k:.0f} mm")
         return fig, axs
+    
+    @classmethod
+    def from_countrate_position(cls,
+                                count_rate: CountRate,
+                                position: Position,
+                                plateau_kw: dict={},
+                                visual: bool=False,
+                                **kwargs) -> Self:
+        """
+        `nerea.Traverse.from_countrate_position()`
+        ------------------------------------------
+        Creates an instance of ``nerea.Traverse`` filtering
+        count rate data on position plateau.
+
+        Parameters
+        ----------
+        **count_rate** : ``nerea.CountRate``
+            count rate data of the traverse.
+        **position** : ``nerea.Position``
+            position data to base the filter on.
+        **plateau_kw** : ``dict``, optional
+            paramters for position plateau search.
+            Default is {}.
+        **visual** : ``bool``, optional
+            flag to visualize the imported data.
+            Default is {}.
+
+        **kwargs
+            additional arguments for class creation
+            - **_enable_checks**: turns consistency checks on/off.
+
+        Returns
+        -------
+        ``nerea.Traverse``
+            with filtered information.
+        
+        Notes
+        -----
+        ``self.position_uncertainty`` computed as standard error of
+        position data."""
+        plateau = position.plateau(**plateau_kw)
+        if visual:
+            fig, ax = plt.subplots(figsize=(15, 5), ncols=2)
+            position.plot_data(ax=ax[0])
+            colors = plt.cm.hsv(np.linspace(0, 1, plateau.shape[1]))
+        out = {}
+        up = []
+        for i, p in plateau.T.iterrows():
+            st = p['start']
+            et = p['end'] + timedelta(seconds=position.timebase)
+            d = (et - st).total_seconds()
+            cut = count_rate.cut(st, et)
+            avg = position.average(st, d, uncertainty='sem')
+            pos = avg['value'].value
+            up.append(avg['uncertainty'].value)
+            out[pos] = cut
+            if visual:
+                import matplotlib.colors as mcolors
+                c = mcolors.to_hex(colors[i])
+                position.plot_data(st, d, ax=ax[0], c=c, label=i)
+                cc = 'gray' if i%2 else 'pink'
+                ax[0].axvspan(p['start'], p['end'], alpha=0.5, color=cc)
+                cut.plot(ax=ax[1], c=c)
+        return cls(out, np.array(up), **kwargs)
+
+    @classmethod
+    def from_ascii(cls,
+                   file: str,
+                   detector_kw: dict,
+                   position_kw: dict,
+                   plateau_kw: dict={},
+                   visual: bool=False,
+                   **kwargs) -> Self:
+        """
+        `nerea.Traverse.from_countrate_position()`
+        ------------------------------------------
+        Creates an instance of ``nerea.Traverse`` filtering
+        count rate data on position plateau. Reading data from
+        an ASCII file.
+
+        Parameters
+        ----------
+        **file** : ``str``
+            path to the ASCII file.
+        **detector_kw** : ``dict``
+            arguments for ``nerea.TimeSeriesImporter`` to read detector data.
+        **position_kw** : ``dict``
+            arguments for ``nerea.TimeSeriesImporter`` to read position data.
+        **plateau_kw** : ``dict``, optional
+            paramters for position plateau search.
+            Default is {}.
+        **visual** : ``bool``, optional
+            flag to visualize the imported data.
+            Default is {}.
+
+        **kwargs
+            additional arguments for class creation
+            - **_enable_checks**: turns consistency checks on/off.
+
+        Returns
+        -------
+        ``nerea.Traverse``
+            initialized with the data from the ASCII file."""
+        detector = CountRate.from_importer(TimeSeriesImporter.from_ascii(file, **detector_kw))
+        position = Position.from_importer(TimeSeriesImporter.from_ascii(file, **position_kw))
+        return cls.from_countrate_position(detector, position, plateau_kw, visual, **kwargs)

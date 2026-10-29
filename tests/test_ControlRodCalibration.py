@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from nerea.control_rod import *
-from nerea.count_rate import CountRate
+from nerea.time_series import CountRate
 from nerea.classes import EffectiveDelayedParams
 from nerea.utils import _make_df
 
@@ -43,7 +43,8 @@ def rrs(periods):
                                     experiment_id="TEST01",
                                     detector_id="DET",
                                     deposit_id="DEP",
-                                    _dead_time_corrected=True).cut(ts, te)
+                                    _dead_time_corrected=True,
+                                    timebase=1.).cut(ts, te)
     return counts
 
 @pytest.fixture
